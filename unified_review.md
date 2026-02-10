@@ -1,5 +1,12 @@
 # 統合レビュー：統一分析と推奨事項
 
+> **ドキュメント種別**: レビュー（Unified Review）
+> **位置づけ**: [`project_onboarding_guide_objective_free_alife.md`](project_onboarding_guide_objective_free_alife.md)（初期提案書）に対する2件の独立した研究者レビューを統合・整理したもの。理論的懸念点・実験設計の不備・先行研究の不足を重大度順に指摘する。
+>
+> **関連ドキュメント**:
+> - ← [`project_onboarding_guide_objective_free_alife.md`](project_onboarding_guide_objective_free_alife.md) — レビュー対象の初期提案書。
+> - → [`spec.md`](spec.md) — 本レビューの指摘を反映して策定した正式な実装仕様書。
+
 両レビューの論点を統合し、重大度順に整理する。
 
 ---
