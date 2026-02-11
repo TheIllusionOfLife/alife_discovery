@@ -315,7 +315,6 @@ def run_batch_search(
                         grid_height=world_cfg.grid_height,
                     )
                 )
-                metric_columns["quasi_periodicity_peaks"].append(None)
                 metric_columns["phase_transition_max_delta"].append(running_phase_transition_delta)
                 metric_columns["neighbor_mutual_information"].append(
                     neighbor_mutual_information(
