@@ -1,43 +1,102 @@
-# Repository Guidelines
+# AGENTS.md
 
-## Project Structure & Module Organization
-This repository is currently spec-driven. Core documents at the root are:
-- `spec.md`: authoritative implementation spec (use this as source of truth)
-- `project_onboarding_guide_objective_free_alife.md`: original proposal/context
-- `unified_review.md`: consolidated review and rationale for spec changes
+Agent-facing repository instructions for `objectless_alife`.
 
-When implementing the PoC, follow the module split defined in the spec:
-- `world.py`, `rules.py`, `filters.py`, `metrics.py`, `run_search.py`
-- Tests should mirror modules under `tests/` (for example, `tests/test_world.py`).
+## Scope And Priority
 
-## Build, Test, and Development Commands
-Requirements: Python 3.11 or later, `uv` installed.
+- `spec.md` is the authoritative behavior contract.
+- `docs/legacy/*` is historical context only.
+- If docs conflict, follow `spec.md` and update other docs in the same change.
 
-Use `uv` for Python environment and tooling.
-- `uv venv && uv sync --extra dev`: create/sync local environment from `pyproject.toml`
-- `uv run pytest -q`: run test suite
-- `uv run ruff check .`: lint
-- `uv run ruff format .`: format code
+## Environment And Tooling
 
-## Coding Style & Naming Conventions
-- Python: 4-space indentation, type hints on public APIs, small pure functions where possible.
-- Naming: `snake_case` for files/functions/variables, `PascalCase` for classes, `UPPER_SNAKE_CASE` for constants.
-- Keep simulation logic deterministic via explicit seeds (`rule_seed`, `sim_seed`) and pass RNG dependencies explicitly.
-- Prefer simple data structures first; only add abstractions when repeated patterns emerge.
+- Python ecosystem uses `uv` only.
+- Required Python version: 3.11+
+- Install dependencies:
 
-## Testing Guidelines
-Follow TDD: write tests first, confirm failure, implement, then refactor.
-- Framework: `pytest`
-- Test file names: `test_<module>.py`
-- Test names: `test_<behavior>_<condition>`
-- Include deterministic seed-based tests and edge cases (halt detection, state uniformity, collision handling).
+```bash
+uv venv
+uv sync --extra dev
+```
 
-## Commit & Pull Request Guidelines
-Commit messages in this repo are short, imperative, and specific (for example, `Add implementation spec and cross-reference all documents`).
-- Keep subject lines concise and action-oriented.
-- One logical change per commit.
-- PRs should include: purpose, key design decisions, test evidence (`uv run pytest` output summary), and related issue/spec section.
-- Do not push to `main`; use feature branches such as `feat/<topic>` or `docs/<topic>`.
+- Run commands via `uv run ...`; do not call global tools directly.
 
-## Guidance for Automated Tools and AI Agents
-Do not treat proposal/review docs as normative when they conflict with `spec.md`. Implement behavior from `spec.md` first, then update docs/tests together.
+## Non-Obvious Commands
+
+- Batch search (phase 1 baseline):
+
+```bash
+uv run python -m src.run_search --phase 1 --n-rules 100 --out-dir data
+```
+
+- Experiment mode (phase comparison):
+
+```bash
+uv run python -m src.run_search --experiment --phases 1,2 --seed-batches 3 --n-rules 100 --steps 200 --out-dir data
+```
+
+- Visualization CLI:
+
+```bash
+uv run python -m src.visualize --simulation-log data/logs/simulation_log.parquet --metrics-summary data/logs/metrics_summary.parquet --rule-json data/rules/<rule_id>.json --output output/preview.gif --fps 8
+```
+
+## Code Style And Architecture Rules
+
+- 4-space indentation, type hints on public APIs.
+- Keep deterministic behavior by explicit seed handling (`rule_seed`, `sim_seed`).
+- Keep world dynamics and metrics decoupled:
+  - Simulation logic stays in `src/world.py` and `src/run_search.py`.
+  - Metric calculations stay in `src/metrics.py`.
+- Keep filters as detectors (decision logic), not as scoring functions.
+- Preserve observation phase compatibility:
+  - Phase 1 table size: 20
+  - Phase 2 table size: 100
+- Do not introduce implicit objectives into filtering/selection logic.
+
+## Testing And Validation
+
+Preferred runner and checks:
+
+```bash
+uv run ruff check .
+uv run ruff format . --check
+uv run pytest -q
+```
+
+- Add or update tests under `tests/` mirroring source modules.
+- For behavior changes, include deterministic seed-based tests.
+- Validate both normal run and experiment mode when touching `src/run_search.py`.
+
+## Repository Etiquette
+
+- Create a feature branch before making changes.
+  - Recommended prefixes: `feat/`, `fix/`, `chore/`, `docs/`
+- Never push directly to `main`.
+- Keep commit messages short, imperative, and single-purpose.
+- PRs should include:
+  - Purpose and scope
+  - Design decisions tied to `spec.md`
+  - Local verification summary (`ruff`, `pytest`)
+
+## CI Expectations
+
+Current CI (`.github/workflows/ci.yml`) validates:
+- `uv sync --extra dev`
+- `uv run ruff check .`
+- `uv run ruff format . --check`
+- `uv run pytest -q`
+
+Mirror these checks locally before opening a PR.
+
+## Developer Environment Quirks
+
+- `data/` and `output/` are generated artifact directories and should remain untracked.
+- `src.visualize` defaults `--base-dir` to current directory; absolute paths outside that base are rejected unless base-dir is explicitly set.
+- Large experiment workloads are bounded in `src/run_search.py` by `MAX_EXPERIMENT_WORK_UNITS`.
+
+## Common Gotchas
+
+- `state_uniform` is an immediate termination condition; this is intentional.
+- `action` in simulation logs records intended action, not movement success.
+- Sequential random updates mean early agent updates affect later observations in the same step.
