@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import itertools
 import json
 import math
 from collections import deque
@@ -12,6 +13,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 
 from src.filters import (
+    ACTION_SPACE_SIZE,
     HaltDetector,
     LowActivityDetector,
     ShortPeriodDetector,
@@ -223,7 +225,7 @@ def run_batch_search(
                 deque(maxlen=block_window * 2) if block_window > 0 else None
             )
             per_agent_action_counts: list[list[int]] = [
-                [0] * 9 for _ in range(world_cfg.num_agents)
+                [0] * ACTION_SPACE_SIZE for _ in range(world_cfg.num_agents)
             ]
             per_agent_action_totals: list[int] = [0] * world_cfg.num_agents
             per_agent_entropies: list[float] = [0.0] * world_cfg.num_agents
@@ -289,9 +291,9 @@ def run_batch_search(
                     snapshot_bytes_window is not None
                     and len(snapshot_bytes_window) >= block_window * 2
                 ):
-                    windowed = tuple(snapshot_bytes_window)
-                    prev_block = b"".join(windowed[:block_window])
-                    curr_block = b"".join(windowed[block_window:])
+                    windowed = iter(snapshot_bytes_window)
+                    prev_block = b"".join(itertools.islice(windowed, block_window))
+                    curr_block = b"".join(itertools.islice(windowed, block_window))
                     block_ncd_value = block_ncd(prev_block, curr_block)
 
                 action_entropy_mean, action_entropy_var = _mean_and_pvariance(per_agent_entropies)
