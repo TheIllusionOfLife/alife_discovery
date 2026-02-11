@@ -5,11 +5,15 @@ from typing import Sequence
 
 
 class TerminationReason(str, Enum):
+    """Termination reason labels persisted in run metadata."""
+
     HALT = "halt"
     STATE_UNIFORM = "state_uniform"
 
 
 class HaltDetector:
+    """Detect N consecutive unchanged snapshots."""
+
     def __init__(self, window: int) -> None:
         if window < 1:
             raise ValueError("window must be >= 1")
@@ -18,6 +22,7 @@ class HaltDetector:
         self._unchanged_count = 0
 
     def observe(self, snapshot: tuple[tuple[int, int, int, int], ...]) -> bool:
+        """Return True once snapshot has remained unchanged for `window` checks."""
         if self._last_snapshot is None:
             self._last_snapshot = snapshot
             return False
@@ -32,7 +37,10 @@ class HaltDetector:
 
 
 class StateUniformDetector:
+    """Detect whether all agents currently share the same internal state."""
+
     def observe(self, states: Sequence[int]) -> bool:
+        """Return True only when all states are equal and input is non-empty."""
         if not states:
             return False
         return len(set(states)) == 1

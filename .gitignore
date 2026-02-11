@@ -4,6 +4,5 @@ __pycache__/
 *.pyc
 
 # Generated outputs
-data/rules/
-data/logs/
+data/
 output/

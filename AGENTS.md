@@ -11,13 +11,13 @@ When implementing the PoC, follow the module split defined in the spec:
 - Tests should mirror modules under `tests/` (for example, `tests/test_world.py`).
 
 ## Build, Test, and Development Commands
+Requirements: Python 3.11 or later, `uv` installed.
+
 Use `uv` for Python environment and tooling.
-- `uv venv && uv sync`: create/sync local environment from project metadata
+- `uv venv && uv sync --extra dev`: create/sync local environment from `pyproject.toml`
 - `uv run pytest -q`: run test suite
 - `uv run ruff check .`: lint
 - `uv run ruff format .`: format code
-
-If project metadata is not yet present, add it before implementation and keep commands unchanged.
 
 ## Coding Style & Naming Conventions
 - Python: 4-space indentation, type hints on public APIs, small pure functions where possible.
@@ -39,5 +39,5 @@ Commit messages in this repo are short, imperative, and specific (for example, `
 - PRs should include: purpose, key design decisions, test evidence (`uv run pytest` output summary), and related issue/spec section.
 - Do not push to `main`; use feature branches such as `feat/<topic>` or `docs/<topic>`.
 
-## Agent-Specific Notes
+## Guidance for Automated Tools and AI Agents
 Do not treat proposal/review docs as normative when they conflict with `spec.md`. Implement behavior from `spec.md` first, then update docs/tests together.

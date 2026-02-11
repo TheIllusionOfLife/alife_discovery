@@ -1,3 +1,5 @@
+import pytest
+
 from src.rules import ObservationPhase
 from src.world import Agent, World, WorldConfig
 
@@ -55,3 +57,41 @@ def test_sequential_update_changes_later_observation() -> None:
     # deterministic order from seed should keep positions valid and non-overlapping
     agents = [world.get_agent(0), world.get_agent(1)]
     assert len({(a.x, a.y) for a in agents}) == 2
+
+
+def test_from_agents_sorts_and_validates_agent_ids() -> None:
+    config = WorldConfig(grid_width=5, grid_height=5, num_agents=3, steps=1)
+    world = World.from_agents(
+        config,
+        [
+            Agent(agent_id=2, x=2, y=0, state=0),
+            Agent(agent_id=0, x=0, y=0, state=0),
+            Agent(agent_id=1, x=1, y=0, state=0),
+        ],
+        sim_seed=1,
+    )
+
+    assert [agent.agent_id for agent in world.agents] == [0, 1, 2]
+
+
+def test_from_agents_rejects_non_contiguous_ids() -> None:
+    config = WorldConfig(grid_width=5, grid_height=5, num_agents=3, steps=1)
+
+    with pytest.raises(ValueError):
+        World.from_agents(
+            config,
+            [
+                Agent(agent_id=0, x=0, y=0, state=0),
+                Agent(agent_id=2, x=1, y=0, state=0),
+                Agent(agent_id=3, x=2, y=0, state=0),
+            ],
+            sim_seed=1,
+        )
+
+
+def test_apply_action_rejects_invalid_action() -> None:
+    config = WorldConfig(grid_width=5, grid_height=5, num_agents=1, steps=1)
+    world = World.from_agents(config, [Agent(agent_id=0, x=0, y=0, state=0)], sim_seed=1)
+
+    with pytest.raises(ValueError):
+        world.apply_action(agent_id=0, action=9)

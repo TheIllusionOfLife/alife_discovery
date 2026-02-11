@@ -4,9 +4,11 @@ Objective-free ALife PoC implementation.
 
 ## Setup
 
+Requires Python 3.11+.
+
 ```bash
 uv venv
-uv sync --group dev
+uv sync --extra dev
 ```
 
 ## Run tests

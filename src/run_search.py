@@ -4,7 +4,6 @@ import argparse
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from uuid import uuid4
 
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -22,10 +21,17 @@ from src.world import World, WorldConfig
 
 @dataclass(frozen=True)
 class SimulationResult:
+    """Top-level result for one evaluated rule table."""
+
     rule_id: str
     survived: bool
     terminated_at: int | None
     termination_reason: str | None
+
+
+def _deterministic_rule_id(phase: ObservationPhase, rule_seed: int, sim_seed: int) -> str:
+    """Build reproducible rule ID stable across runs for identical seeds."""
+    return f"phase{phase.value}_rs{rule_seed}_ss{sim_seed}"
 
 
 def run_batch_search(
@@ -38,8 +44,21 @@ def run_batch_search(
     base_sim_seed: int = 0,
     world_config: WorldConfig | None = None,
 ) -> list[SimulationResult]:
+    """Run seeded batch simulations and persist JSON/Parquet outputs.
+
+    `steps` is used when `world_config` is not provided. If `world_config`
+    is provided, `steps` must match `world_config.steps` to avoid ambiguous
+    precedence.
+    """
     if n_rules < 1:
         raise ValueError("n_rules must be >= 1")
+
+    if world_config is not None:
+        if world_config.steps != steps:
+            raise ValueError("steps conflicts with world_config.steps")
+        config = world_config
+    else:
+        config = WorldConfig(steps=steps)
 
     out_dir = Path(out_dir)
     rules_dir = out_dir / "rules"
@@ -47,16 +66,14 @@ def run_batch_search(
     rules_dir.mkdir(parents=True, exist_ok=True)
     logs_dir.mkdir(parents=True, exist_ok=True)
 
-    config = world_config or WorldConfig(steps=steps)
-
     simulation_rows: list[dict[str, int | str]] = []
     metric_rows: list[dict[str, int | str | float]] = []
     results: list[SimulationResult] = []
 
     for i in range(n_rules):
-        rule_id = str(uuid4())
         rule_seed = base_rule_seed + i
         sim_seed = base_sim_seed + i
+        rule_id = _deterministic_rule_id(phase=phase, rule_seed=rule_seed, sim_seed=sim_seed)
 
         rule_table = generate_rule_table(phase=phase, seed=rule_seed)
         world = World(config=config, sim_seed=sim_seed)
@@ -108,7 +125,7 @@ def run_batch_search(
                 terminated_at = step
                 termination_reason = TerminationReason.STATE_UNIFORM.value
                 break
-            if halt_triggered:
+            elif halt_triggered:
                 terminated_at = step
                 termination_reason = TerminationReason.HALT.value
                 break
@@ -151,14 +168,15 @@ def run_batch_search(
 
 
 def _parse_phase(raw_phase: int) -> ObservationPhase:
-    if raw_phase == 1:
-        return ObservationPhase.PHASE1_DENSITY
-    if raw_phase == 2:
-        return ObservationPhase.PHASE2_PROFILE
-    raise ValueError("phase must be 1 or 2")
+    """Parse CLI phase value into ObservationPhase enum."""
+    try:
+        return ObservationPhase(raw_phase)
+    except ValueError as exc:
+        raise ValueError("phase must be 1 or 2") from exc
 
 
 def main() -> None:
+    """CLI entrypoint for search execution."""
     parser = argparse.ArgumentParser(description="Run objective-free ALife search")
     parser.add_argument("--phase", type=int, default=1)
     parser.add_argument("--n-rules", type=int, default=100)

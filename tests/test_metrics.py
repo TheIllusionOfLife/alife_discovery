@@ -1,4 +1,11 @@
-from src.metrics import compression_ratio, normalized_hamming_distance, state_entropy
+import pytest
+
+from src.metrics import (
+    compression_ratio,
+    normalized_hamming_distance,
+    serialize_snapshot,
+    state_entropy,
+)
 
 
 def test_state_entropy_binary_balanced() -> None:
@@ -12,3 +19,8 @@ def test_normalized_hamming_distance() -> None:
 def test_compression_ratio_positive() -> None:
     payload = b"aaaaaaaaaabbbbbbbbbbcccccccccc"
     assert compression_ratio(payload) > 0
+
+
+def test_serialize_snapshot_raises_when_coordinates_out_of_bounds() -> None:
+    with pytest.raises(ValueError):
+        serialize_snapshot(((0, 5, 0, 1),), grid_width=5, grid_height=5)
