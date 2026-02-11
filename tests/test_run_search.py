@@ -4,6 +4,7 @@ from pathlib import Path
 import pyarrow.parquet as pq
 import pytest
 
+from src.filters import ACTION_SPACE_SIZE
 from src.metrics import action_entropy
 from src.rules import ObservationPhase
 from src.run_search import (
@@ -394,7 +395,7 @@ def test_entropy_from_action_counts_matches_sequence_entropy() -> None:
     # We intentionally test this private helper because it encodes the
     # incremental entropy math used by the hot simulation loop.
     actions = [0, 0, 1, 8, 8, 8]
-    counts = [0] * 9
+    counts = [0] * ACTION_SPACE_SIZE
     for action in actions:
         counts[action] += 1
 
