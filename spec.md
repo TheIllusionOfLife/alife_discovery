@@ -4,8 +4,8 @@
 > **位置づけ**: 初期提案書とレビューの両方を踏まえ、研究者との対話を通じて設計判断を確定させた正式な仕様書。**実装はこのドキュメントに従うこと。**
 >
 > **経緯**:
-> 1. [`project_onboarding_guide_objective_free_alife.md`](project_onboarding_guide_objective_free_alife.md) — 初期提案書。研究の動機・基本戦略・最小世界モデルを提示。
-> 2. [`unified_review.md`](unified_review.md) — 初期提案書に対するレビュー。「破綻フィルタが暗黙の目的関数になる」等の重大な懸念を指摘。
+> 1. [`docs/legacy/project_onboarding_guide_objective_free_alife.md`](docs/legacy/project_onboarding_guide_objective_free_alife.md) — 初期提案書。研究の動機・基本戦略・最小世界モデルを提示。
+> 2. [`docs/legacy/unified_review.md`](docs/legacy/unified_review.md) — 初期提案書に対するレビュー。「破綻フィルタが暗黙の目的関数になる」等の重大な懸念を指摘。
 > 3. **本ドキュメント** — レビューの指摘を受けて、研究者と設計判断を一つずつ確認し、合意した仕様をまとめたもの。
 >
 > **主要な設計変更（初期提案からの差分）**:

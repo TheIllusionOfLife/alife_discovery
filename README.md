@@ -1,25 +1,31 @@
 # objectless_alife
 
-Objective-free ALife PoC implementation.
+Objective-free artificial life (ALife) proof-of-concept for exploring emergent structure without optimization targets.
 
-## Setup
+## What This Repository Contains
 
-Requires Python 3.11+.
+- Deterministic, seed-driven grid-world simulation with shared rule tables
+- Two observation phases for comparative experiments
+- Physical inconsistency filters (halt/state-uniform) plus optional dynamic filters for ablations
+- Metrics and Parquet/JSON output pipelines
+- Animation rendering for inspecting individual rule trajectories
+
+The implementation source of truth is `spec.md`.
+
+## Quick Start
+
+Requirements:
+- Python 3.11+
+- `uv`
+
+Setup:
 
 ```bash
 uv venv
 uv sync --extra dev
 ```
 
-## Run tests
-
-```bash
-uv run pytest -q
-```
-
-## Quality gates
-
-Run the same checks as CI before opening a PR:
+Run quality checks:
 
 ```bash
 uv run ruff check .
@@ -27,29 +33,15 @@ uv run ruff format . --check
 uv run pytest -q
 ```
 
-## Run search
+## Common Commands
+
+Run a single-phase batch search:
 
 ```bash
 uv run python -m src.run_search --phase 1 --n-rules 100 --out-dir data
 ```
 
-Optional dynamic filters (default off):
-
-```bash
-uv run python -m src.run_search \
-  --phase 2 \
-  --n-rules 100 \
-  --filter-short-period \
-  --short-period-max-period 2 \
-  --filter-low-activity \
-  --low-activity-window 5 \
-  --low-activity-min-unique-ratio 0.2 \
-  --out-dir data
-```
-
-## Run experiment mode (phase comparison)
-
-Run Phase 1 and Phase 2 across multiple seed batches and generate aggregate comparison files:
+Run a two-phase experiment comparison:
 
 ```bash
 uv run python -m src.run_search \
@@ -61,40 +53,7 @@ uv run python -m src.run_search \
   --out-dir data
 ```
 
-`--phases` currently accepts exactly two distinct values (for example `1,2`).
-For safety, very large workloads are rejected when `phases * n_rules * seed_batches * steps` exceeds an internal threshold.
-
-Experiment outputs:
-
-- `data/phase_1/` and `data/phase_2/`: per-phase rule JSON + simulation/metrics parquet
-- `data/logs/experiment_runs.parquet`: per-rule run outcomes across phases
-- `data/logs/phase_summary.parquet`: per-phase aggregate statistics
-- `data/logs/phase_comparison.json`: phase-to-phase absolute/relative deltas
-
-## Throughput guidance for large runs
-
-For stable long runs, scale up in stages and keep each invocation within a practical work budget.
-
-- Work-unit formula: `len(phases) * n_rules * seed_batches * steps`
-- Current safety threshold: `100_000_000` work units (runs above this are rejected)
-- Recommended progression:
-  - Debug: `--n-rules 100 --seed-batches 1`
-  - Exploration: `--n-rules 1000 --seed-batches 1-3`
-  - Large sweep: split into multiple invocations by seed ranges instead of one giant run
-- Practical tip: keep `--out-dir` per campaign (for example `data/exp_2026_02_11/`) to avoid mixing artifacts from different parameter sets.
-
-## Render animation
-
-First run a search so `data/rules/*.json` and `data/logs/*.parquet` exist.
-
-```bash
-uv run python -c "from src.visualize import render_rule_animation; \
-from pathlib import Path; \
-rule_json = next(Path('data/rules').glob('*.json')); \
-render_rule_animation(Path('data/logs/simulation_log.parquet'), Path('data/logs/metrics_summary.parquet'), rule_json, Path('output/preview.gif'), fps=8)"
-```
-
-You can force explicit world bounds if needed:
+Render an animation from generated artifacts:
 
 ```bash
 uv run python -m src.visualize \
@@ -102,14 +61,40 @@ uv run python -m src.visualize \
   --metrics-summary data/logs/metrics_summary.parquet \
   --rule-json data/rules/<rule_id>.json \
   --output output/preview.gif \
-  --fps 8 \
-  --grid-width 20 \
-  --grid-height 20
+  --fps 8
 ```
 
-## Spec Coverage Matrix
+## Documentation Map
 
-- `spec.md` section 2-6: `src/world.py`, `src/rules.py`, `src/filters.py`
-- `spec.md` section 7: `src/metrics.py`, `src/run_search.py`
-- `spec.md` section 9: JSON + Parquet outputs in `src/run_search.py`
-- `spec.md` section 10: `src/visualize.py`
+- `spec.md`: canonical implementation spec
+- `AGENTS.md`: agent-facing repository instructions
+- `PRODUCT.md`: product intent and research goals
+- `TECH.md`: stack and technical constraints
+- `STRUCTURE.md`: codebase layout and conventions
+- `docs/legacy/`: archived context/review docs kept for traceability
+
+## High-Level Architecture
+
+- `src/world.py`: toroidal world model, agent state, collision/movement semantics
+- `src/rules.py`: observation phases, indexing logic, seeded rule-table generation
+- `src/filters.py`: termination and optional dynamic filter detectors
+- `src/metrics.py`: post-step analysis metrics
+- `src/run_search.py`: batch/experiment runner + artifact persistence
+- `src/visualize.py`: animation renderer from stored artifacts
+
+## Data Outputs
+
+By default, runs produce:
+- `data/rules/*.json`: per-rule metadata, filter outcomes, seeds
+- `data/logs/simulation_log.parquet`: per-agent per-step state/action logs
+- `data/logs/metrics_summary.parquet`: per-step metric summaries
+- `data/logs/experiment_runs.parquet`: per-rule aggregate outcomes (experiment mode)
+- `data/logs/phase_summary.parquet`: per-phase aggregates (experiment mode)
+- `data/logs/phase_comparison.json`: phase delta summary (experiment mode)
+
+## Development Workflow
+
+- Branch from `main` before changes (for example `feat/<topic>`, `fix/<topic>`, `chore/<topic>`)
+- Keep commits focused and imperative
+- Run lint + format-check + tests locally before opening PRs
+- Do not treat `docs/legacy/*` as normative when it conflicts with `spec.md`

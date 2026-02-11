@@ -1,7 +1,25 @@
-.venv/
+# Python runtime
 __pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environments
+.venv/
+venv/
+
+# Tool caches
 .pytest_cache/
-*.pyc
+.ruff_cache/
+.mypy_cache/
+
+# Coverage and test artifacts
+.coverage
+.coverage.*
+htmlcov/
+
+# macOS
+.DS_Store
 
 # Generated outputs
 data/
