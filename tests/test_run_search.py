@@ -115,3 +115,53 @@ def test_run_batch_search_accepts_search_config_with_optional_filters(tmp_path: 
     payload = json.loads(next((tmp_path / "rules").glob("*.json")).read_text())
     assert "short_period" in payload["filter_results"]
     assert "low_activity" in payload["filter_results"]
+
+
+def test_run_batch_search_persists_grid_dimensions_in_metadata(tmp_path: Path) -> None:
+    run_batch_search(
+        n_rules=1,
+        phase=ObservationPhase.PHASE1_DENSITY,
+        out_dir=tmp_path,
+        steps=5,
+        world_config=WorldConfig(grid_width=11, grid_height=13, steps=5),
+    )
+
+    payload = json.loads(next((tmp_path / "rules").glob("*.json")).read_text())
+    metadata = payload["metadata"]
+    assert metadata["grid_width"] == 11
+    assert metadata["grid_height"] == 13
+
+
+def test_run_batch_search_termination_metadata_is_deterministic(tmp_path: Path) -> None:
+    out_a = tmp_path / "a"
+    out_b = tmp_path / "b"
+    run_batch_search(
+        n_rules=3,
+        phase=ObservationPhase.PHASE2_PROFILE,
+        out_dir=out_a,
+        steps=15,
+        base_rule_seed=30,
+        base_sim_seed=40,
+    )
+    run_batch_search(
+        n_rules=3,
+        phase=ObservationPhase.PHASE2_PROFILE,
+        out_dir=out_b,
+        steps=15,
+        base_rule_seed=30,
+        base_sim_seed=40,
+    )
+
+    payloads_a = {
+        path.stem: json.loads(path.read_text()) for path in sorted((out_a / "rules").glob("*.json"))
+    }
+    payloads_b = {
+        path.stem: json.loads(path.read_text()) for path in sorted((out_b / "rules").glob("*.json"))
+    }
+
+    assert payloads_a.keys() == payloads_b.keys()
+    for rule_id in payloads_a:
+        metadata_a = payloads_a[rule_id]["metadata"]
+        metadata_b = payloads_b[rule_id]["metadata"]
+        assert metadata_a["terminated_at"] == metadata_b["terminated_at"]
+        assert metadata_a["termination_reason"] == metadata_b["termination_reason"]

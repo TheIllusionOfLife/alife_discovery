@@ -17,6 +17,16 @@ uv sync --extra dev
 uv run pytest -q
 ```
 
+## Quality gates
+
+Run the same checks as CI before opening a PR:
+
+```bash
+uv run ruff check .
+uv run ruff format . --check
+uv run pytest -q
+```
+
 ## Run search
 
 ```bash
@@ -46,6 +56,19 @@ uv run python -c "from src.visualize import render_rule_animation; \
 from pathlib import Path; \
 rule_json = next(Path('data/rules').glob('*.json')); \
 render_rule_animation(Path('data/logs/simulation_log.parquet'), Path('data/logs/metrics_summary.parquet'), rule_json, Path('output/preview.gif'), fps=8)"
+```
+
+You can force explicit world bounds if needed:
+
+```bash
+uv run python -m src.visualize \
+  --simulation-log data/logs/simulation_log.parquet \
+  --metrics-summary data/logs/metrics_summary.parquet \
+  --rule-json data/rules/<rule_id>.json \
+  --output output/preview.gif \
+  --fps 8 \
+  --grid-width 20 \
+  --grid-height 20
 ```
 
 ## Spec Coverage Matrix

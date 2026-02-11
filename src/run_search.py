@@ -265,6 +265,8 @@ def run_batch_search(
                 "rule_seed": rule_seed,
                 "sim_seed": sim_seed,
                 "steps": world_cfg.steps,
+                "grid_width": world_cfg.grid_width,
+                "grid_height": world_cfg.grid_height,
                 "halt_window": search_config.halt_window,
                 "observation_phase": phase.value,
                 "terminated_at": terminated_at,
