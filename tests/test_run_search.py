@@ -258,6 +258,23 @@ def test_run_experiment_phase_summary_has_required_columns(tmp_path: Path) -> No
     assert summary.num_rows == 2
 
 
+def test_run_experiment_phase_comparison_excludes_metadata_delta_keys(tmp_path: Path) -> None:
+    run_experiment(
+        ExperimentConfig(
+            phases=(ObservationPhase.PHASE1_DENSITY, ObservationPhase.PHASE2_PROFILE),
+            n_rules=2,
+            n_seed_batches=1,
+            out_dir=tmp_path,
+            steps=6,
+        )
+    )
+
+    payload = json.loads((tmp_path / "logs" / "phase_comparison.json").read_text())
+    deltas = payload["deltas"]
+    assert "phase" not in deltas
+    assert "schema_version" not in deltas
+
+
 def test_run_search_main_experiment_mode_generates_aggregate_files(tmp_path: Path) -> None:
     main(
         [
@@ -328,7 +345,7 @@ def test_run_experiment_rejects_excessive_total_workload(tmp_path: Path) -> None
         )
 
 
-def test_run_batch_search_cleans_temp_chunks_on_failure(
+def test_run_batch_search_does_not_leave_partial_parquet_files_on_early_failure(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     import src.run_search as run_search_module
@@ -345,7 +362,8 @@ def test_run_batch_search_cleans_temp_chunks_on_failure(
             steps=4,
         )
 
-    assert not (tmp_path / "logs" / ".tmp_chunks").exists()
+    assert not (tmp_path / "logs" / "simulation_log.parquet").exists()
+    assert not (tmp_path / "logs" / "metrics_summary.parquet").exists()
 
 
 def test_run_batch_search_metrics_schema_is_stable_when_column_values_are_all_nulls(

@@ -398,11 +398,10 @@ def _parse_phase_list(raw_phases: str) -> tuple[ObservationPhase, ...]:
     return tuple(phases)
 
 
-def _percentile(values: list[float], q: float) -> float | None:
-    """Compute percentile in [0, 1] with linear interpolation."""
-    if not values:
+def _percentile_pre_sorted(sorted_values: list[float], q: float) -> float | None:
+    """Compute percentile in [0, 1] with linear interpolation on pre-sorted values."""
+    if not sorted_values:
         return None
-    sorted_values = sorted(values)
     if len(sorted_values) == 1:
         return sorted_values[0]
 
@@ -468,11 +467,11 @@ def _build_phase_summary(
     }
 
     for metric_name in metric_names:
-        values = _to_float_list(final_metric_rows, metric_name)
+        values = sorted(_to_float_list(final_metric_rows, metric_name))
         summary[f"{metric_name}_mean"] = _mean(values)
-        summary[f"{metric_name}_p25"] = _percentile(values, 0.25)
-        summary[f"{metric_name}_p50"] = _percentile(values, 0.50)
-        summary[f"{metric_name}_p75"] = _percentile(values, 0.75)
+        summary[f"{metric_name}_p25"] = _percentile_pre_sorted(values, 0.25)
+        summary[f"{metric_name}_p50"] = _percentile_pre_sorted(values, 0.50)
+        summary[f"{metric_name}_p75"] = _percentile_pre_sorted(values, 0.75)
 
     return summary
 
@@ -490,7 +489,7 @@ def _build_phase_comparison(phase_summaries: list[dict[str, int | float | None]]
     base = sorted_rows[0]
     target = sorted_rows[1]
     for key, target_value in target.items():
-        if key == "phase":
+        if key in {"phase", "schema_version"}:
             continue
         base_value = base.get(key)
         if not isinstance(base_value, (int, float)) or not isinstance(target_value, (int, float)):
@@ -499,6 +498,34 @@ def _build_phase_comparison(phase_summaries: list[dict[str, int | float | None]]
         delta_rel = None if float(base_value) == 0.0 else delta_abs / float(base_value)
         payload["deltas"][key] = {"absolute": delta_abs, "relative": delta_rel}
     return payload
+
+
+def _collect_final_metric_rows(
+    metrics_path: Path,
+    metric_columns: list[str],
+    phase_results: list[SimulationResult],
+    default_final_step: int,
+) -> list[dict[str, Any]]:
+    """Collect final-step metric rows per rule from parquet in batches."""
+    final_steps = {
+        result.rule_id: (
+            result.terminated_at if result.terminated_at is not None else default_final_step
+        )
+        for result in phase_results
+    }
+    final_rows: list[dict[str, Any]] = []
+    metrics_file = pq.ParquetFile(metrics_path)
+
+    for batch in metrics_file.iter_batches(columns=metric_columns, batch_size=8192):
+        batch_dict = batch.to_pydict()
+        rule_ids = batch_dict["rule_id"]
+        steps = batch_dict["step"]
+        for idx, rule_id in enumerate(rule_ids):
+            expected_step = final_steps.get(str(rule_id))
+            if expected_step is None or int(steps[idx]) != expected_step:
+                continue
+            final_rows.append({name: batch_dict[name][idx] for name in metric_columns})
+    return final_rows
 
 
 def run_experiment(config: ExperimentConfig) -> list[SimulationResult]:
@@ -581,21 +608,18 @@ def run_experiment(config: ExperimentConfig) -> list[SimulationResult]:
             "morans_i",
             "cluster_count",
             "neighbor_mutual_information",
+            "quasi_periodicity_peaks",
+            "phase_transition_max_delta",
             "action_entropy_mean",
             "action_entropy_variance",
             "block_ncd",
         ]
-        full_rows = pq.read_table(metrics_path, columns=metric_columns).to_pylist()
-        final_steps = {
-            (
-                result.rule_id,
-                (result.terminated_at if result.terminated_at is not None else (config.steps - 1)),
-            )
-            for result in phase_results
-        }
-        final_metric_rows = [
-            row for row in full_rows if (str(row["rule_id"]), int(row["step"])) in final_steps
-        ]
+        final_metric_rows = _collect_final_metric_rows(
+            metrics_path=metrics_path,
+            metric_columns=metric_columns,
+            phase_results=phase_results,
+            default_final_step=config.steps - 1,
+        )
 
         phase_run_rows = [row for row in experiment_rows if int(row["phase"]) == phase.value]
         phase_summaries.append(
