@@ -486,7 +486,11 @@ def test_parse_grid_sizes_accepts_multiple_pairs() -> None:
     assert _parse_grid_sizes("5x7,20x20") == ((5, 7), (20, 20))
 
 
-@pytest.mark.parametrize("raw", ["", "20", "20x", "x20", "0x20", "20x0", "-1x20", "20X20"])
+def test_parse_grid_sizes_accepts_uppercase_separator() -> None:
+    assert _parse_grid_sizes("20X20,5x7") == ((20, 20), (5, 7))
+
+
+@pytest.mark.parametrize("raw", ["", "20", "20x", "x20", "0x20", "20x0", "-1x20"])
 def test_parse_grid_sizes_rejects_invalid_values(raw: str) -> None:
     with pytest.raises(ValueError):
         _parse_grid_sizes(raw)
@@ -586,3 +590,21 @@ def test_run_search_main_density_sweep_mode_generates_aggregate_files(tmp_path: 
     assert (logs_dir / "density_sweep_runs.parquet").exists()
     assert (logs_dir / "density_phase_summary.parquet").exists()
     assert (logs_dir / "density_phase_comparison.parquet").exists()
+
+
+def test_run_search_main_rejects_density_sweep_and_experiment_together(tmp_path: Path) -> None:
+    with pytest.raises(SystemExit):
+        main(
+            [
+                "--density-sweep",
+                "--experiment",
+                "--grid-sizes",
+                "5x5",
+                "--agent-counts",
+                "3",
+                "--n-rules",
+                "1",
+                "--out-dir",
+                str(tmp_path),
+            ]
+        )
