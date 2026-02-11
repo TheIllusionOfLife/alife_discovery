@@ -39,6 +39,8 @@ uv run python -m src.run_search \
 
 ## Render animation
 
+First run a search so `data/rules/*.json` and `data/logs/*.parquet` exist.
+
 ```bash
 uv run python -c "from src.visualize import render_rule_animation; \
 from pathlib import Path; \

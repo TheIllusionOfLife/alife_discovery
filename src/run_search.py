@@ -235,11 +235,11 @@ def run_batch_search(
                 break
             elif short_period_triggered:
                 terminated_at = step
-                termination_reason = "short_period"
+                termination_reason = TerminationReason.SHORT_PERIOD.value
                 break
             elif low_activity_triggered:
                 terminated_at = step
-                termination_reason = "low_activity"
+                termination_reason = TerminationReason.LOW_ACTIVITY.value
                 break
 
             prev_states = states

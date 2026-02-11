@@ -12,6 +12,8 @@ class TerminationReason(str, Enum):
 
     HALT = "halt"
     STATE_UNIFORM = "state_uniform"
+    SHORT_PERIOD = "short_period"
+    LOW_ACTIVITY = "low_activity"
 
 
 class HaltDetector:

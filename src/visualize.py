@@ -41,7 +41,9 @@ def render_rule_animation(
         output_path = _resolve_within_base(Path(output_path), base_dir)
 
     rule_payload = json.loads(rule_json_path.read_text())
-    rule_id = rule_payload["rule_id"]
+    rule_id = rule_payload.get("rule_id")
+    if not isinstance(rule_id, str) or not rule_id:
+        raise ValueError("Rule JSON must include non-empty string field 'rule_id'")
 
     sim_rows = pq.read_table(
         simulation_log_path, filters=[("rule_id", "=", rule_id)]
@@ -55,11 +57,18 @@ def render_rule_animation(
         raise ValueError(f"No metric rows found for rule_id={rule_id}")
 
     steps = sorted({int(row["step"]) for row in sim_rows})
+    if not steps:
+        raise ValueError(f"No simulation steps found for rule_id={rule_id}")
     by_step: dict[int, list[dict[str, object]]] = {step: [] for step in steps}
     for row in sim_rows:
         by_step[int(row["step"])].append(row)
 
     metric_by_step = {int(row["step"]): row for row in metric_rows}
+    missing_metric_steps = [step for step in steps if step not in metric_by_step]
+    if missing_metric_steps:
+        raise ValueError(
+            f"Missing metrics for steps {missing_metric_steps[:5]} for rule_id={rule_id}"
+        )
     width = max(int(row["x"]) for row in sim_rows) + 1
     height = max(int(row["y"]) for row in sim_rows) + 1
 
@@ -71,7 +80,8 @@ def render_rule_animation(
     ax_world.set_aspect("equal")
     ax_world.invert_yaxis()
 
-    ax_metric.set_xlim(0, max(steps))
+    x_max = max(steps)
+    ax_metric.set_xlim(0, 1 if x_max == 0 else x_max)
     ax_metric.set_title("State Entropy")
     ax_metric.set_xlabel("Step")
     ax_metric.set_ylabel("Entropy")
