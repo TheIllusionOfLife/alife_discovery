@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import json
 from pathlib import Path
 
@@ -8,28 +9,46 @@ import pyarrow.parquet as pq
 from matplotlib import animation
 
 
+def _resolve_within_base(path: Path, base_dir: Path) -> Path:
+    """Resolve path and ensure it stays within the trusted base directory."""
+    candidate = path if path.is_absolute() else base_dir / path
+    resolved = candidate.resolve()
+    base_resolved = base_dir.resolve()
+    if resolved != base_resolved and base_resolved not in resolved.parents:
+        raise ValueError(f"Path escapes base_dir: {path}")
+    return resolved
+
+
 def render_rule_animation(
     simulation_log_path: Path,
     metrics_summary_path: Path,
     rule_json_path: Path,
     output_path: Path,
     fps: int = 8,
+    base_dir: Path | None = None,
 ) -> None:
     """Render one rule's trajectory and metric trend as an animation."""
-    simulation_log_path = Path(simulation_log_path)
-    metrics_summary_path = Path(metrics_summary_path)
-    rule_json_path = Path(rule_json_path)
-    output_path = Path(output_path)
+    if base_dir is None:
+        simulation_log_path = Path(simulation_log_path).resolve()
+        metrics_summary_path = Path(metrics_summary_path).resolve()
+        rule_json_path = Path(rule_json_path).resolve()
+        output_path = Path(output_path).resolve()
+    else:
+        base_dir = Path(base_dir).resolve()
+        simulation_log_path = _resolve_within_base(Path(simulation_log_path), base_dir)
+        metrics_summary_path = _resolve_within_base(Path(metrics_summary_path), base_dir)
+        rule_json_path = _resolve_within_base(Path(rule_json_path), base_dir)
+        output_path = _resolve_within_base(Path(output_path), base_dir)
 
     rule_payload = json.loads(rule_json_path.read_text())
     rule_id = rule_payload["rule_id"]
 
-    sim_rows = [
-        row for row in pq.read_table(simulation_log_path).to_pylist() if row["rule_id"] == rule_id
-    ]
-    metric_rows = [
-        row for row in pq.read_table(metrics_summary_path).to_pylist() if row["rule_id"] == rule_id
-    ]
+    sim_rows = pq.read_table(
+        simulation_log_path, filters=[("rule_id", "=", rule_id)]
+    ).to_pylist()
+    metric_rows = pq.read_table(
+        metrics_summary_path, filters=[("rule_id", "=", rule_id)]
+    ).to_pylist()
     if not sim_rows:
         raise ValueError(f"No simulation rows found for rule_id={rule_id}")
     if not metric_rows:
@@ -86,3 +105,27 @@ def render_rule_animation(
         writer = animation.FFMpegWriter(fps=fps)
     anim.save(output_path, writer=writer)
     plt.close(fig)
+
+
+def main() -> None:
+    """CLI entrypoint for rendering a single rule animation."""
+    parser = argparse.ArgumentParser(description="Render simulation animation for one rule")
+    parser.add_argument("--simulation-log", type=Path, required=True)
+    parser.add_argument("--metrics-summary", type=Path, required=True)
+    parser.add_argument("--rule-json", type=Path, required=True)
+    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--fps", type=int, default=8)
+    parser.add_argument("--base-dir", type=Path, default=Path("."))
+    args = parser.parse_args()
+    render_rule_animation(
+        simulation_log_path=args.simulation_log,
+        metrics_summary_path=args.metrics_summary,
+        rule_json_path=args.rule_json,
+        output_path=args.output,
+        fps=args.fps,
+        base_dir=args.base_dir,
+    )
+
+
+if __name__ == "__main__":
+    main()

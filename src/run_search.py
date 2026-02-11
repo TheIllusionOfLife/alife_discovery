@@ -24,7 +24,6 @@ from src.metrics import (
     morans_i_occupied,
     neighbor_mutual_information,
     normalized_hamming_distance,
-    phase_transition_max_delta,
     quasi_periodicity_peak_count,
     serialize_snapshot,
     state_entropy,
@@ -138,6 +137,8 @@ def run_batch_search(
         entropy_series: list[float] = []
         snapshot_bytes_history: list[bytes] = []
         per_agent_actions: list[list[int]] = [[] for _ in range(world_cfg.num_agents)]
+        per_rule_metric_rows: list[dict[str, int | str | float | None]] = []
+        running_phase_transition_delta = 0.0
         halt_triggered = False
         uniform_triggered = False
         short_period_triggered = False
@@ -151,6 +152,10 @@ def run_batch_search(
                 snapshot, world_cfg.grid_width, world_cfg.grid_height
             )
             step_entropy = state_entropy(states)
+            if len(entropy_series) > 0:
+                running_phase_transition_delta = max(
+                    running_phase_transition_delta, abs(step_entropy - entropy_series[-1])
+                )
             entropy_series.append(step_entropy)
             snapshot_bytes_history.append(snapshot_bytes)
             for agent_id, action in enumerate(actions):
@@ -171,7 +176,7 @@ def run_batch_search(
                 sum(per_agent_entropies) / len(per_agent_entropies) if per_agent_entropies else 0.0
             )
 
-            metric_rows.append(
+            per_rule_metric_rows.append(
                 {
                     "rule_id": rule_id,
                     "step": step,
@@ -184,8 +189,8 @@ def run_batch_search(
                     "cluster_count": cluster_count_by_state(
                         snapshot, grid_width=world_cfg.grid_width, grid_height=world_cfg.grid_height
                     ),
-                    "quasi_periodicity_peaks": quasi_periodicity_peak_count(entropy_series),
-                    "phase_transition_max_delta": phase_transition_max_delta(entropy_series),
+                    "quasi_periodicity_peaks": None,
+                    "phase_transition_max_delta": running_phase_transition_delta,
                     "neighbor_mutual_information": neighbor_mutual_information(
                         snapshot, grid_width=world_cfg.grid_width, grid_height=world_cfg.grid_height
                     ),
@@ -238,6 +243,11 @@ def run_batch_search(
                 break
 
             prev_states = states
+
+        quasi_periodicity_peaks = quasi_periodicity_peak_count(entropy_series)
+        for row in per_rule_metric_rows:
+            row["quasi_periodicity_peaks"] = quasi_periodicity_peaks
+        metric_rows.extend(per_rule_metric_rows)
 
         survived = termination_reason is None
 
