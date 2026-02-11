@@ -19,6 +19,24 @@ def _resolve_within_base(path: Path, base_dir: Path) -> Path:
     return resolved
 
 
+def _resolve_grid_dimension(
+    explicit: int | None,
+    metadata: dict[str, object],
+    metadata_key: str,
+    rows: list[dict[str, object]],
+    axis_key: str,
+) -> int:
+    """Resolve grid dimension from explicit arg, metadata, then row maxima."""
+    if explicit is not None:
+        return explicit
+
+    from_metadata = metadata.get(metadata_key)
+    if isinstance(from_metadata, int):
+        return from_metadata
+
+    return max(int(row[axis_key]) for row in rows) + 1
+
+
 def render_rule_animation(
     simulation_log_path: Path,
     metrics_summary_path: Path,
@@ -26,6 +44,8 @@ def render_rule_animation(
     output_path: Path,
     fps: int = 8,
     base_dir: Path | None = None,
+    grid_width: int | None = None,
+    grid_height: int | None = None,
 ) -> None:
     """Render one rule's trajectory and metric trend as an animation."""
     if base_dir is None:
@@ -45,9 +65,7 @@ def render_rule_animation(
     if not isinstance(rule_id, str) or not rule_id:
         raise ValueError("Rule JSON must include non-empty string field 'rule_id'")
 
-    sim_rows = pq.read_table(
-        simulation_log_path, filters=[("rule_id", "=", rule_id)]
-    ).to_pylist()
+    sim_rows = pq.read_table(simulation_log_path, filters=[("rule_id", "=", rule_id)]).to_pylist()
     metric_rows = pq.read_table(
         metrics_summary_path, filters=[("rule_id", "=", rule_id)]
     ).to_pylist()
@@ -69,13 +87,32 @@ def render_rule_animation(
         raise ValueError(
             f"Missing metrics for steps {missing_metric_steps[:5]} for rule_id={rule_id}"
         )
-    width = max(int(row["x"]) for row in sim_rows) + 1
-    height = max(int(row["y"]) for row in sim_rows) + 1
+    raw_metadata = rule_payload.get("metadata")
+    metadata = raw_metadata if isinstance(raw_metadata, dict) else {}
+    resolved_width = _resolve_grid_dimension(
+        explicit=grid_width,
+        metadata=metadata,
+        metadata_key="grid_width",
+        rows=sim_rows,
+        axis_key="x",
+    )
+    resolved_height = _resolve_grid_dimension(
+        explicit=grid_height,
+        metadata=metadata,
+        metadata_key="grid_height",
+        rows=sim_rows,
+        axis_key="y",
+    )
+
+    if resolved_width < 1:
+        raise ValueError("grid_width must be >= 1")
+    if resolved_height < 1:
+        raise ValueError("grid_height must be >= 1")
 
     fig, (ax_world, ax_metric) = plt.subplots(1, 2, figsize=(10, 5))
     scatter = ax_world.scatter([], [], c=[], cmap="viridis", vmin=0, vmax=3, s=80)
-    ax_world.set_xlim(-0.5, width - 0.5)
-    ax_world.set_ylim(-0.5, height - 0.5)
+    ax_world.set_xlim(-0.5, resolved_width - 0.5)
+    ax_world.set_ylim(-0.5, resolved_height - 0.5)
     ax_world.set_title("Agent States")
     ax_world.set_aspect("equal")
     ax_world.invert_yaxis()
@@ -126,6 +163,8 @@ def main() -> None:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--fps", type=int, default=8)
     parser.add_argument("--base-dir", type=Path, default=Path("."))
+    parser.add_argument("--grid-width", type=int, default=None)
+    parser.add_argument("--grid-height", type=int, default=None)
     args = parser.parse_args()
     render_rule_animation(
         simulation_log_path=args.simulation_log,
@@ -134,6 +173,8 @@ def main() -> None:
         output_path=args.output,
         fps=args.fps,
         base_dir=args.base_dir,
+        grid_width=args.grid_width,
+        grid_height=args.grid_height,
     )
 
 
