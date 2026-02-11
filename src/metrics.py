@@ -210,10 +210,10 @@ def neighbor_mutual_information(
     right = Counter(b for _, b in pairs)
     n = len(pairs)
     mi = 0.0
-    for (a, b), c in joint.items():
+    for (state_left, state_right), c in joint.items():
         p_ab = c / n
-        p_a = left[a] / n
-        p_b = right[b] / n
+        p_a = left[state_left] / n
+        p_b = right[state_right] / n
         mi += p_ab * math.log2(p_ab / (p_a * p_b))
     return mi
 

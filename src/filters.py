@@ -4,6 +4,8 @@ from enum import Enum
 from math import isfinite
 from typing import Sequence
 
+ACTION_SPACE_SIZE = 9
+
 
 class TerminationReason(str, Enum):
     """Termination reason labels persisted in run metadata."""
@@ -98,5 +100,5 @@ class LowActivityDetector:
         flattened = [action for step_actions in self._recent for action in step_actions]
         if not flattened:
             return False
-        unique_ratio = len(set(flattened)) / 9.0
+        unique_ratio = len(set(flattened)) / ACTION_SPACE_SIZE
         return unique_ratio < self.min_unique_ratio
