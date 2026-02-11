@@ -580,11 +580,12 @@ def run_experiment(config: ExperimentConfig) -> list[SimulationResult]:
         )
         all_results.extend(phase_results)
 
+        current_phase_run_rows: list[dict[str, int | str | bool | None]] = []
         for i, result in enumerate(phase_results):
             seed_batch = i // config.n_rules
             rule_seed = config.rule_seed_start + i
             sim_seed = config.sim_seed_start + i
-            experiment_rows.append(
+            current_phase_run_rows.append(
                 {
                     "schema_version": AGGREGATE_SCHEMA_VERSION,
                     "rule_id": result.rule_id,
@@ -597,6 +598,7 @@ def run_experiment(config: ExperimentConfig) -> list[SimulationResult]:
                     "terminated_at": result.terminated_at,
                 }
             )
+        experiment_rows.extend(current_phase_run_rows)
 
         metrics_path = phase_out_dir / "logs" / "metrics_summary.parquet"
         metric_columns = [
@@ -621,11 +623,10 @@ def run_experiment(config: ExperimentConfig) -> list[SimulationResult]:
             default_final_step=config.steps - 1,
         )
 
-        phase_run_rows = [row for row in experiment_rows if int(row["phase"]) == phase.value]
         phase_summaries.append(
             _build_phase_summary(
                 phase=phase,
-                run_rows=phase_run_rows,
+                run_rows=current_phase_run_rows,
                 final_metric_rows=final_metric_rows,
             )
         )
