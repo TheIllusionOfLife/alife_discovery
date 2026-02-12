@@ -126,7 +126,7 @@ All comparisons are significant at p < 0.001 after Holm-Bonferroni correction.
 
 The results unambiguously support the **strong finding** hypothesis:
 
-```
+```text
 Phase 2 (0.330) >> Phase 1 (0.055) >> Control (0.000)
 ```
 

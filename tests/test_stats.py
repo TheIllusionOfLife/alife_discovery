@@ -434,6 +434,19 @@ class TestPairwiseSurvivalComparison:
         result = pairwise_survival_comparison(dir_a, dir_b)
         assert result["p_value"] < 0.05
 
+    def test_all_survived_returns_nan(self, tmp_path: Path) -> None:
+        dir_a = tmp_path / "a" / "rules"
+        dir_b = tmp_path / "b" / "rules"
+        dir_a.mkdir(parents=True)
+        dir_b.mkdir(parents=True)
+        for i in range(5):
+            self._write_rule_json(dir_a, f"rule_a_{i}", survived=True)
+            self._write_rule_json(dir_b, f"rule_b_{i}", survived=True)
+
+        result = pairwise_survival_comparison(dir_a, dir_b)
+        assert math.isnan(result["chi2"])
+        assert math.isnan(result["p_value"])
+
     def test_empty_directory_returns_nan(self, tmp_path: Path) -> None:
         dir_a = tmp_path / "a" / "rules"
         dir_b = tmp_path / "b" / "rules"

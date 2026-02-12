@@ -18,7 +18,9 @@ def rule_table_size(phase: ObservationPhase) -> int:
     """Return rule table length for the selected observation phase."""
     if phase == ObservationPhase.PHASE1_DENSITY:
         return 20
-    return 100
+    if phase in (ObservationPhase.PHASE2_PROFILE, ObservationPhase.CONTROL_DENSITY_CLOCK):
+        return 100
+    raise ValueError(f"Unsupported observation phase: {phase}")
 
 
 def dominant_neighbor_state(neighbor_states: Sequence[int]) -> int:

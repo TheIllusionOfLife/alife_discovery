@@ -1,6 +1,6 @@
 import pytest
 
-from src.rules import ObservationPhase
+from src.rules import ObservationPhase, generate_rule_table
 from src.world import Agent, World, WorldConfig
 
 
@@ -110,8 +110,6 @@ def test_step_control_phase_deterministic() -> None:
     config = WorldConfig(grid_width=10, grid_height=10, num_agents=4, steps=5)
     w1 = World(config=config, sim_seed=42)
     w2 = World(config=config, sim_seed=42)
-    from src.rules import generate_rule_table
-
     rule_table = generate_rule_table(ObservationPhase.CONTROL_DENSITY_CLOCK, seed=10)
     for step in range(3):
         w1.step(rule_table, ObservationPhase.CONTROL_DENSITY_CLOCK, step_number=step)
