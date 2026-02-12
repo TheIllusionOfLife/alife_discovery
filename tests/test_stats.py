@@ -361,8 +361,12 @@ class TestPairwiseMetricComparison:
     def test_returns_results_with_expected_keys(self, tmp_path: Path) -> None:
         path_a = tmp_path / "metrics_a.parquet"
         path_b = tmp_path / "metrics_b.parquet"
-        rows_a = [_make_metric_row(f"rule_{i}", step=5, neighbor_mi=0.1 + i * 0.01) for i in range(20)]
-        rows_b = [_make_metric_row(f"rule_{i}", step=5, neighbor_mi=0.5 + i * 0.01) for i in range(20)]
+        rows_a = [
+            _make_metric_row(f"rule_{i}", step=5, neighbor_mi=0.1 + i * 0.01) for i in range(20)
+        ]
+        rows_b = [
+            _make_metric_row(f"rule_{i}", step=5, neighbor_mi=0.5 + i * 0.01) for i in range(20)
+        ]
         _write_metrics_parquet(path_a, rows_a)
         _write_metrics_parquet(path_b, rows_b)
 

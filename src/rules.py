@@ -11,6 +11,7 @@ class ObservationPhase(Enum):
 
     PHASE1_DENSITY = 1
     PHASE2_PROFILE = 2
+    CONTROL_DENSITY_CLOCK = 3
 
 
 def rule_table_size(phase: ObservationPhase) -> int:
@@ -53,6 +54,22 @@ def compute_phase2_index(self_state: int, neighbor_count: int, dominant_state: i
     if not 0 <= dominant_state <= 4:
         raise ValueError("dominant_state must be in [0, 4]")
     return self_state * 25 + neighbor_count * 5 + dominant_state
+
+
+def compute_control_index(self_state: int, neighbor_count: int, step_mod: int) -> int:
+    """Compute control rule table index from state, density, and step clock.
+
+    Uses step_mod (step_number % 5) as a non-informative third dimension,
+    producing a 100-entry table comparable in size to phase 2 but without
+    neighbor state information.
+    """
+    if not 0 <= self_state <= 3:
+        raise ValueError("self_state must be in [0, 3]")
+    if not 0 <= neighbor_count <= 4:
+        raise ValueError("neighbor_count must be in [0, 4]")
+    if not 0 <= step_mod <= 4:
+        raise ValueError("step_mod must be in [0, 4]")
+    return self_state * 25 + neighbor_count * 5 + step_mod
 
 
 def generate_rule_table(phase: ObservationPhase, seed: int) -> list[int]:
