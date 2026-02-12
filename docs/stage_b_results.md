@@ -173,9 +173,9 @@ Phase 2 MI is higher at every density point. The doubling-or-more effect is robu
 
 ### 6.1 Primary Finding
 
-**Neighbor state observation produces genuine information-theoretic coupling between agents.** The near-doubling of neighbor mutual information (MI) in Phase 2 is the strongest and most robust signal in this study. It replicates from Stage A (n=300) to Stage B (n=5,000) and holds across all 12 density points in the sweep.
+**Phase 2 is associated with substantially higher information-theoretic coupling between agents.** The near-doubling of neighbor mutual information (MI) in Phase 2 is the strongest and most robust signal in this study. It replicates from Stage A (n=300) to Stage B (n=5,000) and holds across all 12 density points in the sweep.
 
-This is not trivially expected: the Phase 2 rule table is larger (100 vs 20 entries), giving it more degrees of freedom, but there is no mechanism that rewards or selects for information coupling. The signal emerges from the structure of the observation space itself.
+However, the current experimental design cannot distinguish whether this coupling arises specifically from observing neighbor states or from the larger rule table alone (100 entries vs 20). The increased degrees of freedom in Phase 2 may independently produce more diverse — and therefore more correlated — state dynamics, even without the observation channel being the causal driver. This confound is discussed in Section 7.3, and the planned rule-table-size control experiment (Section 8.3) is required to isolate the mechanism. Until that experiment is run, the source of the MI increase remains ambiguous.
 
 ### 6.2 Mechanistic Explanation
 
