@@ -159,11 +159,32 @@ All major signals replicate except Moran's I, which was a small-sample artifact 
 
 Phase 2 MI is higher at every density point. The doubling-or-more effect is robust across the entire density range.
 
+> **Note on duplicate densities**: Density 0.067 appears twice because two distinct experimental conditions (15x15 grid with 15 agents and 30x30 grid with 60 agents) produce the same density ratio. These are separate experiments with different grid sizes and agent counts and should not be aggregated. The same applies to the survival rate table (Section 5.1).
+
 ### 5.3 Density-Dependent Patterns
 
 **Survival rate delta scales with density**: The Phase 2 advantage in survival is negligible at low density (d < 0.04) and grows to +15.7% at d = 0.400. This indicates a transition region around d ~ 0.07-0.10 where state observation begins to confer a meaningful survival advantage.
 
-**Role differentiation weakens at high density**: Action entropy variance delta decreases from +0.23 at d=0.033 to +0.05 at d=0.400. At high density, movement is heavily constrained by collisions, limiting the behavioral diversity that state observation can produce.
+**Role differentiation weakens at high density**: Action entropy variance delta decreases monotonically with density (see Table 5.3 below). At high density, movement is heavily constrained by collisions, limiting the behavioral diversity that state observation can produce.
+
+**Table 5.3: Action Entropy Variance Delta (Phase 2 - Phase 1) by Density**
+
+| Density | Grid | Agents | Abs. Delta | Rel. Delta |
+|---------|------|--------|------------|------------|
+| 0.017 | 30x30 | 15 | +0.022 | +17.5% |
+| 0.033 | 30x30 | 30 | +0.040 | +22.8% |
+| 0.038 | 20x20 | 15 | +0.021 | +14.6% |
+| 0.067 | 15x15 | 15 | +0.032 | +19.3% |
+| 0.067 | 30x30 | 60 | +0.034 | +17.3% |
+| 0.075 | 20x20 | 30 | +0.035 | +18.6% |
+| 0.100 | 30x30 | 90 | +0.022 | +10.7% |
+| 0.133 | 15x15 | 30 | +0.028 | +14.3% |
+| 0.150 | 20x20 | 60 | +0.016 | +8.0% |
+| 0.225 | 20x20 | 90 | +0.018 | +9.1% |
+| 0.267 | 15x15 | 60 | +0.014 | +7.3% |
+| 0.400 | 15x15 | 90 | +0.010 | +5.3% |
+
+Source: `data/stage_b_density/logs/density_phase_comparison.parquet`, field `action_entropy_variance_mean`.
 
 **Neighbor MI peaks at medium density, then declines**: Absolute MI values for both phases peak around d=0.07-0.15 and decline at higher densities. However, the relative advantage remains large (100-250%+) across all densities.
 
