@@ -799,9 +799,7 @@ def test_render_metric_timeseries_shared_ylim(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_render_rule_animation_uses_imshow(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_render_rule_animation_uses_imshow(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """After overhaul, animation world panel should use imshow, not scatter."""
     rule_id = "phase1_rs1_ss1"
     rule_json = tmp_path / "rules" / f"{rule_id}.json"
@@ -828,7 +826,14 @@ def test_render_rule_animation_uses_imshow(
     captured: dict[str, object] = {}
 
     class _CapturingAnimation:
-        def __init__(self, fig: object, update: object, frames: int, interval: int, blit: bool) -> None:
+        def __init__(
+            self,
+            fig: object,
+            update: object,
+            frames: int,
+            interval: int,
+            blit: bool,
+        ) -> None:
             self.fig = fig
             # Call update(0) to trigger the first frame so imshow is populated
             update(0)
@@ -866,16 +871,24 @@ def test_render_filmstrip_creates_png(tmp_path: Path) -> None:
     rule_id = "phase1_rs1_ss1"
     rule_json = tmp_path / "rules" / f"{rule_id}.json"
     rule_json.parent.mkdir(parents=True, exist_ok=True)
-    rule_json.write_text(json.dumps({"rule_id": rule_id, "metadata": {"grid_width": 5, "grid_height": 5}}))
+    meta = {"rule_id": rule_id, "metadata": {"grid_width": 5, "grid_height": 5}}
+    rule_json.write_text(json.dumps(meta))
 
     sim_rows = [
-        {"rule_id": rule_id, "step": s, "agent_id": a, "x": a % 5, "y": a // 5, "state": (s + a) % 4, "action": 8}
+        {
+            "rule_id": rule_id,
+            "step": s,
+            "agent_id": a,
+            "x": a % 5,
+            "y": a // 5,
+            "state": (s + a) % 4,
+            "action": 8,
+        }
         for s in range(10)
         for a in range(25)
     ]
     metric_rows = [
-        {"rule_id": rule_id, "step": s, "state_entropy": 0.5 + s * 0.01}
-        for s in range(10)
+        {"rule_id": rule_id, "step": s, "state_entropy": 0.5 + s * 0.01} for s in range(10)
     ]
     logs_dir = tmp_path / "logs"
     logs_dir.mkdir(parents=True, exist_ok=True)
@@ -900,17 +913,23 @@ def test_render_filmstrip_clamps_n_frames(tmp_path: Path) -> None:
     rule_id = "phase1_rs1_ss1"
     rule_json = tmp_path / "rules" / f"{rule_id}.json"
     rule_json.parent.mkdir(parents=True, exist_ok=True)
-    rule_json.write_text(json.dumps({"rule_id": rule_id, "metadata": {"grid_width": 3, "grid_height": 3}}))
+    meta = {"rule_id": rule_id, "metadata": {"grid_width": 3, "grid_height": 3}}
+    rule_json.write_text(json.dumps(meta))
 
     sim_rows = [
-        {"rule_id": rule_id, "step": s, "agent_id": a, "x": a % 3, "y": a // 3, "state": 0, "action": 8}
+        {
+            "rule_id": rule_id,
+            "step": s,
+            "agent_id": a,
+            "x": a % 3,
+            "y": a // 3,
+            "state": 0,
+            "action": 8,
+        }
         for s in range(3)
         for a in range(9)
     ]
-    metric_rows = [
-        {"rule_id": rule_id, "step": s, "state_entropy": 0.5}
-        for s in range(3)
-    ]
+    metric_rows = [{"rule_id": rule_id, "step": s, "state_entropy": 0.5} for s in range(3)]
     logs_dir = tmp_path / "logs"
     logs_dir.mkdir(parents=True, exist_ok=True)
     pq.write_table(pa.Table.from_pylist(sim_rows), logs_dir / "simulation_log.parquet")
@@ -954,17 +973,23 @@ def test_filmstrip_cli_subcommand(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
     rule_id = "phase1_rs1_ss1"
     rule_json = tmp_path / "rules" / f"{rule_id}.json"
     rule_json.parent.mkdir(parents=True, exist_ok=True)
-    rule_json.write_text(json.dumps({"rule_id": rule_id, "metadata": {"grid_width": 3, "grid_height": 3}}))
+    meta = {"rule_id": rule_id, "metadata": {"grid_width": 3, "grid_height": 3}}
+    rule_json.write_text(json.dumps(meta))
 
     sim_rows = [
-        {"rule_id": rule_id, "step": s, "agent_id": a, "x": a % 3, "y": a // 3, "state": 0, "action": 8}
+        {
+            "rule_id": rule_id,
+            "step": s,
+            "agent_id": a,
+            "x": a % 3,
+            "y": a // 3,
+            "state": 0,
+            "action": 8,
+        }
         for s in range(5)
         for a in range(9)
     ]
-    metric_rows = [
-        {"rule_id": rule_id, "step": s, "state_entropy": 0.5}
-        for s in range(5)
-    ]
+    metric_rows = [{"rule_id": rule_id, "step": s, "state_entropy": 0.5} for s in range(5)]
     logs_dir = tmp_path / "logs"
     logs_dir.mkdir(parents=True, exist_ok=True)
     pq.write_table(pa.Table.from_pylist(sim_rows), logs_dir / "simulation_log.parquet")
@@ -979,12 +1004,18 @@ def test_filmstrip_cli_subcommand(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
         [
             "visualize",
             "filmstrip",
-            "--simulation-log", str(logs_dir / "simulation_log.parquet"),
-            "--metrics-summary", str(logs_dir / "metrics_summary.parquet"),
-            "--rule-json", str(rule_json),
-            "--output", str(output_path),
-            "--n-frames", "4",
-            "--base-dir", str(tmp_path),
+            "--simulation-log",
+            str(logs_dir / "simulation_log.parquet"),
+            "--metrics-summary",
+            str(logs_dir / "metrics_summary.parquet"),
+            "--rule-json",
+            str(rule_json),
+            "--output",
+            str(output_path),
+            "--n-frames",
+            "4",
+            "--base-dir",
+            str(tmp_path),
         ],
     )
     visualize.main()
