@@ -938,6 +938,45 @@ def test_render_filmstrip_clamps_n_frames(tmp_path: Path) -> None:
     assert output_path.exists()
 
 
+def test_render_filmstrip_rejects_non_positive_n_frames(tmp_path: Path) -> None:
+    """n_frames <= 0 should raise ValueError."""
+    rule_id = "phase1_rs1_ss1"
+    rule_json = tmp_path / "rules" / f"{rule_id}.json"
+    rule_json.parent.mkdir(parents=True, exist_ok=True)
+    meta = {"rule_id": rule_id, "metadata": {"grid_width": 3, "grid_height": 3}}
+    rule_json.write_text(json.dumps(meta))
+
+    sim_rows = [
+        {
+            "rule_id": rule_id,
+            "step": s,
+            "agent_id": 0,
+            "x": 0,
+            "y": 0,
+            "state": 0,
+            "action": 8,
+        }
+        for s in range(3)
+    ]
+    logs_dir = tmp_path / "logs"
+    logs_dir.mkdir(parents=True, exist_ok=True)
+    pq.write_table(
+        pa.Table.from_pylist(sim_rows),
+        logs_dir / "simulation_log.parquet",
+    )
+
+    for bad_n in (0, -1, -100):
+        with pytest.raises(ValueError, match="n_frames must be >= 1"):
+            render_filmstrip(
+                simulation_log_path=logs_dir / "simulation_log.parquet",
+                rule_json_path=rule_json,
+                output_path=tmp_path / "filmstrip.png",
+                n_frames=bad_n,
+                grid_width=3,
+                grid_height=3,
+            )
+
+
 def test_render_filmstrip_rejects_paths_outside_base_dir(tmp_path: Path) -> None:
     rule_json = tmp_path / "rules" / "test.json"
     rule_json.parent.mkdir(parents=True, exist_ok=True)

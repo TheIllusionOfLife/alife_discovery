@@ -694,8 +694,9 @@ def render_filmstrip(
         axis_key="y",
     )
 
-    # Clamp n_frames to available steps
-    actual_n = min(n_frames, len(steps))
+    if n_frames < 1:
+        raise ValueError("n_frames must be >= 1")
+    actual_n = max(1, min(n_frames, len(steps)))
     indices = [int(i * (len(steps) - 1) / max(1, actual_n - 1)) for i in range(actual_n)]
     selected_steps = [steps[i] for i in indices]
 
