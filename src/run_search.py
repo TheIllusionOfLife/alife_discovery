@@ -207,6 +207,19 @@ class DensitySweepConfig:
     block_ncd_window: int = 10
 
 
+@dataclass(frozen=True)
+class MultiSeedConfig:
+    """Settings for multi-seed robustness evaluation of selected rules."""
+
+    rule_seeds: list[int]
+    n_sim_seeds: int = 20
+    out_dir: Path = Path("data/multi_seed")
+    steps: int = 200
+    halt_window: int = 10
+    phase: ObservationPhase = ObservationPhase.PHASE2_PROFILE
+    shuffle_null_n_shuffles: int = 200
+
+
 def _deterministic_rule_id(phase: ObservationPhase, rule_seed: int, sim_seed: int) -> str:
     """Build reproducible rule ID stable across runs for identical seeds."""
     return f"phase{phase.value}_rs{rule_seed}_ss{sim_seed}"
@@ -1080,6 +1093,145 @@ def run_experiment(config: ExperimentConfig) -> list[SimulationResult]:
     )
 
     return all_results
+
+
+def select_top_rules_by_excess_mi(
+    metrics_path: Path,
+    rules_dir: Path,
+    top_k: int = 50,
+) -> list[int]:
+    """Select top-K rule seeds by MI_excess from existing experiment data.
+
+    Returns a list of rule seeds sorted by descending MI_excess.
+    Only includes surviving rules.
+    """
+    metrics_file = pq.ParquetFile(metrics_path)
+    # Collect final-step MI and shuffle null per rule
+    max_steps: dict[str, int] = {}
+    rule_metrics: dict[str, dict[str, float]] = {}
+
+    for batch in metrics_file.iter_batches(
+        columns=["rule_id", "step", "neighbor_mutual_information", "mi_shuffle_null"],
+        batch_size=8192,
+    ):
+        batch_dict = batch.to_pydict()
+        for idx, rid in enumerate(batch_dict["rule_id"]):
+            step = int(batch_dict["step"][idx])
+            if rid not in max_steps or step > max_steps[rid]:
+                max_steps[rid] = step
+                mi = batch_dict["neighbor_mutual_information"][idx]
+                null = batch_dict["mi_shuffle_null"][idx]
+                if mi is not None and null is not None and mi == mi and null == null:
+                    rule_metrics[rid] = {"mi": float(mi), "null": float(null)}
+
+    # Filter to survived rules only
+    survived_seeds: list[tuple[int, float]] = []
+    for path in sorted(rules_dir.glob("*.json")):
+        data = json.loads(path.read_text())
+        if not data.get("survived", False):
+            continue
+        rid = data["rule_id"]
+        if rid not in rule_metrics:
+            continue
+        excess = max(rule_metrics[rid]["mi"] - rule_metrics[rid]["null"], 0.0)
+        seed = data["metadata"]["rule_seed"]
+        survived_seeds.append((int(seed), excess))
+
+    survived_seeds.sort(key=lambda x: x[1], reverse=True)
+    return [seed for seed, _ in survived_seeds[:top_k]]
+
+
+MULTI_SEED_SCHEMA = pa.schema(
+    [
+        ("rule_seed", pa.int64()),
+        ("sim_seed", pa.int64()),
+        ("survived", pa.bool_()),
+        ("termination_reason", pa.string()),
+        ("neighbor_mutual_information", pa.float64()),
+        ("mi_shuffle_null", pa.float64()),
+        ("mi_excess", pa.float64()),
+        ("same_state_adjacency_fraction", pa.float64()),
+    ]
+)
+
+
+def run_multi_seed_robustness(config: MultiSeedConfig) -> Path:
+    """Evaluate selected rules across multiple simulation seeds for robustness.
+
+    Returns path to the output parquet file.
+    """
+    from src.metrics import same_state_adjacency_fraction
+
+    out_dir = Path(config.out_dir)
+    logs_dir = out_dir / "logs"
+    logs_dir.mkdir(parents=True, exist_ok=True)
+
+    rows: list[dict[str, Any]] = []
+    search_cfg = SearchConfig(
+        steps=config.steps,
+        halt_window=config.halt_window,
+        shuffle_null_n_shuffles=config.shuffle_null_n_shuffles,
+    )
+
+    for rule_seed in config.rule_seeds:
+        for sim_seed_offset in range(config.n_sim_seeds):
+            sim_seed = rule_seed * 10000 + sim_seed_offset
+            rule_id = _deterministic_rule_id(
+                phase=config.phase, rule_seed=rule_seed, sim_seed=sim_seed
+            )
+
+            rule_table = generate_rule_table(phase=config.phase, seed=rule_seed)
+            world_cfg = WorldConfig(steps=config.steps)
+            world = World(config=world_cfg, sim_seed=sim_seed)
+            halt_detector = HaltDetector(window=config.halt_window)
+            uniform_detector = StateUniformDetector()
+
+            termination_reason: str | None = None
+            for step in range(world_cfg.steps):
+                world.step(rule_table, config.phase, step_number=step)
+                snapshot = world.snapshot()
+                states = world.state_vector()
+
+                if uniform_detector.observe(states):
+                    termination_reason = TerminationReason.STATE_UNIFORM.value
+                    break
+                if halt_detector.observe(snapshot):
+                    termination_reason = TerminationReason.HALT.value
+                    break
+
+            snapshot = world.snapshot()
+            survived = termination_reason is None
+            mi = neighbor_mutual_information(
+                snapshot, world_cfg.grid_width, world_cfg.grid_height
+            )
+            mi_null = shuffle_null_mi(
+                snapshot,
+                world_cfg.grid_width,
+                world_cfg.grid_height,
+                n_shuffles=config.shuffle_null_n_shuffles,
+                rng=random.Random(sim_seed),
+            )
+            mi_exc = max(mi - mi_null, 0.0)
+            adj_frac = same_state_adjacency_fraction(
+                snapshot, world_cfg.grid_width, world_cfg.grid_height
+            )
+
+            rows.append(
+                {
+                    "rule_seed": rule_seed,
+                    "sim_seed": sim_seed,
+                    "survived": survived,
+                    "termination_reason": termination_reason,
+                    "neighbor_mutual_information": mi,
+                    "mi_shuffle_null": mi_null,
+                    "mi_excess": mi_exc,
+                    "same_state_adjacency_fraction": adj_frac,
+                }
+            )
+
+    output_path = logs_dir / "multi_seed_results.parquet"
+    pq.write_table(pa.Table.from_pylist(rows, schema=MULTI_SEED_SCHEMA), output_path)
+    return output_path
 
 
 def _parse_phase(raw_phase: int) -> ObservationPhase:
