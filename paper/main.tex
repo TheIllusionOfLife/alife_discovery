@@ -627,16 +627,16 @@ bias-corrected MI estimator.
 
 \begin{table}[htbp]
 \centering
-\caption{Density sweep results across 12 conditions (MI values are
-Miller-Madow corrected, bits). Phase~2 achieves
-nonzero median MI in 8 of 12 conditions, including all conditions with
-$\geq 60$ agents, while Phase~1 remains at zero across all densities tested.
-Shuffle-null MI and $\mathrm{MI}_{\mathrm{excess}}$ confirm these patterns
-hold after bias calibration (data available in supplementary materials).}
+\caption{Density sweep results across 12 conditions.
+$\mathrm{MI}_{\mathrm{excess}}$ (Eq.~\ref{eq:mi_excess}) values are
+Miller-Madow corrected, bits.  Phase~2 achieves nonzero median
+$\mathrm{MI}_{\mathrm{excess}}$ in 8 of 12 conditions, including all
+conditions with $\geq 60$ agents, while Phase~1 remains at zero across
+all densities tested.}
 \label{tab:density_sweep}
 \begin{tabular}{rllcccc}
 \toprule
-Density & Grid & Agents & \multicolumn{2}{c}{Median MI (bits)} & \multicolumn{2}{c}{Survival (\%)} \\
+Density & Grid & Agents & \multicolumn{2}{c}{Median MI\textsubscript{excess} (bits)} & \multicolumn{2}{c}{Survival (\%)} \\
 \cmidrule(lr){4-5} \cmidrule(lr){6-7}
  & & & P1 & P2 & P1 & P2 \\
 \midrule
@@ -644,26 +644,27 @@ Density & Grid & Agents & \multicolumn{2}{c}{Median MI (bits)} & \multicolumn{2}
 0.033 & $30 \times 30$ & 30 & 0.000 & 0.000 & 83.3 & 85.8 \\
 0.037 & $20 \times 20$ & 15 & 0.000 & 0.000 & 80.8 & 81.8 \\
 0.067 & $15 \times 15$ & 15 & 0.000 & 0.000 & 68.7 & 76.0 \\
-0.067 & $30 \times 30$ & 60 & 0.000 & 0.167 & 70.5 & 76.3 \\
-0.075 & $20 \times 20$ & 30 & 0.000 & 0.106 & 70.2 & 72.5 \\
-0.100 & $30 \times 30$ & 90 & 0.000 & 0.217 & 67.0 & 74.2 \\
-0.133 & $15 \times 15$ & 30 & 0.000 & 0.129 & 62.2 & 64.8 \\
-0.150 & $20 \times 20$ & 60 & 0.000 & 0.180 & 63.0 & 69.7 \\
-0.225 & $20 \times 20$ & 90 & 0.000 & 0.153 & 64.0 & 76.7 \\
-0.267 & $15 \times 15$ & 60 & 0.000 & 0.121 & 63.5 & 72.7 \\
-0.400 & $15 \times 15$ & 90 & 0.000 & 0.088 & 68.0 & 83.7 \\
+0.067 & $30 \times 30$ & 60 & 0.000 & 0.199 & 70.5 & 76.3 \\
+0.075 & $20 \times 20$ & 30 & 0.000 & 0.114 & 70.2 & 72.5 \\
+0.100 & $30 \times 30$ & 90 & 0.000 & 0.246 & 67.0 & 74.2 \\
+0.133 & $15 \times 15$ & 30 & 0.000 & 0.130 & 62.2 & 64.8 \\
+0.150 & $20 \times 20$ & 60 & 0.000 & 0.191 & 63.0 & 69.7 \\
+0.225 & $20 \times 20$ & 90 & 0.002 & 0.176 & 64.0 & 76.7 \\
+0.267 & $15 \times 15$ & 60 & 0.000 & 0.148 & 63.5 & 72.7 \\
+0.400 & $15 \times 15$ & 90 & 0.000 & 0.107 & 68.0 & 83.7 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 Table~\ref{tab:density_sweep} and Figures~\ref{fig:mi_density}
 and~\ref{fig:surv_density} present the results. Phase~2 achieves nonzero
-median MI in 8 of 12 conditions, including all conditions with $\geq 60$
-agents, peaking near $d = 0.100$ (MI = 0.217 bits at $30 \times 30$, 90
-agents) before declining at higher densities. Phase~1 remains at zero
-median MI across all 12 conditions, confirming that the Phase~2 advantage
-is not an artifact of the specific grid configuration used in the main
-experiments.
+median $\mathrm{MI}_{\mathrm{excess}}$ in 8 of 12 conditions, including all
+conditions with $\geq 60$ agents, peaking near $d = 0.100$
+($\mathrm{MI}_{\mathrm{excess}} = 0.246$ bits at $30 \times 30$, 90 agents)
+before declining at higher densities. Phase~1 remains at zero median
+$\mathrm{MI}_{\mathrm{excess}}$ across all 12 conditions, confirming that the
+Phase~2 advantage is not an artifact of the specific grid configuration used
+in the main experiments.
 
 Phase~2 also consistently achieves higher survival rates than Phase~1, with
 the gap widening at higher densities (e.g., 76.7\% vs.\ 64.0\% at $d =
