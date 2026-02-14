@@ -648,6 +648,64 @@ def test_mi_shuffle_null_column_in_output_parquet(tmp_path: Path) -> None:
     assert all(v == values[0] for v in values)
 
 
+def test_mi_excess_in_phase_summary_metric_names() -> None:
+    """mi_excess is included in PHASE_SUMMARY_METRIC_NAMES."""
+    assert "mi_excess" in PHASE_SUMMARY_METRIC_NAMES
+
+
+def test_mi_excess_columns_in_phase_summary(tmp_path: Path) -> None:
+    """Phase summary parquet contains mi_excess_mean/p25/p50/p75 columns."""
+    run_experiment(
+        ExperimentConfig(
+            phases=(ObservationPhase.PHASE1_DENSITY, ObservationPhase.PHASE2_PROFILE),
+            n_rules=2,
+            n_seed_batches=1,
+            out_dir=tmp_path,
+            steps=6,
+        )
+    )
+    summary = pq.read_table(tmp_path / "logs" / "phase_summary.parquet")
+    for suffix in ("mean", "p25", "p50", "p75"):
+        assert f"mi_excess_{suffix}" in summary.column_names
+
+
+def test_mi_excess_columns_in_density_phase_summary(tmp_path: Path) -> None:
+    """Density phase summary parquet contains mi_excess columns."""
+    run_density_sweep(
+        DensitySweepConfig(
+            grid_sizes=((5, 5),),
+            agent_counts=(3,),
+            n_rules=2,
+            n_seed_batches=1,
+            out_dir=tmp_path,
+            steps=6,
+            halt_window=3,
+        )
+    )
+    summary = pq.read_table(tmp_path / "logs" / "density_phase_summary.parquet")
+    for suffix in ("mean", "p25", "p50", "p75"):
+        assert f"mi_excess_{suffix}" in summary.column_names
+
+
+def test_mi_excess_is_nonnegative(tmp_path: Path) -> None:
+    """mi_excess values in phase summary are always >= 0."""
+    run_experiment(
+        ExperimentConfig(
+            phases=(ObservationPhase.PHASE1_DENSITY, ObservationPhase.PHASE2_PROFILE),
+            n_rules=3,
+            n_seed_batches=1,
+            out_dir=tmp_path,
+            steps=8,
+        )
+    )
+    summary = pq.read_table(tmp_path / "logs" / "phase_summary.parquet").to_pylist()
+    for row in summary:
+        for suffix in ("mean", "p25", "p50", "p75"):
+            val = row[f"mi_excess_{suffix}"]
+            if val is not None:
+                assert val >= 0.0, f"mi_excess_{suffix} = {val} < 0"
+
+
 def test_run_search_main_rejects_density_sweep_and_experiment_together(tmp_path: Path) -> None:
     with pytest.raises(SystemExit):
         main(

@@ -81,6 +81,7 @@ PHASE_SUMMARY_METRIC_NAMES = [
     "action_entropy_variance",
     "block_ncd",
     "mi_shuffle_null",
+    "mi_excess",
 ]
 DENSITY_SWEEP_RUNS_SCHEMA = pa.schema(
     [
@@ -647,6 +648,15 @@ def _build_phase_summary(
         else 0.0,
         "mean_terminated_at": _mean([float(v) for v in terminated_at_values]),
     }
+
+    # Derive mi_excess per rule before summarizing
+    for row in final_metric_rows:
+        mi = row.get("neighbor_mutual_information")
+        null = row.get("mi_shuffle_null")
+        if mi is not None and null is not None and mi == mi and null == null:
+            row["mi_excess"] = max(float(mi) - float(null), 0.0)
+        else:
+            row["mi_excess"] = None
 
     for metric_name in PHASE_SUMMARY_METRIC_NAMES:
         values = sorted(_to_float_list(final_metric_rows, metric_name))
