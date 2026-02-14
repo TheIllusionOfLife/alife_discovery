@@ -1007,3 +1007,245 @@ def test_filmstrip_cli_subcommand(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
     )
     visualize.main()
     assert output_path.exists()
+
+
+# ---------------------------------------------------------------------------
+# Figure annotation tests (legends, labels, descriptions)
+# ---------------------------------------------------------------------------
+
+
+def test_metric_label_neighbor_mi_full_name() -> None:
+    """METRIC_LABELS should use full 'Mutual Information', not abbreviation."""
+    from src.visualize import METRIC_LABELS
+
+    label = METRIC_LABELS["neighbor_mutual_information"]
+    assert "Mutual Information" in label, f"Expected full name, got: {label}"
+
+
+def test_phase_descriptions_defined() -> None:
+    """PHASE_DESCRIPTIONS dict should exist with descriptive labels."""
+    from src.visualize import PHASE_DESCRIPTIONS
+
+    for key in ("P1", "P2", "Control"):
+        assert key in PHASE_DESCRIPTIONS
+        assert len(PHASE_DESCRIPTIONS[key]) > len(key)
+
+
+def test_snapshot_grid_has_state_legend(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Snapshot grid figure should include a color legend for agent states."""
+    phase_dir = tmp_path / "phase1"
+    run_batch_search(
+        n_rules=1,
+        phase=ObservationPhase.PHASE1_DENSITY,
+        out_dir=phase_dir,
+        steps=4,
+        base_rule_seed=2,
+        base_sim_seed=3,
+    )
+    rule_json = next((phase_dir / "rules").glob("*.json"))
+    rule_id = json.loads(rule_json.read_text())["rule_id"]
+
+    import matplotlib.pyplot as _plt
+
+    import src.visualize as visualize
+
+    captured_fig: list[object] = []
+    original_subplots = _plt.subplots
+
+    def _spy_subplots(*args: object, **kwargs: object) -> tuple[object, object]:
+        fig, axes = original_subplots(*args, **kwargs)
+        captured_fig.append(fig)
+        return fig, axes
+
+    monkeypatch.setattr(visualize.plt, "subplots", _spy_subplots)
+    output_path = tmp_path / "snapshot.png"
+    render_snapshot_grid(
+        phase_configs=[
+            (
+                "P1",
+                phase_dir / "logs" / "simulation_log.parquet",
+                phase_dir / "logs" / "metrics_summary.parquet",
+                rule_id,
+            ),
+        ],
+        snapshot_steps=[0],
+        output_path=output_path,
+    )
+    fig = captured_fig[0]
+    assert len(fig.legends) > 0, "Expected state color legend on snapshot grid"
+
+
+def test_filmstrip_has_state_legend(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Filmstrip figure should include a color legend for agent states."""
+    rule_id = "phase1_rs1_ss1"
+    rule_json = tmp_path / "rules" / f"{rule_id}.json"
+    rule_json.parent.mkdir(parents=True, exist_ok=True)
+    meta = {
+        "rule_id": rule_id,
+        "metadata": {"grid_width": 3, "grid_height": 3},
+    }
+    rule_json.write_text(json.dumps(meta))
+
+    sim_rows = [
+        {
+            "rule_id": rule_id,
+            "step": s,
+            "agent_id": a,
+            "x": a % 3,
+            "y": a // 3,
+            "state": (s + a) % 4,
+            "action": 8,
+        }
+        for s in range(5)
+        for a in range(9)
+    ]
+    logs_dir = tmp_path / "logs"
+    logs_dir.mkdir(parents=True, exist_ok=True)
+    pq.write_table(
+        pa.Table.from_pylist(sim_rows),
+        logs_dir / "simulation_log.parquet",
+    )
+
+    import matplotlib.pyplot as _plt
+
+    import src.visualize as visualize
+
+    captured_fig: list[object] = []
+    original_subplots = _plt.subplots
+
+    def _spy_subplots(*args: object, **kwargs: object) -> tuple[object, object]:
+        fig, axes = original_subplots(*args, **kwargs)
+        captured_fig.append(fig)
+        return fig, axes
+
+    monkeypatch.setattr(visualize.plt, "subplots", _spy_subplots)
+    output_path = tmp_path / "filmstrip.png"
+    render_filmstrip(
+        simulation_log_path=logs_dir / "simulation_log.parquet",
+        rule_json_path=rule_json,
+        output_path=output_path,
+        n_frames=3,
+        grid_width=3,
+        grid_height=3,
+    )
+    fig = captured_fig[0]
+    assert len(fig.legends) > 0, "Expected state color legend on filmstrip"
+
+
+def test_metric_distribution_has_significance_key(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Distribution figure with stats should include a significance convention key."""
+    p1_dir = tmp_path / "phase1"
+    p2_dir = tmp_path / "phase2"
+    run_batch_search(
+        n_rules=3,
+        phase=ObservationPhase.PHASE1_DENSITY,
+        out_dir=p1_dir,
+        steps=4,
+        base_rule_seed=10,
+        base_sim_seed=20,
+    )
+    run_batch_search(
+        n_rules=3,
+        phase=ObservationPhase.PHASE2_PROFILE,
+        out_dir=p2_dir,
+        steps=4,
+        base_rule_seed=30,
+        base_sim_seed=40,
+    )
+
+    stats_path = tmp_path / "stats.json"
+    stats_path.write_text(
+        json.dumps(
+            {
+                "metric_tests": {
+                    "neighbor_mutual_information": {
+                        "p_value_corrected": 1e-178,
+                    }
+                }
+            }
+        )
+    )
+
+    import matplotlib.pyplot as _plt
+
+    import src.visualize as visualize
+
+    captured_fig: list[object] = []
+    original_subplots = _plt.subplots
+
+    def _spy_subplots(*args: object, **kwargs: object) -> tuple[object, object]:
+        fig, axes = original_subplots(*args, **kwargs)
+        captured_fig.append(fig)
+        return fig, axes
+
+    monkeypatch.setattr(visualize.plt, "subplots", _spy_subplots)
+    output_path = tmp_path / "distribution.pdf"
+    render_metric_distribution(
+        phase_data=[
+            ("P1", p1_dir / "logs" / "metrics_summary.parquet"),
+            ("P2", p2_dir / "logs" / "metrics_summary.parquet"),
+        ],
+        metric_names=["neighbor_mutual_information"],
+        output_path=output_path,
+        stats_path=stats_path,
+    )
+    fig = captured_fig[0]
+    fig_texts = [t.get_text() for t in fig.texts]
+    has_key = any("p" in t and "<" in t for t in fig_texts)
+    assert has_key, (
+        f"Expected significance key (p < ...) in figure texts, got: {fig_texts}"
+    )
+
+
+def test_timeseries_uses_phase_descriptions(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Timeseries panel titles should use PHASE_DESCRIPTIONS, not bare labels."""
+    from src.visualize import PHASE_DESCRIPTIONS
+
+    phase_dir = tmp_path / "phase1"
+    run_batch_search(
+        n_rules=1,
+        phase=ObservationPhase.PHASE1_DENSITY,
+        out_dir=phase_dir,
+        steps=4,
+        base_rule_seed=10,
+        base_sim_seed=20,
+    )
+    rule_jsons = list((phase_dir / "rules").glob("*.json"))
+    rule_ids = [json.loads(p.read_text())["rule_id"] for p in rule_jsons]
+
+    import matplotlib.pyplot as _plt
+
+    import src.visualize as visualize
+
+    captured_fig: list[object] = []
+    original_subplots = _plt.subplots
+
+    def _spy_subplots(*args: object, **kwargs: object) -> tuple[object, object]:
+        fig, axes = original_subplots(*args, **kwargs)
+        captured_fig.append(fig)
+        return fig, axes
+
+    monkeypatch.setattr(visualize.plt, "subplots", _spy_subplots)
+    output_path = tmp_path / "timeseries.pdf"
+    render_metric_timeseries(
+        phase_configs=[
+            ("P1", phase_dir / "logs" / "metrics_summary.parquet", rule_ids),
+        ],
+        metric_name="state_entropy",
+        output_path=output_path,
+    )
+    fig = captured_fig[0]
+    ax = fig.get_axes()[0]
+    title = ax.get_title()
+    expected = PHASE_DESCRIPTIONS["P1"]
+    assert expected in title, (
+        f"Expected '{expected}' in title, got: '{title}'"
+    )
