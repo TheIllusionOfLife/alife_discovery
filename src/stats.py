@@ -22,6 +22,35 @@ from scipy.stats import chi2_contingency, mannwhitneyu, pointbiserialr
 from src.run_search import PHASE_SUMMARY_METRIC_NAMES
 
 
+def wilson_score_ci(
+    successes: int,
+    total: int,
+    ci_level: float = 0.95,
+) -> tuple[float, float]:
+    """Wilson score confidence interval for a binomial proportion.
+
+    Returns (lower, upper) bounds.  Returns (NaN, NaN) when *total* is 0.
+    """
+    if successes < 0 or total < 0 or successes > total:
+        raise ValueError(
+            f"successes must be in [0, total]; got successes={successes}, total={total}"
+        )
+    if total == 0:
+        return (float("nan"), float("nan"))
+
+    from scipy.stats import norm
+
+    z = norm.ppf(1.0 - (1.0 - ci_level) / 2.0)
+    p_hat = successes / total
+    z2 = z * z
+    denom = 1.0 + z2 / total
+    centre = (p_hat + z2 / (2.0 * total)) / denom
+    spread = z * ((p_hat * (1.0 - p_hat) / total + z2 / (4.0 * total * total)) ** 0.5) / denom
+    lo = max(centre - spread, 0.0)
+    hi = min(centre + spread, 1.0)
+    return (lo, hi)
+
+
 def bootstrap_median_ci(
     vals1: list[float],
     vals2: list[float],
@@ -58,22 +87,26 @@ def bootstrap_median_ci(
 def load_final_step_metrics(parquet_path: Path) -> pa.Table:
     """Load metrics_summary.parquet and return one row per rule at its final step."""
     table = pq.read_table(parquet_path)
+    # Compute max step per rule_id using Arrow group-by
+    grouped = table.group_by("rule_id").aggregate([("step", "max")])
+    # Join back to get only the final-step rows
+    max_step_map = {
+        rid: s
+        for rid, s in zip(
+            grouped.column("rule_id").to_pylist(),
+            grouped.column("step_max").to_pylist(),
+            strict=True,
+        )
+    }
     rule_ids = table.column("rule_id")
     steps = table.column("step")
-
-    # Find max step per rule_id
-    max_steps: dict[str, int] = {}
-    for i in range(table.num_rows):
-        rid = rule_ids[i].as_py()
-        step = steps[i].as_py()
-        if rid not in max_steps or step > max_steps[rid]:
-            max_steps[rid] = step
-
-    # Filter to final-step rows
-    mask = [
-        rule_ids[i].as_py() in max_steps and steps[i].as_py() == max_steps[rule_ids[i].as_py()]
-        for i in range(table.num_rows)
-    ]
+    mask = pc.and_(
+        pc.is_in(rule_ids, pa.array(list(max_step_map.keys()))),
+        pc.equal(
+            steps,
+            pa.array([max_step_map.get(r, -1) for r in rule_ids.to_pylist()]),
+        ),
+    )
     return table.filter(mask)
 
 

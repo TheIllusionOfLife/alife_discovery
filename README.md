@@ -17,6 +17,7 @@ The implementation source of truth is `spec.md`.
 Requirements:
 - Python 3.11+
 - `uv`
+- `tectonic` (for paper compilation)
 
 Setup:
 
@@ -31,6 +32,13 @@ Run quality checks:
 uv run ruff check .
 uv run ruff format . --check
 uv run pytest -q
+```
+
+Compile the paper:
+
+```bash
+tectonic paper/main.tex
+tectonic paper/supplementary.tex
 ```
 
 ## Common Commands

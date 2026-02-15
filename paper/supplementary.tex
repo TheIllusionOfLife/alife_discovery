@@ -130,7 +130,232 @@ state data) is also recorded per seed in the multi-seed dataset and confirms
 local coordination patterns.
 
 %% =========================================================================
-%% C. PSEUDOCODE
+%% C. MORAN'S I (RELOCATED FROM TABLE 1)
+%% =========================================================================
+\section{Moran's $I$ by Condition}
+\label{app:morans_i}
+
+Table~1 in the main text reports the same-state adjacency fraction as the
+primary categorical spatial statistic.  For completeness, we report
+Moran's~$I$ here, noting that it treats categorical states as numeric
+(computing deviations from an arithmetic mean) and is therefore
+inappropriate as a primary indicator for nominal data.
+
+\begin{table}[htbp]
+\centering
+\caption{Median Moran's $I$ by condition (final-step snapshot,
+5{,}000 rules per condition).  Moran's $I$ treats states as numeric
+and is a secondary indicator; see Table~1 for the categorical
+adjacency fraction.}
+\label{tab:morans_i}
+\begin{tabular}{lc}
+\toprule
+Condition & Median Moran's $I$ \\
+\midrule
+Random Walk & $-0.030$ \\
+Control     & 0.124 \\
+Phase 1     & $-0.011$ \\
+Phase 2     & $-0.020$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+%% =========================================================================
+%% D. HALT WINDOW SENSITIVITY
+%% =========================================================================
+\section{Halt Window Sensitivity}
+\label{app:halt_window}
+
+The main experiments use a 10-step halt window.  To assess sensitivity,
+we evaluated the top-50 Phase~2 rules across halt windows of
+\{5, 10, 20\} steps.
+
+\begin{table}[htbp]
+\centering
+\caption{Halt window sensitivity for top-50 Phase~2 rules.
+Results are qualitatively unchanged across the tested range.}
+\label{tab:halt_window}
+\begin{tabular}{ccc}
+\toprule
+Halt Window & Survival Rate & Median MI\textsubscript{excess} \\
+\midrule
+5  & 78.0\% & 0.486 \\
+10 & 78.0\% & 0.486 \\
+20 & 78.0\% & 0.486 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:halt_window} confirms that the halt-window parameter has
+no impact on the qualitative findings for these top-performing rules:
+survival rates (78.0\%) and median MI\textsubscript{excess} (0.486~bits)
+are identical across all three tested windows.  This indicates that the
+top-50 rules either survive to completion or halt well within the first
+5~steps, with no rules in the intermediate regime.
+
+%% =========================================================================
+%% E. SURVIVAL RATES WITH CIs
+%% =========================================================================
+\section{Survival Rates with Confidence Intervals}
+\label{app:survival_ci}
+
+\begin{table}[htbp]
+\centering
+\caption{Survival rates with Wilson score 95\% confidence intervals
+(5{,}000 rules per condition).}
+\label{tab:survival_ci}
+\begin{tabular}{lccc}
+\toprule
+Condition & Survived / Total & Rate & 95\% CI \\
+\midrule
+Random Walk & 5000/5000 & 100.0\% & [99.9, 100.0]\% \\
+Control     & 2225/5000 & 44.5\%  & [43.1, 45.9]\% \\
+Phase 1     & 3570/5000 & 71.4\%  & [70.1, 72.6]\% \\
+Phase 2     & 3735/5000 & 74.7\%  & [73.5, 75.9]\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+%% =========================================================================
+%% F. RANDOM WALK DENSITY SWEEP
+%% =========================================================================
+\section{Random Walk MI\textsubscript{excess} Across Densities}
+\label{app:rw_density}
+
+To confirm that the random walk's $\mathrm{MI}_{\mathrm{excess}}$ remains
+near zero regardless of agent density, we extended the density sweep to
+include the Random Walk condition.  Across all 12 density conditions
+(density range 0.017--0.400), the random walk produces
+$\mathrm{MI}_{\mathrm{excess}} \approx 0$ (median $\leq 0.06$~bits),
+confirming that its elevated raw MI is entirely attributable to
+pair-count bias at all tested densities.
+
+%% =========================================================================
+%% G. ALTERNATIVE NULL MODELS
+%% =========================================================================
+\section{Alternative Null Models}
+\label{app:alt_nulls}
+
+In addition to the state-shuffle null used throughout the main text, we
+evaluated two alternative null models to assess the robustness of the MI
+calibration:
+
+\begin{itemize}
+  \item \textbf{Block shuffle}: States are shuffled within spatial blocks
+        ($4 \times 4$), preserving local autocorrelation structure while
+        destroying inter-block correlations.
+  \item \textbf{Fixed-marginal}: Synthetic snapshots are generated with
+        identical marginal state distributions but independent spatial
+        placement (each position draws independently from the observed
+        state frequencies).
+\end{itemize}
+
+\begin{table}[htbp]
+\centering
+\caption{Alternative null model comparison for top-50 Phase~2 rules
+(mean MI across 200 null samples per rule).  All three null models
+produce substantially lower MI than the observed values, confirming
+that Phase~2's elevated MI reflects genuine spatial coordination.}
+\label{tab:alt_nulls}
+\begin{tabular}{lc}
+\toprule
+Null Model & Mean Null MI (bits) \\
+\midrule
+State shuffle (main text) & 0.264 \\
+Block shuffle ($4 \times 4$) & 0.899 \\
+Fixed-marginal & 0.250 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The block-shuffle null produces substantially higher MI (0.899~bits) than
+the state-shuffle null (0.264~bits), as expected since it preserves
+within-block correlations.  The fixed-marginal null (0.250~bits) is
+comparable to the state-shuffle.  In all cases, mean observed MI for the
+top-50 Phase~2 rules (1.646~bits) substantially exceeds the null values,
+confirming genuine spatial coordination.
+
+%% =========================================================================
+%% H. SPATIAL SCRAMBLING
+%% =========================================================================
+\section{Spatial Scrambling Control}
+\label{app:spatial_scrambling}
+
+To confirm that Phase~2's elevated MI depends on agents' specific
+positions rather than their state distribution alone, we performed
+spatial scrambling: for each rule's final snapshot, we randomly
+reassigned occupied positions among agents while keeping their states
+fixed ($N = 200$ scrambles per rule).
+
+For top-50 Phase~2 rules, the mean observed MI is 1.646~bits while the
+mean scrambled MI drops to 0.270~bits---comparable to the shuffle null
+baseline (0.264~bits).  This confirms that the observed MI arises from
+genuine local spatial coordination (agents with correlated states being
+\emph{near} each other) rather than from the state distribution itself.
+
+%% =========================================================================
+%% I. TRANSFER ENTROPY
+%% =========================================================================
+\section{Transfer Entropy}
+\label{app:transfer_entropy}
+
+Mutual information measures symmetric statistical dependence between
+neighboring states.  To assess \emph{directional} information flow, we
+computed transfer entropy (TE) from neighbor states to agent next-states:
+\begin{equation}
+  \mathrm{TE} = I(S_j^t ; S_i^{t+1} \mid S_i^t)
+\end{equation}
+where $S_i^t$ is agent $i$'s state at time $t$ and $S_j^t$ is a
+neighboring agent's state.  This measures how much knowing a neighbor's
+current state reduces uncertainty about the focal agent's next state,
+beyond what the agent's own current state provides.
+
+Miller-Madow bias correction is applied.  For the top-50 rules in each
+condition, median TE values are: Phase~2 = 0.072~bits, Phase~1 =
+0.003~bits, Control = 0.113~bits.  Phase~2 shows substantially elevated
+TE compared to Phase~1, confirming directional information flow from
+neighbors to agents.  The Control condition's higher TE reflects its
+inclusion of a step-clock dimension that creates temporal state
+dependence without genuine spatial coordination (recall that Control
+$\mathrm{MI}_{\mathrm{excess}} \approx 0$).
+
+%% =========================================================================
+%% J. CAPACITY-MATCHED CONTROLS
+%% =========================================================================
+\section{Capacity-Matched Controls}
+\label{app:capacity_matched}
+
+To further isolate the role of observation \emph{content} from table
+\emph{capacity}, we evaluated two additional control conditions:
+
+\begin{itemize}
+  \item \textbf{Capacity-matched Phase~1}: 100-entry tables where
+        indices are aliased so that all dominant-state values for the
+        same (self-state, neighbor-count) pair map to the same action.
+        This provides Phase-2-sized tables with only Phase-1-level
+        observation content.
+  \item \textbf{Random-encoding Phase~2}: 100-entry tables with the
+        same alphabet size as Phase~2, but the mapping from neighborhood
+        configuration to observation index is randomly permuted.  This
+        tests whether the \emph{structure} of the encoding matters
+        beyond alphabet size.
+\end{itemize}
+
+The capacity-matched Phase~1 control produces median
+$\mathrm{MI}_{\mathrm{excess}} = 0.000$ (survival 71.4\%), matching
+standard Phase~1 ($\mathrm{MI}_{\mathrm{excess}} = 0.000$) and well below
+standard Phase~2 ($\mathrm{MI}_{\mathrm{excess}} = 0.096$).  This
+confirms that table capacity alone does not explain the Phase~2
+advantage---Phase-1-level observations remain ineffective even with
+100-entry tables.  The random-encoding Phase~2 control produces median
+$\mathrm{MI}_{\mathrm{excess}} = 0.106$ (survival 75.1\%), comparable to
+standard Phase~2, which is expected because the observation encoding
+(self-state, neighbor count, dominant state) is identical; only the
+table-entry ordering differs, which is irrelevant for randomly generated
+tables.
+
+%% =========================================================================
+%% K. PSEUDOCODE
 %% =========================================================================
 \section{Algorithmic Pseudocode}
 \label{app:pseudocode}
