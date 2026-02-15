@@ -91,7 +91,6 @@ def test_capacity_matched_index_aliases_phase1() -> None:
     # index should alias to Phase-1-style observation (ignoring dominant_state)
     for s in range(4):
         for n in range(5):
-            p1_idx = compute_phase1_index(s, n)
             for d in range(5):
                 cm_idx = compute_capacity_matched_index(s, n, d)
                 assert 0 <= cm_idx < 100

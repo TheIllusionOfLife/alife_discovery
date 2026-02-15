@@ -305,7 +305,9 @@ def test_spatial_scramble_mi_deterministic() -> None:
 def test_block_shuffle_null_mi_nonnegative() -> None:
     """Result is non-negative."""
     snapshot = tuple((i * 10 + j, i, j, (i + j) % 4) for i in range(10) for j in range(10))
-    result = block_shuffle_null_mi(snapshot, 10, 10, block_size=4, n_shuffles=20, rng=random.Random(0))
+    result = block_shuffle_null_mi(
+        snapshot, 10, 10, block_size=4, n_shuffles=20, rng=random.Random(0)
+    )
     assert result >= 0.0
 
 
