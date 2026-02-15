@@ -7,15 +7,14 @@ from pathlib import Path
 
 import pytest
 
-from src.rules import ObservationPhase
-from src.run_search import run_batch_search
-
 from src.export_web import (
-    export_single,
-    export_paired,
     export_batch,
     export_gallery,
+    export_paired,
+    export_single,
 )
+from src.rules import ObservationPhase
+from src.run_search import run_batch_search
 
 
 @pytest.fixture()
@@ -149,9 +148,7 @@ class TestExportPaired:
         assert "right" in data
         assert "meta" in data
 
-    def test_paired_meta(
-        self, phase2_dir: Path, control_dir: Path, tmp_path: Path
-    ) -> None:
+    def test_paired_meta(self, phase2_dir: Path, control_dir: Path, tmp_path: Path) -> None:
         out_file = tmp_path / "paired.json"
         export_paired(
             phase2_dir=phase2_dir,
