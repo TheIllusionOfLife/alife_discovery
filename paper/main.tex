@@ -171,11 +171,11 @@ while Control rules appear disordered.}
 \centering
 \caption{Model and experiment parameters.}
 \label{tab:params}
-\begin{tabular}{ll}
+\begin{tabular}{lp{0.55\columnwidth}}
 \toprule
 Parameter & Value \\
 \midrule
-Grid topology       & $20 \times 20$ torus (von~Neumann neighborhood) \\
+Grid topology       & $20 \times 20$ torus (von~Neumann) \\
 Number of agents    & 30 (7.5\% density) \\
 Internal states     & $\{0, 1, 2, 3\}$ \\
 Action space        & 9 (4 moves, 4 state changes, 1 no-op) \\
@@ -551,7 +551,7 @@ $r = 0.45$ for Control. The modest correlation for Phase~2 indicates that
 while some relationship exists (surviving rules tend to have slightly higher MI),
 the MI advantage of Phase~2 over Phase~1 is not an artifact of differential
 filter selection: both conditions have nearly identical filter-MI correlation
-($r \approx 0.14$), yet Phase~2 achieves substantially higher MI_excess.
+($r \approx 0.14$), yet Phase~2 achieves substantially higher $\mathrm{MI}_{\mathrm{excess}}$.
 
 \paragraph{Implications for ALife research.}
 These results suggest that objective-free search deserves more attention as a
