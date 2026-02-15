@@ -1,22 +1,23 @@
-\documentclass[12pt]{article}
-\usepackage[margin=1in]{geometry}
+\documentclass[letterpaper]{article}
+\usepackage{natbib,alifeconf}  %% The order is important
+\usepackage{url,hyperref}
 \usepackage{amsmath,amssymb}
-\usepackage{graphicx}
 \usepackage{booktabs}
-\usepackage{hyperref}
-\usepackage{natbib}
 \usepackage{xcolor}
 \usepackage{subcaption}
 \usepackage{multirow}
 
-\bibliographystyle{apalike}
+\newcommand\blfootnote[1]{%
+  \begingroup
+  \renewcommand\thefootnote{}\footnote{#1}%
+  \addtocounter{footnote}{-1}%
+  \endgroup
+}
 
 \title{Emergent Spatial Coordination from Negative Selection Alone:\\
 The Role of Observation Richness in Objective-Free Artificial Life}
 
 \author{Anonymous}
-
-\date{}
 
 \begin{document}
 
@@ -50,6 +51,13 @@ These results demonstrate that observation channel richness---not rule table
 capacity or selection pressure---drives the emergence of spatial coordination
 in objective-free systems.
 \end{abstract}
+
+Submission type: \textbf{Full Paper}\\
+
+Data/Code available at: \url{https://anonymous.4open.science/r/PLACEHOLDER}
+\blfootnote{\textcopyright 2026 Anonymous.
+  Published under a Creative Commons Attribution 4.0
+  International (CC BY 4.0) license.}
 
 %% =========================================================================
 %% 1. INTRODUCTION
@@ -148,7 +156,7 @@ rule table, and executes it. The action space comprises 9 mutually exclusive
 actions: 4 cardinal movements, 4 state changes, and a no-op. Movement to an
 occupied cell fails silently.
 
-\begin{figure}[htbp]
+\begin{figure*}[htbp]
 \centering
 \includegraphics[width=\linewidth]{figures/fig1_snapshot_grid.pdf}
 \caption{Grid snapshots of hand-picked highest-MI surviving rules from each
@@ -157,7 +165,7 @@ Each panel shows the $20 \times 20$ toroidal grid with agents colored by
 internal state. Phase~2 rules produce visibly clustered spatial patterns,
 while Control rules appear disordered.}
 \label{fig:snapshot}
-\end{figure}
+\end{figure*}
 
 \begin{table}[htbp]
 \centering
@@ -337,7 +345,7 @@ rule-based conditions, a clear monotonic ordering emerges:
 \textbf{Control $<$ Phase~1 $<$ Phase~2}
 \end{center}
 
-\begin{table}[htbp]
+\begin{table*}[htbp]
 \centering
 \caption{Neighbor mutual information and spatial clustering by condition.
 MI values use the Miller-Madow bias-corrected estimator;
@@ -356,7 +364,7 @@ Phase 1     & 20         & 0.019 & 0.000  & $-0.011$ & 71.4\% \\
 Phase 2     & 100        & 0.298 & 0.096  & $-0.020$ & 74.7\% \\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{table*}
 
 The control condition, despite having 100-entry tables (equal to Phase~2),
 produces zero median excess MI---demonstrating that table size alone is insufficient.
@@ -462,7 +470,7 @@ Table~\ref{tab:stats} presents Mann-Whitney $U$ test results for the primary
 metric (neighbor MI) across all pairwise comparisons. All comparisons are
 highly significant after Holm-Bonferroni correction.
 
-\begin{table}[htbp]
+\begin{table*}[htbp]
 \centering
 \caption{Pairwise statistical tests for $\mathrm{MI}_{\mathrm{excess}}$
 (Eq.~\ref{eq:mi_excess}).
@@ -482,7 +490,7 @@ Ctrl vs.\ P1    & P1 $>$ Ctrl & 5000 & 5000 & 0.124 & [$< 0.001$, $< 0.001$] & $
 Ctrl vs.\ P2    & P2 $>$ Ctrl & 5000 & 5000 & 0.423 & [0.078, 0.111] & $\approx 0$ \\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{table*}
 
 \subsection{Survival Analysis}
 
@@ -512,7 +520,7 @@ neighbor level rather than through large-scale spatial clustering.
 We note that Moran's $I$ treats categorical states as numeric, which is
 inappropriate for nominal data; the same-state adjacency fraction
 (Section~3.4) provides the correct categorical spatial statistic and
-confirms local coordination in Phase~2 (see Appendix~\ref{app:multi_seed}).
+confirms local coordination in Phase~2 (see the supplementary material).
 This result is not a consequence of having more rules to choose from, but of
 each rule being able to respond to richer local information.
 
@@ -574,7 +582,7 @@ Several limitations constrain the generalizability of our findings:
         the model is deliberately minimal. Scaling to larger state spaces may
         reveal qualitatively different dynamics.
   \item \textbf{Density fixed}: The main experiments use 30 agents on a
-        400-cell grid (7.5\% density). Appendix~\ref{app:density_sweep}
+        400-cell grid (7.5\% density). The supplementary material
         reports a systematic density sweep across 12 conditions
         (density range 0.017--0.400), confirming that the Phase~2 MI
         advantage holds across all tested densities.
@@ -584,7 +592,7 @@ Several limitations constrain the generalizability of our findings:
         schemes may produce different dynamics.
   \item \textbf{Single simulation per rule (main experiment)}: Each rule table
         is evaluated with a single initial configuration in the main experiment.
-        Appendix~\ref{app:multi_seed} provides multi-seed robustness analysis
+        The supplementary material provides multi-seed robustness analysis
         for the top 50 Phase~2 rules, confirming that high MI is a property
         of the rule table, not a seed-specific accident.
 \end{itemize}
@@ -601,7 +609,7 @@ The evidence ladder from step-clock control through density-only to
 state-profile observation demonstrates a monotonic relationship between
 observation content and emergent coordination, confirmed by a
 bias-corrected MI estimator across all tested density levels
-(Appendix~\ref{app:density_sweep}).
+(see the supplementary material).
 
 Future work should investigate directional information flow using transfer
 entropy, extend to larger grids and state spaces, and explore multi-generation
@@ -609,165 +617,15 @@ rule evolution under the same objective-free regime. The broader implication
 is that the ``remove broken, observe survivors'' philosophy can serve as a
 productive complement to fitness-driven search in artificial life.
 
-%% =========================================================================
-%% APPENDIX
-%% =========================================================================
-\appendix
-\section{Density Sweep Robustness}
-\label{app:density_sweep}
-
-The main experiments use a fixed density of 7.5\% (30 agents on a
-$20 \times 20$ grid). To assess robustness across density levels, we
-evaluated both Phase~1 and Phase~2 across 12 density conditions: 3 grid
-sizes ($15 \times 15$, $20 \times 20$, $30 \times 30$) $\times$ 4 agent
-counts (15, 30, 60, 90), yielding densities from 0.017 to 0.400.
-Each condition was evaluated with 600 rules (100 rules $\times$ 6 seed
-batches), totaling 14{,}400 rule evaluations, all using the Miller-Madow
-bias-corrected MI estimator.
-
-\begin{table}[htbp]
-\centering
-\caption{Density sweep results across 12 conditions.
-$\mathrm{MI}_{\mathrm{excess}}$ (Eq.~\ref{eq:mi_excess}) values are
-Miller-Madow corrected, bits.  Phase~2 achieves nonzero median
-$\mathrm{MI}_{\mathrm{excess}}$ in 8 of 12 conditions, including all
-conditions with $\geq 60$ agents, while Phase~1 remains at zero across
-all densities tested.}
-\label{tab:density_sweep}
-\begin{tabular}{rllcccc}
-\toprule
-Density & Grid & Agents & \multicolumn{2}{c}{Median MI\textsubscript{excess} (bits)} & \multicolumn{2}{c}{Survival (\%)} \\
-\cmidrule(lr){4-5} \cmidrule(lr){6-7}
- & & & P1 & P2 & P1 & P2 \\
-\midrule
-0.017 & $30 \times 30$ & 15 & 0.000 & 0.000 & 86.7 & 86.7 \\
-0.033 & $30 \times 30$ & 30 & 0.000 & 0.000 & 83.3 & 85.8 \\
-0.037 & $20 \times 20$ & 15 & 0.000 & 0.000 & 80.8 & 81.8 \\
-0.067 & $15 \times 15$ & 15 & 0.000 & 0.000 & 68.7 & 76.0 \\
-0.067 & $30 \times 30$ & 60 & 0.000 & 0.199 & 70.5 & 76.3 \\
-0.075 & $20 \times 20$ & 30 & 0.000 & 0.114 & 70.2 & 72.5 \\
-0.100 & $30 \times 30$ & 90 & 0.000 & 0.246 & 67.0 & 74.2 \\
-0.133 & $15 \times 15$ & 30 & 0.000 & 0.130 & 62.2 & 64.8 \\
-0.150 & $20 \times 20$ & 60 & 0.000 & 0.191 & 63.0 & 69.7 \\
-0.225 & $20 \times 20$ & 90 & 0.002 & 0.176 & 64.0 & 76.7 \\
-0.267 & $15 \times 15$ & 60 & 0.000 & 0.148 & 63.5 & 72.7 \\
-0.400 & $15 \times 15$ & 90 & 0.000 & 0.107 & 68.0 & 83.7 \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-Table~\ref{tab:density_sweep} and Figures~\ref{fig:mi_density}
-and~\ref{fig:surv_density} present the results. Phase~2 achieves nonzero
-median $\mathrm{MI}_{\mathrm{excess}}$ in 8 of 12 conditions, including all
-conditions with $\geq 60$ agents, peaking near $d = 0.100$
-($\mathrm{MI}_{\mathrm{excess}} = 0.246$ bits at $30 \times 30$, 90 agents)
-before declining at higher densities. Phase~1 remains at zero median
-$\mathrm{MI}_{\mathrm{excess}}$ across all 12 conditions, confirming that the
-Phase~2 advantage is not an artifact of the specific grid configuration used
-in the main experiments.
-
-Phase~2 also consistently achieves higher survival rates than Phase~1, with
-the gap widening at higher densities (e.g., 76.7\% vs.\ 64.0\% at $d =
-0.225$; 83.7\% vs.\ 68.0\% at $d = 0.400$).
-
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=0.85\linewidth]{figures/figA1_mi_vs_density.pdf}
-\caption{Median neighbor MI vs.\ agent density for Phase~1 and Phase~2.
-Phase~2 MI peaks at medium densities and declines at higher densities, while
-Phase~1 remains at zero throughout.}
-\label{fig:mi_density}
-\end{figure}
-
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=0.85\linewidth]{figures/figA2_survival_vs_density.pdf}
-\caption{Survival rate vs.\ agent density. Phase~2 consistently achieves
-higher survival than Phase~1, with the gap widening at higher densities.}
-\label{fig:surv_density}
-\end{figure}
-
-%% =========================================================================
-%% APPENDIX B: MULTI-SEED ROBUSTNESS
-%% =========================================================================
-\section{Multi-Seed Robustness}
-\label{app:multi_seed}
-
-The main experiments evaluate each rule table with a single simulation seed.
-To assess whether high-$\mathrm{MI}_{\mathrm{excess}}$ rules are robust
-properties of the rule table rather than seed-specific accidents, we selected
-the top~50 Phase~2 rules by $\mathrm{MI}_{\mathrm{excess}}$ from the main
-experiment and re-evaluated each across 20 independent simulation seeds.
-
-\begin{table}[htbp]
-\centering
-\caption{Multi-seed robustness of top-50 Phase~2 rules (20 seeds each).}
-\label{tab:multi_seed}
-\begin{tabular}{lc}
-\toprule
-Metric & Value \\
-\midrule
-Rules with median $\mathrm{MI}_{\mathrm{excess}} > 0$ & 41/50 (82.0\%) \\
-Mean $P(\mathrm{MI}_{\mathrm{excess}} > 0)$ across seeds & 0.733 \\
-Overall survival rate & 76.2\% \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-Table~\ref{tab:multi_seed} shows that 82\% of top Phase~2 rules maintain
-positive median $\mathrm{MI}_{\mathrm{excess}}$ across seeds, and on average
-73.3\% of seeds per rule produce positive excess MI. This confirms that
-elevated MI in Phase~2 is a robust property of the rule table, not a
-stochastic artifact of a single initial configuration. The same-state
-adjacency fraction (a categorical spatial statistic appropriate for nominal
-state data) is also recorded per seed in the multi-seed dataset and confirms
-local coordination patterns.
-
-%% =========================================================================
-%% APPENDIX C: PSEUDOCODE
-%% =========================================================================
-\section{Algorithmic Pseudocode}
-\label{app:pseudocode}
-
-\paragraph{Simulation loop} (\texttt{world.py:step()}).
-At each of the 200 time steps:
-\begin{enumerate}
-  \item Generate a random permutation of agent indices.
-  \item For each agent in order:
-    \begin{enumerate}
-      \item Observe local neighborhood (von~Neumann, 4 cells).
-      \item Compute observation vector $(s, n, d)$ or $(s, n)$ depending on
-            phase, where $s$ = own state, $n$ = occupied neighbor count,
-            $d$ = dominant neighbor state.
-      \item Look up action in shared rule table: $a = T[\mathrm{index}(s, n, d)]$.
-      \item Execute action: move (if target cell empty), change state, or no-op.
-    \end{enumerate}
-\end{enumerate}
-
-\paragraph{Filter checks} (\texttt{filters.py}).
-After each step, check:
-(1) \emph{Halt}: positions and states unchanged for 10 consecutive steps $\to$ terminate.
-(2) \emph{State uniform}: all agents share the same state $\to$ terminate.
-
-\paragraph{MI computation} (\texttt{metrics.py}).
-For the final snapshot:
-\begin{enumerate}
-  \item Enumerate all occupied neighbor pairs (right/down on torus, deduped).
-  \item Compute joint and marginal state distributions from pairs.
-  \item $\hat{I} = \sum p(s_i, s_j) \log_2 \frac{p(s_i, s_j)}{p(s_i)\,p(s_j)}$.
-  \item Apply Miller-Madow correction:
-        $\hat{I}_{\mathrm{MM}} = \hat{I} - \frac{K_{\mathrm{joint}} - K_X - K_Y + 1}{2n\ln 2}$.
-  \item Clamp to $\geq 0$.
-\end{enumerate}
-
-\paragraph{Shuffle null} (\texttt{metrics.py}).
-Repeat 200 times: permute states among fixed occupied positions, compute
-$\hat{I}_{\mathrm{MM}}$, average.
-$\mathrm{MI}_{\mathrm{excess}} = \max(\hat{I}_{\mathrm{MM}} - \overline{I}_{\mathrm{shuffle}}, 0)$.
+\paragraph{Supplementary Material.}
+Density sweep analysis, multi-seed robustness results, and algorithmic
+pseudocode are available as supplementary material with the code repository.
 
 %% =========================================================================
 %% BIBLIOGRAPHY
 %% =========================================================================
+\footnotesize
+\bibliographystyle{apalike}
 \bibliography{references}
 
 \end{document}
