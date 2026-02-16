@@ -1,7 +1,7 @@
 import pytest
 
-from src.rules import ObservationPhase, generate_rule_table
-from src.world import Agent, World, WorldConfig
+from objectless_alife.rules import ObservationPhase, generate_rule_table
+from objectless_alife.world import Agent, World, WorldConfig
 
 
 def test_torus_movement_wraps() -> None:

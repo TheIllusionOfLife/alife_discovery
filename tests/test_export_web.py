@@ -7,14 +7,14 @@ from pathlib import Path
 
 import pytest
 
-from src.export_web import (
+from objectless_alife.export_web import (
     export_batch,
     export_gallery,
     export_paired,
     export_single,
 )
-from src.rules import ObservationPhase
-from src.run_search import run_batch_search
+from objectless_alife.rules import ObservationPhase
+from objectless_alife.run_search import run_batch_search
 
 
 @pytest.fixture()

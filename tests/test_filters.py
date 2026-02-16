@@ -1,4 +1,9 @@
-from src.filters import HaltDetector, LowActivityDetector, ShortPeriodDetector, StateUniformDetector
+from objectless_alife.filters import (
+    HaltDetector,
+    LowActivityDetector,
+    ShortPeriodDetector,
+    StateUniformDetector,
+)
 
 
 def test_halt_detector_triggers_after_exact_window() -> None:

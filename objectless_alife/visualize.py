@@ -14,55 +14,24 @@ from matplotlib.colors import BoundaryNorm, ListedColormap
 from matplotlib.gridspec import GridSpec
 from matplotlib.patches import Patch
 
-from src.stats import load_final_step_metrics
+from objectless_alife.stats import load_final_step_metrics
+from objectless_alife.viz_theme import DEFAULT_THEME, Theme, get_theme
 
-METRIC_LABELS: dict[str, str] = {
-    "state_entropy": "State Entropy",
-    "neighbor_mutual_information": "Neighbor Mutual Information",
-    "compression_ratio": "Compression Ratio",
-    "morans_i": "Moran's I",
-    "cluster_count": "Cluster Count",
-    "predictability_hamming": "Hamming Distance",
-    "quasi_periodicity_peaks": "Periodicity Peaks",
-    "phase_transition_max_delta": "Phase Transition",
-    "action_entropy_mean": "Action Entropy (mean)",
-    "action_entropy_variance": "Action Entropy (var)",
-    "block_ncd": "Block NCD",
-}
+# Single source of truth for the active theme. Functions read from this
+# instead of separate globals.  CLI ``main()`` reassigns it when the
+# ``--theme`` flag is provided.
+_active_theme: Theme = DEFAULT_THEME
 
-METRIC_COLORS: dict[str, str] = {
-    "state_entropy": "tab:blue",
-    "neighbor_mutual_information": "tab:red",
-    "compression_ratio": "tab:green",
-    "morans_i": "tab:orange",
-    "cluster_count": "tab:purple",
-    "predictability_hamming": "tab:brown",
-    "quasi_periodicity_peaks": "tab:pink",
-    "phase_transition_max_delta": "tab:gray",
-    "action_entropy_mean": "tab:olive",
-    "action_entropy_variance": "tab:cyan",
-    "block_ncd": "darkblue",
-}
-
-PHASE_COLORS: dict[str, str] = {
-    "P1": "tab:blue",
-    "P2": "tab:red",
-    "Control": "tab:gray",
-    "RW": "tab:olive",
-}
-
-PHASE_DESCRIPTIONS: dict[str, str] = {
-    "P1": "Phase 1 (density)",
-    "P2": "Phase 2 (state profile)",
-    "Control": "Control (step-clock)",
-    "RW": "Random Walk",
-}
-
-STATE_COLORS: list[str] = ["#2196F3", "#FF5722", "#4CAF50", "#FFC107"]
-EMPTY_CELL_COLOR: str = "#F0F0F0"
-EMPTY_CELL_COLOR_DARK: str = "#1A1A1A"
-GRID_LINE_COLOR: str = "#CCCCCC"
-GRID_LINE_COLOR_DARK: str = "#333333"
+# Backward-compatible module-level aliases (read-only snapshots of default).
+METRIC_LABELS: dict[str, str] = DEFAULT_THEME.metric_labels
+METRIC_COLORS: dict[str, str] = DEFAULT_THEME.metric_colors
+PHASE_COLORS: dict[str, str] = DEFAULT_THEME.phase_colors
+PHASE_DESCRIPTIONS: dict[str, str] = DEFAULT_THEME.phase_descriptions
+STATE_COLORS: list[str] = list(DEFAULT_THEME.state_colors)
+EMPTY_CELL_COLOR: str = DEFAULT_THEME.empty_cell_color
+EMPTY_CELL_COLOR_DARK: str = DEFAULT_THEME.empty_cell_color_dark
+GRID_LINE_COLOR: str = DEFAULT_THEME.grid_line_color
+GRID_LINE_COLOR_DARK: str = DEFAULT_THEME.grid_line_color_dark
 
 _SAFE_NAME_RE = re.compile(r"^[A-Za-z0-9_\-]+$")
 
@@ -120,8 +89,8 @@ def _build_grid_array(
 
 def _state_cmap(dark: bool = False) -> tuple[ListedColormap, BoundaryNorm]:
     """Discrete 5-color colormap (4 states + empty cell)."""
-    empty = EMPTY_CELL_COLOR_DARK if dark else EMPTY_CELL_COLOR
-    colors = STATE_COLORS + [empty]
+    empty = _active_theme.empty_cell_color_dark if dark else _active_theme.empty_cell_color
+    colors = list(_active_theme.state_colors) + [empty]
     cmap = ListedColormap(colors)
     norm = BoundaryNorm([-0.5, 0.5, 1.5, 2.5, 3.5, 4.5], cmap.N)
     return cmap, norm
@@ -129,9 +98,10 @@ def _state_cmap(dark: bool = False) -> tuple[ListedColormap, BoundaryNorm]:
 
 def _build_state_legend_handles(dark: bool = False) -> list[Patch]:
     """Build legend patch handles for the 4 agent states and empty cells."""
-    empty = EMPTY_CELL_COLOR_DARK if dark else EMPTY_CELL_COLOR
+    empty = _active_theme.empty_cell_color_dark if dark else _active_theme.empty_cell_color
     handles = [
-        Patch(facecolor=c, edgecolor="gray", label=f"State {i}") for i, c in enumerate(STATE_COLORS)
+        Patch(facecolor=c, edgecolor="gray", label=f"State {i}")
+        for i, c in enumerate(_active_theme.state_colors)
     ]
     handles.append(Patch(facecolor=empty, edgecolor="gray", label="Empty"))
     return handles
@@ -147,7 +117,7 @@ def _draw_cell_grid(
     """Shared renderer: imshow with subtle grid lines on *ax*."""
     img = ax.imshow(grid, cmap=cmap, norm=norm, origin="upper", aspect="equal")
     h, w = grid.shape
-    line_color = GRID_LINE_COLOR_DARK if dark else GRID_LINE_COLOR
+    line_color = _active_theme.grid_line_color_dark if dark else _active_theme.grid_line_color
     for x in range(w + 1):
         ax.axvline(x - 0.5, color=line_color, linewidth=0.5)
     for y in range(h + 1):
@@ -155,7 +125,7 @@ def _draw_cell_grid(
     ax.set_xticks([])
     ax.set_yticks([])
     if dark:
-        ax.set_facecolor(EMPTY_CELL_COLOR_DARK)
+        ax.set_facecolor(_active_theme.empty_cell_color_dark)
     return img
 
 
@@ -322,8 +292,8 @@ def render_rule_animation(
         max_val = max(values) if values else 1.0
         ax_m.set_xlim(0, 1 if x_max == 0 else x_max)
         ax_m.set_ylim(0, max(1.0, max_val * 1.1))
-        label = METRIC_LABELS.get(m_name, m_name)
-        color = METRIC_COLORS.get(m_name, "tab:blue")
+        label = _active_theme.metric_labels.get(m_name, m_name)
+        color = _active_theme.metric_colors.get(m_name, "tab:blue")
         ax_m.set_title(label)
         ax_m.set_xlabel("Step")
         ax_m.set_ylabel(label)
@@ -458,7 +428,7 @@ def render_snapshot_grid(
             if row_idx == 0:
                 ax.set_title(f"Step {target_step}", fontsize=10)
             if col_idx == 0:
-                desc = PHASE_DESCRIPTIONS.get(label, label)
+                desc = _active_theme.phase_descriptions.get(label, label)
                 mi_str = f"\n(MI = {mi_val:.3f})" if mi_val is not None else ""
                 ax.set_ylabel(f"{desc}{mi_str}", fontsize=9)
 
@@ -517,7 +487,7 @@ def render_metric_distribution(
             if not data:
                 continue
             pos = positions[i]
-            color = PHASE_COLORS.get(label, "tab:blue")
+            color = _active_theme.phase_colors.get(label, "tab:blue")
             bp = ax.boxplot(
                 [data],
                 positions=[pos],
@@ -542,8 +512,8 @@ def render_metric_distribution(
 
         ax.set_xticks(positions)
         ax.set_xticklabels(labels)
-        ax.set_title(METRIC_LABELS.get(m_name, m_name))
-        ax.set_ylabel(METRIC_LABELS.get(m_name, m_name))
+        ax.set_title(_active_theme.metric_labels.get(m_name, m_name))
+        ax.set_ylabel(_active_theme.metric_labels.get(m_name, m_name))
 
         # Significance annotation
         non_empty = [d for d in all_data if d]
@@ -607,7 +577,7 @@ def render_metric_timeseries(
 
     for p_idx, (label, metrics_path, rule_ids) in enumerate(phase_configs):
         ax = axes[0, p_idx]
-        color = PHASE_COLORS.get(label, "tab:blue")
+        color = _active_theme.phase_colors.get(label, "tab:blue")
 
         for rule_id in rule_ids:
             metric_rows = pq.read_table(
@@ -620,9 +590,9 @@ def render_metric_timeseries(
             ]
             ax.plot(steps, vals, color=color, alpha=0.4, linewidth=1.8)
 
-        ax.set_title(PHASE_DESCRIPTIONS.get(label, label))
+        ax.set_title(_active_theme.phase_descriptions.get(label, label))
         ax.set_xlabel("Step")
-        ax.set_ylabel(METRIC_LABELS.get(metric_name, metric_name))
+        ax.set_ylabel(_active_theme.metric_labels.get(metric_name, metric_name))
         ax.grid(True, alpha=0.3)
 
     if shared_ylim and n_phases > 0:
@@ -632,7 +602,7 @@ def render_metric_timeseries(
         for i in range(n_phases):
             axes[0, i].set_ylim(global_ymin, global_ymax)
 
-    fig.suptitle(METRIC_LABELS.get(metric_name, metric_name), fontsize=14)
+    fig.suptitle(_active_theme.metric_labels.get(metric_name, metric_name), fontsize=14)
     fig.tight_layout()
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -704,7 +674,7 @@ def render_filmstrip(
 
     cmap, norm = _state_cmap(dark=True)
     fig, axes = plt.subplots(1, actual_n, figsize=(3 * actual_n, 3), squeeze=False)
-    fig.patch.set_facecolor(EMPTY_CELL_COLOR_DARK)
+    fig.patch.set_facecolor(_active_theme.empty_cell_color_dark)
 
     for col_idx, step in enumerate(selected_steps):
         ax = axes[0, col_idx]
@@ -797,12 +767,22 @@ def _parse_phase_dirs(raw: list[str]) -> list[tuple[str, Path]]:
 def main() -> None:
     """CLI entrypoint with subcommands."""
     parser = argparse.ArgumentParser(description="Visualization tools for simulation data")
+    parser.add_argument(
+        "--theme",
+        type=str,
+        default="default",
+        help="Theme preset name (default, paper)",
+    )
     sub = parser.add_subparsers(dest="command", required=True)
     _build_single_parser(sub)
     _build_batch_parser(sub)
     _build_figure_parser(sub)
     _build_filmstrip_parser(sub)
     args = parser.parse_args()
+
+    # Apply theme
+    global _active_theme
+    _active_theme = get_theme(args.theme)
 
     if args.command == "single":
         render_rule_animation(

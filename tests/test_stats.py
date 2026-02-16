@@ -9,8 +9,8 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
 
-from src.run_search import METRICS_SCHEMA, PHASE_SUMMARY_METRIC_NAMES
-from src.stats import (
+from objectless_alife.run_search import METRICS_SCHEMA, PHASE_SUMMARY_METRIC_NAMES
+from objectless_alife.stats import (
     _holm_bonferroni,
     bootstrap_median_ci,
     filter_metric_independence,
@@ -23,7 +23,7 @@ from src.stats import (
     survival_rate_test,
     wilson_score_ci,
 )
-from src.stats import main as stats_main
+from objectless_alife.stats import main as stats_main
 
 
 def _write_metrics_parquet(path: Path, rows: list[dict]) -> None:

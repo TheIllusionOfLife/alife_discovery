@@ -8,9 +8,9 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
 
-from src.rules import ObservationPhase
-from src.run_search import run_batch_search
-from src.visualize import (
+from objectless_alife.rules import ObservationPhase
+from objectless_alife.run_search import run_batch_search
+from objectless_alife.visualize import (
     _build_grid_array,
     _state_cmap,
     render_batch,
@@ -154,7 +154,7 @@ def test_render_rule_animation_uses_explicit_grid_dimensions(
     pq.write_table(pa.Table.from_pylist(sim_rows), logs_dir / "simulation_log.parquet")
     pq.write_table(pa.Table.from_pylist(metric_rows), logs_dir / "metrics_summary.parquet")
 
-    import src.visualize as visualize
+    import objectless_alife.visualize as visualize
 
     captured: dict[str, object] = {}
     original_subplots = visualize.plt.subplots
@@ -201,7 +201,7 @@ def test_visualize_cli_default_base_dir_rejects_absolute_paths_outside_cwd(
     rule_json = next((tmp_path / "rules").glob("*.json")).resolve()
     output_path = (tmp_path / "cli_preview.gif").resolve()
 
-    import src.visualize as visualize
+    import objectless_alife.visualize as visualize
 
     monkeypatch.setattr(
         sys,
@@ -239,7 +239,7 @@ def test_visualize_cli_accepts_absolute_paths_with_explicit_base_dir(
     rule_json = next((tmp_path / "rules").glob("*.json")).resolve()
     output_path = (tmp_path / "cli_preview.gif").resolve()
 
-    import src.visualize as visualize
+    import objectless_alife.visualize as visualize
 
     monkeypatch.setattr(
         sys,
@@ -284,7 +284,7 @@ def test_select_top_rules_returns_correct_order(tmp_path: Path) -> None:
     assert len(result) == 3
 
     # Verify descending order: load final-step metrics and check
-    from src.stats import load_final_step_metrics
+    from objectless_alife.stats import load_final_step_metrics
 
     final_table = load_final_step_metrics(metrics_path)
     mi_by_rule: dict[str, float] = {}
@@ -339,7 +339,7 @@ def test_render_rule_animation_with_multiple_metrics(
     )
     rule_json = next((tmp_path / "rules").glob("*.json"))
 
-    import src.visualize as visualize
+    import objectless_alife.visualize as visualize
 
     captured_fig: list[object] = []
 
@@ -378,7 +378,7 @@ def test_render_rule_animation_default_metrics_backward_compatible(
     )
     rule_json = next((tmp_path / "rules").glob("*.json"))
 
-    import src.visualize as visualize
+    import objectless_alife.visualize as visualize
 
     captured_fig: list[object] = []
 
@@ -421,7 +421,7 @@ def test_render_batch_creates_expected_files(
         base_sim_seed=20,
     )
 
-    import src.visualize as visualize
+    import objectless_alife.visualize as visualize
 
     monkeypatch.setattr(visualize.animation, "FuncAnimation", _DummyAnimation)
     monkeypatch.setattr(visualize.animation, "PillowWriter", lambda fps: object())
@@ -598,7 +598,7 @@ def test_render_snapshot_grid_uses_imshow(tmp_path: Path, monkeypatch: pytest.Mo
 
     import matplotlib.pyplot as _plt
 
-    import src.visualize as visualize
+    import objectless_alife.visualize as visualize
 
     captured_axes: list[object] = []
     original_subplots = _plt.subplots
@@ -695,7 +695,7 @@ def test_render_metric_distribution_uses_boxplot(
 
     import matplotlib.pyplot as _plt
 
-    import src.visualize as visualize
+    import objectless_alife.visualize as visualize
 
     captured_axes: list[object] = []
     original_subplots = _plt.subplots
@@ -757,7 +757,7 @@ def test_render_metric_timeseries_shared_ylim(
 
     import matplotlib.pyplot as _plt
 
-    import src.visualize as visualize
+    import objectless_alife.visualize as visualize
 
     captured_fig: list[object] = []
     original_subplots = _plt.subplots
@@ -813,7 +813,7 @@ def test_render_rule_animation_uses_imshow(tmp_path: Path, monkeypatch: pytest.M
     pq.write_table(pa.Table.from_pylist(sim_rows), logs_dir / "simulation_log.parquet")
     pq.write_table(pa.Table.from_pylist(metric_rows), logs_dir / "metrics_summary.parquet")
 
-    import src.visualize as visualize
+    import objectless_alife.visualize as visualize
 
     captured: dict[str, object] = {}
 
@@ -1024,7 +1024,7 @@ def test_filmstrip_cli_subcommand(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
     pq.write_table(pa.Table.from_pylist(metric_rows), logs_dir / "metrics_summary.parquet")
 
     output_path = tmp_path / "filmstrip_cli.png"
-    import src.visualize as visualize
+    import objectless_alife.visualize as visualize
 
     monkeypatch.setattr(
         sys,
@@ -1055,7 +1055,7 @@ def test_filmstrip_cli_subcommand(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
 
 def test_metric_label_neighbor_mi_full_name() -> None:
     """METRIC_LABELS should use full 'Mutual Information', not abbreviation."""
-    from src.visualize import METRIC_LABELS
+    from objectless_alife.visualize import METRIC_LABELS
 
     label = METRIC_LABELS["neighbor_mutual_information"]
     assert "Mutual Information" in label, f"Expected full name, got: {label}"
@@ -1063,7 +1063,7 @@ def test_metric_label_neighbor_mi_full_name() -> None:
 
 def test_phase_descriptions_defined() -> None:
     """PHASE_DESCRIPTIONS dict should exist with descriptive labels."""
-    from src.visualize import PHASE_DESCRIPTIONS
+    from objectless_alife.visualize import PHASE_DESCRIPTIONS
 
     for key in ("P1", "P2", "Control"):
         assert key in PHASE_DESCRIPTIONS
@@ -1086,7 +1086,7 @@ def test_snapshot_grid_has_state_legend(tmp_path: Path, monkeypatch: pytest.Monk
 
     import matplotlib.pyplot as _plt
 
-    import src.visualize as visualize
+    import objectless_alife.visualize as visualize
 
     captured_fig: list[object] = []
     original_subplots = _plt.subplots
@@ -1147,7 +1147,7 @@ def test_filmstrip_has_state_legend(tmp_path: Path, monkeypatch: pytest.MonkeyPa
 
     import matplotlib.pyplot as _plt
 
-    import src.visualize as visualize
+    import objectless_alife.visualize as visualize
 
     captured_fig: list[object] = []
     original_subplots = _plt.subplots
@@ -1209,7 +1209,7 @@ def test_metric_distribution_has_significance_key(
 
     import matplotlib.pyplot as _plt
 
-    import src.visualize as visualize
+    import objectless_alife.visualize as visualize
 
     captured_fig: list[object] = []
     original_subplots = _plt.subplots
@@ -1240,7 +1240,7 @@ def test_timeseries_uses_phase_descriptions(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Timeseries panel titles should use PHASE_DESCRIPTIONS, not bare labels."""
-    from src.visualize import PHASE_DESCRIPTIONS
+    from objectless_alife.visualize import PHASE_DESCRIPTIONS
 
     phase_dir = tmp_path / "phase1"
     run_batch_search(
@@ -1256,7 +1256,7 @@ def test_timeseries_uses_phase_descriptions(
 
     import matplotlib.pyplot as _plt
 
-    import src.visualize as visualize
+    import objectless_alife.visualize as visualize
 
     captured_fig: list[object] = []
     original_subplots = _plt.subplots
