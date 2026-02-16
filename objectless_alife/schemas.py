@@ -15,6 +15,7 @@ import pyarrow as pa
 
 AGGREGATE_SCHEMA_VERSION = 1
 DENSITY_SWEEP_SCHEMA_VERSION = 1
+RULE_PAYLOAD_SCHEMA_VERSION = 2
 
 # ---------------------------------------------------------------------------
 # Core simulation & metrics schemas

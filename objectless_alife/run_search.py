@@ -3,10 +3,10 @@
 After refactoring, this thin module owns only the CLI argument parsing
 and mode dispatch.  All domain logic lives in the extracted modules:
 
-- ``src.schemas``      – Parquet schemas & metric-name constants
-- ``src.config``       – configuration dataclasses
-- ``src.simulation``   – ``run_batch_search`` engine
-- ``src.aggregation``  – experiment / density-sweep / multi-seed orchestration
+- ``objectless_alife.schemas``      – Parquet schemas & metric-name constants
+- ``objectless_alife.config``       – configuration dataclasses
+- ``objectless_alife.simulation``   – ``run_batch_search`` engine
+- ``objectless_alife.aggregation``  – experiment / density-sweep / multi-seed orchestration
 
 For backward compatibility every public symbol is re-exported here so
 that existing ``from objectless_alife.run_search import X`` imports keep working.
@@ -80,7 +80,8 @@ def _parse_phase_list(raw_phases: str) -> tuple[ObservationPhase, ...]:
         try:
             phase_raw = int(part)
         except ValueError as exc:
-            raise ValueError("phases must be integers 1, 2, 3, or 4") from exc
+            valid = ", ".join(str(p.value) for p in ObservationPhase)
+            raise ValueError(f"invalid phase value; must be one of {valid}") from exc
         phase = _parse_phase(phase_raw)
         phases.append(phase)
 
@@ -224,6 +225,13 @@ def main(argv: list[str] | None = None) -> None:
     fast_metrics = _get_bool(args.fast_metrics, "fast_metrics", False)
     is_density_sweep = _get_bool(args.density_sweep, "density_sweep", False)
     is_experiment = _get_bool(args.experiment, "experiment", False)
+
+    if is_density_sweep and is_experiment:
+        raise ValueError(
+            "--density-sweep and --experiment cannot both be enabled; "
+            "disable one via CLI (--no-density-sweep / --no-experiment) "
+            "or in the config file"
+        )
 
     if is_density_sweep:
         density_sweep_config = DensitySweepConfig(

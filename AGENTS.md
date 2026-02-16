@@ -116,7 +116,7 @@ Mirror these checks locally before opening a PR.
 ## Developer Environment Quirks
 
 - `data/` and `output/` are generated artifact directories and should remain untracked.
-- `src.visualize` defaults `--base-dir` to current directory; absolute paths outside that base are rejected unless base-dir is explicitly set.
+- `objectless_alife.visualize` defaults `--base-dir` to current directory; absolute paths outside that base are rejected unless base-dir is explicitly set.
 - Large experiment workloads are bounded in `objectless_alife/config.py` by `MAX_EXPERIMENT_WORK_UNITS`.
 
 ## Common Gotchas

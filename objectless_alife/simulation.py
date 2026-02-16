@@ -39,7 +39,7 @@ from objectless_alife.metrics import (
     state_entropy,
 )
 from objectless_alife.rules import ObservationPhase, generate_rule_table
-from objectless_alife.schemas import METRICS_SCHEMA, SIMULATION_SCHEMA
+from objectless_alife.schemas import METRICS_SCHEMA, RULE_PAYLOAD_SCHEMA_VERSION, SIMULATION_SCHEMA
 from objectless_alife.world import World, WorldConfig
 
 # ---------------------------------------------------------------------------
@@ -374,7 +374,7 @@ def run_batch_search(
                     "termination_reason": termination_reason,
                     "filter_short_period": search_config.filter_short_period,
                     "filter_low_activity": search_config.filter_low_activity,
-                    "schema_version": 2,
+                    "schema_version": RULE_PAYLOAD_SCHEMA_VERSION,
                 },
             }
             (rules_dir / f"{rule_id}.json").write_text(
