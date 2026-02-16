@@ -106,6 +106,10 @@ def _compute_step_metrics(
     }
 
 
+_UNSET: object = object()
+"""Sentinel indicating a parameter was not explicitly provided."""
+
+
 # ---------------------------------------------------------------------------
 # Main simulation loop
 # ---------------------------------------------------------------------------
@@ -115,8 +119,8 @@ def run_batch_search(
     n_rules: int,
     phase: ObservationPhase,
     out_dir: Path,
-    steps: int = 200,
-    halt_window: int = 10,
+    steps: object = _UNSET,
+    halt_window: object = _UNSET,
     base_rule_seed: int = 0,
     base_sim_seed: int = 0,
     world_config: WorldConfig | None = None,
@@ -130,13 +134,17 @@ def run_batch_search(
     if n_rules < 1:
         raise ValueError("n_rules must be >= 1")
 
-    search_config = config or SearchConfig(steps=steps, halt_window=halt_window)
+    # Resolve sentinel defaults
+    _steps: int = 200 if steps is _UNSET else int(steps)  # type: ignore[arg-type]
+    _halt_window: int = 10 if halt_window is _UNSET else int(halt_window)  # type: ignore[arg-type]
+
+    search_config = config or SearchConfig(steps=_steps, halt_window=_halt_window)
     if search_config.steps < 1:
         raise ValueError("steps must be >= 1")
     if config is not None:
-        if steps != 200 and steps != config.steps:
+        if steps is not _UNSET and _steps != config.steps:
             raise ValueError("steps conflicts with config.steps")
-        if halt_window != 10 and halt_window != config.halt_window:
+        if halt_window is not _UNSET and _halt_window != config.halt_window:
             raise ValueError("halt_window conflicts with config.halt_window")
 
     if world_config is not None:

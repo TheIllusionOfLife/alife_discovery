@@ -49,6 +49,10 @@ from objectless_alife.world import World, WorldConfig
 # Internal helpers — percentile / float extraction / aggregation
 # ---------------------------------------------------------------------------
 
+_SIM_SEED_MULTIPLIER = 10_000
+"""Multiplier to derive sim_seed from rule_seed.  Centralised here to
+prevent silent seed-collision bugs across sweep functions."""
+
 
 def _percentile_pre_sorted(sorted_values: list[float], q: float) -> float | None:
     """Compute percentile in [0, 1] with linear interpolation on pre-sorted values."""
@@ -228,6 +232,7 @@ def _density_search_config(config: DensitySweepConfig) -> SearchConfig:
         low_activity_window=config.low_activity_window,
         low_activity_min_unique_ratio=config.low_activity_min_unique_ratio,
         block_ncd_window=config.block_ncd_window,
+        skip_null_models=config.skip_null_models,
     )
 
 
@@ -483,6 +488,7 @@ def run_experiment(config: ExperimentConfig) -> list[SimulationResult]:
             low_activity_window=config.low_activity_window,
             low_activity_min_unique_ratio=config.low_activity_min_unique_ratio,
             block_ncd_window=config.block_ncd_window,
+            skip_null_models=config.skip_null_models,
         )
         phase_results = run_batch_search(
             n_rules=total_rules_per_phase,
@@ -599,12 +605,24 @@ def select_top_rules_by_excess_mi(
                 if d["survived"][idx]:
                     survived_rule_ids.add(str(rid))
         survived_seeds: list[tuple[int, float]] = []
+        # Build a rule_id → rule_seed lookup from the same Parquet
+        rid_to_seed: dict[str, int] = {}
+        for batch in pq.ParquetFile(experiment_parquet).iter_batches(
+            columns=["rule_id", "rule_seed"], batch_size=8192
+        ):
+            d = batch.to_pydict()
+            for idx, rid in enumerate(d["rule_id"]):
+                seed_val = d["rule_seed"][idx]
+                if seed_val is not None:
+                    rid_to_seed[str(rid)] = int(seed_val)
         for rid_str, m in rule_metrics.items():
             if rid_str not in survived_rule_ids:
                 continue
+            seed = rid_to_seed.get(rid_str)
+            if seed is None:
+                continue  # skip if rule_seed missing
             excess = max(m["mi"] - m["null"], 0.0)
-            # rule_id encodes seed — extract numeric part
-            survived_seeds.append((int(rid_str.split("_")[-1]), excess))
+            survived_seeds.append((seed, excess))
     else:
         survived_seeds = []
         for path in sorted(rules_dir.glob("*.json")):
@@ -660,8 +678,8 @@ def run_multi_seed_robustness(config: MultiSeedConfig) -> Path:
             "multi-seed robustness workload exceeds safety threshold; "
             "reduce rule_seeds/n_sim_seeds/steps"
         )
-    if config.n_sim_seeds >= 10000:
-        raise ValueError("n_sim_seeds must be < 10000 to avoid seed collisions")
+    if config.n_sim_seeds >= _SIM_SEED_MULTIPLIER:
+        raise ValueError(f"n_sim_seeds must be < {_SIM_SEED_MULTIPLIER} to avoid seed collisions")
 
     out_dir = Path(config.out_dir)
     logs_dir = out_dir / "logs"
@@ -671,7 +689,7 @@ def run_multi_seed_robustness(config: MultiSeedConfig) -> Path:
 
     for rule_seed in config.rule_seeds:
         for sim_seed_offset in range(config.n_sim_seeds):
-            sim_seed = rule_seed * 10000 + sim_seed_offset
+            sim_seed = rule_seed * _SIM_SEED_MULTIPLIER + sim_seed_offset
 
             rule_table = generate_rule_table(phase=config.phase, seed=rule_seed)
             world_cfg = WorldConfig(steps=config.steps)
@@ -736,7 +754,7 @@ def run_halt_window_sweep(config: HaltWindowSweepConfig) -> Path:
     for rule_seed in config.rule_seeds:
         rule_table = generate_rule_table(phase=config.phase, seed=rule_seed)
         for halt_window in config.halt_windows:
-            sim_seed = rule_seed * 10000
+            sim_seed = rule_seed * _SIM_SEED_MULTIPLIER
             world_cfg = WorldConfig(steps=config.steps)
             world = World(config=world_cfg, sim_seed=sim_seed)
             halt_detector = HaltDetector(window=halt_window)

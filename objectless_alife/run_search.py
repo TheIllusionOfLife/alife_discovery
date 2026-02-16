@@ -251,6 +251,7 @@ def main(argv: list[str] | None = None) -> None:
             low_activity_window=low_activity_window,
             low_activity_min_unique_ratio=low_activity_min_unique_ratio,
             block_ncd_window=block_ncd_window,
+            skip_null_models=fast_metrics,
         )
         results = run_density_sweep(density_sweep_config)
         summary = {
@@ -279,6 +280,7 @@ def main(argv: list[str] | None = None) -> None:
             low_activity_window=low_activity_window,
             low_activity_min_unique_ratio=low_activity_min_unique_ratio,
             block_ncd_window=block_ncd_window,
+            skip_null_models=fast_metrics,
         )
         results = run_experiment(experiment_config)
         summary = {

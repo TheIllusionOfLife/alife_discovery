@@ -76,6 +76,7 @@ class ExperimentConfig:
     low_activity_window: int = 5
     low_activity_min_unique_ratio: float = 0.2
     block_ncd_window: int = 10
+    skip_null_models: bool = False
 
 
 @dataclass(frozen=True)
@@ -98,6 +99,7 @@ class DensitySweepConfig:
     low_activity_window: int = 5
     low_activity_min_unique_ratio: float = 0.2
     block_ncd_window: int = 10
+    skip_null_models: bool = False
 
 
 @dataclass(frozen=True)
