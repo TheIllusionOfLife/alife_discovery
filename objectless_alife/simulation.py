@@ -74,6 +74,38 @@ def _mean_and_pvariance(values: list[float]) -> tuple[float, float]:
     return mean, variance
 
 
+def _compute_step_metrics(
+    *,
+    snapshot: tuple[tuple[int, int, int, int], ...],
+    snapshot_bytes: bytes,
+    step_entropy: float,
+    predictability: float | None,
+    running_phase_transition_delta: float,
+    action_entropy_mean: float,
+    action_entropy_var: float,
+    block_ncd_value: float | None,
+    grid_width: int,
+    grid_height: int,
+) -> dict[str, float | int | None]:
+    """Compute per-step metric values for a single simulation step."""
+    return {
+        "state_entropy": step_entropy,
+        "compression_ratio": compression_ratio(snapshot_bytes),
+        "predictability_hamming": predictability,
+        "morans_i": morans_i_occupied(snapshot, grid_width=grid_width, grid_height=grid_height),
+        "cluster_count": cluster_count_by_state(
+            snapshot, grid_width=grid_width, grid_height=grid_height
+        ),
+        "phase_transition_max_delta": running_phase_transition_delta,
+        "neighbor_mutual_information": neighbor_mutual_information(
+            snapshot, grid_width=grid_width, grid_height=grid_height
+        ),
+        "action_entropy_mean": action_entropy_mean,
+        "action_entropy_variance": action_entropy_var,
+        "block_ncd": block_ncd_value,
+    }
+
+
 # ---------------------------------------------------------------------------
 # Main simulation loop
 # ---------------------------------------------------------------------------
@@ -236,36 +268,22 @@ def run_batch_search(
 
                 action_entropy_mean, action_entropy_var = _mean_and_pvariance(per_agent_entropies)
 
+                step_metrics = _compute_step_metrics(
+                    snapshot=snapshot,
+                    snapshot_bytes=snapshot_bytes,
+                    step_entropy=step_entropy,
+                    predictability=predictability,
+                    running_phase_transition_delta=running_phase_transition_delta,
+                    action_entropy_mean=action_entropy_mean,
+                    action_entropy_var=action_entropy_var,
+                    block_ncd_value=block_ncd_value,
+                    grid_width=world_cfg.grid_width,
+                    grid_height=world_cfg.grid_height,
+                )
                 metric_columns["rule_id"].append(rule_id)
                 metric_columns["step"].append(step)
-                metric_columns["state_entropy"].append(step_entropy)
-                metric_columns["compression_ratio"].append(compression_ratio(snapshot_bytes))
-                metric_columns["predictability_hamming"].append(predictability)
-                metric_columns["morans_i"].append(
-                    morans_i_occupied(
-                        snapshot,
-                        grid_width=world_cfg.grid_width,
-                        grid_height=world_cfg.grid_height,
-                    )
-                )
-                metric_columns["cluster_count"].append(
-                    cluster_count_by_state(
-                        snapshot,
-                        grid_width=world_cfg.grid_width,
-                        grid_height=world_cfg.grid_height,
-                    )
-                )
-                metric_columns["phase_transition_max_delta"].append(running_phase_transition_delta)
-                metric_columns["neighbor_mutual_information"].append(
-                    neighbor_mutual_information(
-                        snapshot,
-                        grid_width=world_cfg.grid_width,
-                        grid_height=world_cfg.grid_height,
-                    )
-                )
-                metric_columns["action_entropy_mean"].append(action_entropy_mean)
-                metric_columns["action_entropy_variance"].append(action_entropy_var)
-                metric_columns["block_ncd"].append(block_ncd_value)
+                for key, value in step_metrics.items():
+                    metric_columns[key].append(value)
 
                 for agent_id, x, y, state in snapshot:
                     sim_columns["rule_id"].append(rule_id)

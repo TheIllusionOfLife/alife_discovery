@@ -158,22 +158,27 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--sim-seed", type=int, default=None)
     parser.add_argument("--out-dir", type=Path, default=None)
     mode_group = parser.add_mutually_exclusive_group()
-    mode_group.add_argument("--density-sweep", action="store_true")
-    mode_group.add_argument("--experiment", action="store_true")
+    mode_group.add_argument("--density-sweep", action=argparse.BooleanOptionalAction, default=None)
+    mode_group.add_argument("--experiment", action=argparse.BooleanOptionalAction, default=None)
     parser.add_argument("--grid-sizes", type=str, default=None)
     parser.add_argument("--agent-counts", type=str, default=None)
     parser.add_argument("--seed-batches", type=int, default=None)
     parser.add_argument("--phases", type=str, default=None)
-    parser.add_argument("--filter-short-period", action="store_true")
+    parser.add_argument(
+        "--filter-short-period", action=argparse.BooleanOptionalAction, default=None
+    )
     parser.add_argument("--short-period-max-period", type=int, default=None)
     parser.add_argument("--short-period-history-size", type=int, default=None)
-    parser.add_argument("--filter-low-activity", action="store_true")
+    parser.add_argument(
+        "--filter-low-activity", action=argparse.BooleanOptionalAction, default=None
+    )
     parser.add_argument("--low-activity-window", type=int, default=None)
     parser.add_argument("--low-activity-min-unique-ratio", type=float, default=None)
     parser.add_argument("--block-ncd-window", type=int, default=None)
     parser.add_argument(
         "--fast-metrics",
-        action="store_true",
+        action=argparse.BooleanOptionalAction,
+        default=None,
         help="Skip expensive null-model computations (shuffle_null_mi)",
     )
     args = parser.parse_args(argv)
@@ -188,6 +193,12 @@ def main(argv: list[str] | None = None) -> None:
             return cli_val
         return file_cfg.get(key, default)
 
+    def _get_bool(cli_val: bool | None, key: str, default: bool) -> bool:
+        """CLI > file > default for boolean flags."""
+        if cli_val is not None:
+            return cli_val
+        return bool(file_cfg.get(key, default))
+
     phase_raw = int(_get(args.phase, "phase", 1))
     n_rules = int(_get(args.n_rules, "n_rules", 100))
     steps = int(_get(args.steps, "steps", 200))
@@ -199,20 +210,20 @@ def main(argv: list[str] | None = None) -> None:
     agent_counts_raw = str(_get(args.agent_counts, "agent_counts", "30"))
     seed_batches = int(_get(args.seed_batches, "seed_batches", 1))
     phases_raw = str(_get(args.phases, "phases", "1,2"))
-    filter_short_period = args.filter_short_period or bool(file_cfg.get("filter_short_period"))
+    filter_short_period = _get_bool(args.filter_short_period, "filter_short_period", False)
     short_period_max_period = int(_get(args.short_period_max_period, "short_period_max_period", 2))
     short_period_history_size = int(
         _get(args.short_period_history_size, "short_period_history_size", 8)
     )
-    filter_low_activity = args.filter_low_activity or bool(file_cfg.get("filter_low_activity"))
+    filter_low_activity = _get_bool(args.filter_low_activity, "filter_low_activity", False)
     low_activity_window = int(_get(args.low_activity_window, "low_activity_window", 5))
     low_activity_min_unique_ratio = float(
         _get(args.low_activity_min_unique_ratio, "low_activity_min_unique_ratio", 0.2)
     )
     block_ncd_window = int(_get(args.block_ncd_window, "block_ncd_window", 10))
-    fast_metrics = args.fast_metrics or bool(file_cfg.get("fast_metrics"))
-    is_density_sweep = args.density_sweep or bool(file_cfg.get("density_sweep"))
-    is_experiment = args.experiment or bool(file_cfg.get("experiment"))
+    fast_metrics = _get_bool(args.fast_metrics, "fast_metrics", False)
+    is_density_sweep = _get_bool(args.density_sweep, "density_sweep", False)
+    is_experiment = _get_bool(args.experiment, "experiment", False)
 
     if is_density_sweep:
         density_sweep_config = DensitySweepConfig(

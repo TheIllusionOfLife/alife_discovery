@@ -587,21 +587,66 @@ def select_top_rules_by_excess_mi(
                 else:
                     rule_metrics.pop(rid, None)  # Clear stale entry from earlier step
 
-    # Filter to survived rules only
-    survived_seeds: list[tuple[int, float]] = []
-    for path in sorted(rules_dir.glob("*.json")):
-        data = json.loads(path.read_text())
-        if not data.get("survived", False):
-            continue
-        rid = data["rule_id"]
-        if rid not in rule_metrics:
-            continue
-        excess = max(rule_metrics[rid]["mi"] - rule_metrics[rid]["null"], 0.0)
-        seed = data["metadata"]["rule_seed"]
-        survived_seeds.append((int(seed), excess))
+    # Filter to survived rules only — prefer Parquet if experiment_runs exists
+    experiment_parquet = rules_dir.parent / "logs" / "experiment_runs.parquet"
+    survived_rule_ids: set[str] = set()
+    if experiment_parquet.exists():
+        for batch in pq.ParquetFile(experiment_parquet).iter_batches(
+            columns=["rule_id", "survived"], batch_size=8192
+        ):
+            d = batch.to_pydict()
+            for idx, rid in enumerate(d["rule_id"]):
+                if d["survived"][idx]:
+                    survived_rule_ids.add(str(rid))
+        survived_seeds: list[tuple[int, float]] = []
+        for rid_str, m in rule_metrics.items():
+            if rid_str not in survived_rule_ids:
+                continue
+            excess = max(m["mi"] - m["null"], 0.0)
+            # rule_id encodes seed — extract numeric part
+            survived_seeds.append((int(rid_str.split("_")[-1]), excess))
+    else:
+        survived_seeds = []
+        for path in sorted(rules_dir.glob("*.json")):
+            data = json.loads(path.read_text())
+            if not data.get("survived", False):
+                continue
+            rid = data["rule_id"]
+            if rid not in rule_metrics:
+                continue
+            excess = max(rule_metrics[rid]["mi"] - rule_metrics[rid]["null"], 0.0)
+            seed = data["metadata"]["rule_seed"]
+            survived_seeds.append((int(seed), excess))
 
     survived_seeds.sort(key=lambda x: x[1], reverse=True)
     return [seed for seed, _ in survived_seeds[:top_k]]
+
+
+def _run_simulation_to_completion(
+    world: World,
+    rule_table: list[int],
+    phase: ObservationPhase,
+    halt_detector: HaltDetector,
+    uniform_detector: StateUniformDetector,
+) -> tuple[str | None, tuple[tuple[int, int, int, int], ...]]:
+    """Run a single simulation until termination or completion.
+
+    Returns ``(termination_reason, final_snapshot)``.
+    """
+    termination_reason: str | None = None
+    for step in range(world.config.steps):
+        world.step(rule_table, phase, step_number=step)
+        snapshot = world.snapshot()
+        states = world.state_vector()
+
+        if uniform_detector.observe(states):
+            termination_reason = TerminationReason.STATE_UNIFORM.value
+            break
+        if halt_detector.observe(snapshot):
+            termination_reason = TerminationReason.HALT.value
+            break
+
+    return termination_reason, world.snapshot()
 
 
 def run_multi_seed_robustness(config: MultiSeedConfig) -> Path:
@@ -634,20 +679,10 @@ def run_multi_seed_robustness(config: MultiSeedConfig) -> Path:
             halt_detector = HaltDetector(window=config.halt_window)
             uniform_detector = StateUniformDetector()
 
-            termination_reason: str | None = None
-            for step in range(world_cfg.steps):
-                world.step(rule_table, config.phase, step_number=step)
-                snapshot = world.snapshot()
-                states = world.state_vector()
+            termination_reason, snapshot = _run_simulation_to_completion(
+                world, rule_table, config.phase, halt_detector, uniform_detector
+            )
 
-                if uniform_detector.observe(states):
-                    termination_reason = TerminationReason.STATE_UNIFORM.value
-                    break
-                if halt_detector.observe(snapshot):
-                    termination_reason = TerminationReason.HALT.value
-                    break
-
-            snapshot = world.snapshot()
             survived = termination_reason is None
             mi = neighbor_mutual_information(snapshot, world_cfg.grid_width, world_cfg.grid_height)
             mi_null = shuffle_null_mi(
@@ -707,20 +742,10 @@ def run_halt_window_sweep(config: HaltWindowSweepConfig) -> Path:
             halt_detector = HaltDetector(window=halt_window)
             uniform_detector = StateUniformDetector()
 
-            termination_reason: str | None = None
-            for step in range(world_cfg.steps):
-                world.step(rule_table, config.phase, step_number=step)
-                snapshot = world.snapshot()
-                states = world.state_vector()
+            termination_reason, snapshot = _run_simulation_to_completion(
+                world, rule_table, config.phase, halt_detector, uniform_detector
+            )
 
-                if uniform_detector.observe(states):
-                    termination_reason = TerminationReason.STATE_UNIFORM.value
-                    break
-                if halt_detector.observe(snapshot):
-                    termination_reason = TerminationReason.HALT.value
-                    break
-
-            snapshot = world.snapshot()
             survived = termination_reason is None
             mi = neighbor_mutual_information(snapshot, world_cfg.grid_width, world_cfg.grid_height)
             mi_null = shuffle_null_mi(
