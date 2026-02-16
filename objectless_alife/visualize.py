@@ -14,55 +14,19 @@ from matplotlib.colors import BoundaryNorm, ListedColormap
 from matplotlib.gridspec import GridSpec
 from matplotlib.patches import Patch
 
-from src.stats import load_final_step_metrics
+from objectless_alife.stats import load_final_step_metrics
+from objectless_alife.viz_theme import DEFAULT_THEME, get_theme
 
-METRIC_LABELS: dict[str, str] = {
-    "state_entropy": "State Entropy",
-    "neighbor_mutual_information": "Neighbor Mutual Information",
-    "compression_ratio": "Compression Ratio",
-    "morans_i": "Moran's I",
-    "cluster_count": "Cluster Count",
-    "predictability_hamming": "Hamming Distance",
-    "quasi_periodicity_peaks": "Periodicity Peaks",
-    "phase_transition_max_delta": "Phase Transition",
-    "action_entropy_mean": "Action Entropy (mean)",
-    "action_entropy_variance": "Action Entropy (var)",
-    "block_ncd": "Block NCD",
-}
-
-METRIC_COLORS: dict[str, str] = {
-    "state_entropy": "tab:blue",
-    "neighbor_mutual_information": "tab:red",
-    "compression_ratio": "tab:green",
-    "morans_i": "tab:orange",
-    "cluster_count": "tab:purple",
-    "predictability_hamming": "tab:brown",
-    "quasi_periodicity_peaks": "tab:pink",
-    "phase_transition_max_delta": "tab:gray",
-    "action_entropy_mean": "tab:olive",
-    "action_entropy_variance": "tab:cyan",
-    "block_ncd": "darkblue",
-}
-
-PHASE_COLORS: dict[str, str] = {
-    "P1": "tab:blue",
-    "P2": "tab:red",
-    "Control": "tab:gray",
-    "RW": "tab:olive",
-}
-
-PHASE_DESCRIPTIONS: dict[str, str] = {
-    "P1": "Phase 1 (density)",
-    "P2": "Phase 2 (state profile)",
-    "Control": "Control (step-clock)",
-    "RW": "Random Walk",
-}
-
-STATE_COLORS: list[str] = ["#2196F3", "#FF5722", "#4CAF50", "#FFC107"]
-EMPTY_CELL_COLOR: str = "#F0F0F0"
-EMPTY_CELL_COLOR_DARK: str = "#1A1A1A"
-GRID_LINE_COLOR: str = "#CCCCCC"
-GRID_LINE_COLOR_DARK: str = "#333333"
+# Module-level aliases kept for backward compatibility; sourced from theme.
+METRIC_LABELS: dict[str, str] = DEFAULT_THEME.metric_labels
+METRIC_COLORS: dict[str, str] = DEFAULT_THEME.metric_colors
+PHASE_COLORS: dict[str, str] = DEFAULT_THEME.phase_colors
+PHASE_DESCRIPTIONS: dict[str, str] = DEFAULT_THEME.phase_descriptions
+STATE_COLORS: list[str] = list(DEFAULT_THEME.state_colors)
+EMPTY_CELL_COLOR: str = DEFAULT_THEME.empty_cell_color
+EMPTY_CELL_COLOR_DARK: str = DEFAULT_THEME.empty_cell_color_dark
+GRID_LINE_COLOR: str = DEFAULT_THEME.grid_line_color
+GRID_LINE_COLOR_DARK: str = DEFAULT_THEME.grid_line_color_dark
 
 _SAFE_NAME_RE = re.compile(r"^[A-Za-z0-9_\-]+$")
 
@@ -797,12 +761,33 @@ def _parse_phase_dirs(raw: list[str]) -> list[tuple[str, Path]]:
 def main() -> None:
     """CLI entrypoint with subcommands."""
     parser = argparse.ArgumentParser(description="Visualization tools for simulation data")
+    parser.add_argument(
+        "--theme",
+        type=str,
+        default="default",
+        help="Theme preset name (default, paper)",
+    )
     sub = parser.add_subparsers(dest="command", required=True)
     _build_single_parser(sub)
     _build_batch_parser(sub)
     _build_figure_parser(sub)
     _build_filmstrip_parser(sub)
     args = parser.parse_args()
+
+    # Apply theme to module-level aliases
+    global METRIC_LABELS, METRIC_COLORS, PHASE_COLORS, PHASE_DESCRIPTIONS
+    global STATE_COLORS, EMPTY_CELL_COLOR, EMPTY_CELL_COLOR_DARK
+    global GRID_LINE_COLOR, GRID_LINE_COLOR_DARK
+    theme = get_theme(args.theme)
+    METRIC_LABELS = theme.metric_labels
+    METRIC_COLORS = theme.metric_colors
+    PHASE_COLORS = theme.phase_colors
+    PHASE_DESCRIPTIONS = theme.phase_descriptions
+    STATE_COLORS = list(theme.state_colors)
+    EMPTY_CELL_COLOR = theme.empty_cell_color
+    EMPTY_CELL_COLOR_DARK = theme.empty_cell_color_dark
+    GRID_LINE_COLOR = theme.grid_line_color
+    GRID_LINE_COLOR_DARK = theme.grid_line_color_dark
 
     if args.command == "single":
         render_rule_animation(

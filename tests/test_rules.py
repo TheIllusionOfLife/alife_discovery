@@ -1,6 +1,6 @@
 import pytest
 
-from src.rules import (
+from objectless_alife.rules import (
     ObservationPhase,
     compute_capacity_matched_index,
     compute_control_index,

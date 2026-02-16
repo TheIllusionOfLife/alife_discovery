@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from random import Random
 
-from src.rules import (
+from objectless_alife.rules import (
     CLOCK_PERIOD,
     ObservationPhase,
     compute_capacity_matched_index,

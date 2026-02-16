@@ -6,7 +6,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
 
-from src.run_search import MULTI_SEED_SCHEMA
+from objectless_alife.run_search import MULTI_SEED_SCHEMA
 
 
 def _setup_phase_data(
@@ -17,8 +17,8 @@ def _setup_phase_data(
     steps: int = 10,
 ) -> None:
     """Create minimal experiment data (rules + metrics) for a phase."""
-    from src.rules import ObservationPhase
-    from src.run_search import SearchConfig, run_batch_search
+    from objectless_alife.rules import ObservationPhase
+    from objectless_alife.run_search import SearchConfig, run_batch_search
 
     phase_map = {
         1: ObservationPhase.PHASE1_DENSITY,
@@ -38,8 +38,8 @@ def _setup_phase_data(
 
 class TestRunMultiSeedForPhase:
     def test_produces_output_parquet_for_phase1(self, tmp_path: Path) -> None:
+        from objectless_alife.rules import ObservationPhase
         from scripts.multi_seed_p1_control import run_multi_seed_for_phase
-        from src.rules import ObservationPhase
 
         data_dir = tmp_path / "data"
         _setup_phase_data(data_dir, "phase_1", 1, n_rules=5, steps=8)
@@ -58,8 +58,8 @@ class TestRunMultiSeedForPhase:
         assert table.num_rows > 0
 
     def test_produces_output_parquet_for_control(self, tmp_path: Path) -> None:
+        from objectless_alife.rules import ObservationPhase
         from scripts.multi_seed_p1_control import run_multi_seed_for_phase
-        from src.rules import ObservationPhase
 
         data_dir = tmp_path / "data"
         _setup_phase_data(data_dir, "control", 3, n_rules=5, steps=8)

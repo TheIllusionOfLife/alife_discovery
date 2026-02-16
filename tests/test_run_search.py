@@ -4,10 +4,10 @@ from pathlib import Path
 import pyarrow.parquet as pq
 import pytest
 
-from src.filters import ACTION_SPACE_SIZE
-from src.metrics import action_entropy
-from src.rules import ObservationPhase
-from src.run_search import (
+from objectless_alife.filters import ACTION_SPACE_SIZE
+from objectless_alife.metrics import action_entropy
+from objectless_alife.rules import ObservationPhase
+from objectless_alife.run_search import (
     METRICS_SCHEMA,
     PHASE_SUMMARY_METRIC_NAMES,
     DensitySweepConfig,
@@ -26,7 +26,7 @@ from src.run_search import (
     run_multi_seed_robustness,
     select_top_rules_by_excess_mi,
 )
-from src.world import WorldConfig
+from objectless_alife.world import WorldConfig
 
 
 def test_run_batch_search_writes_json_and_parquet(tmp_path: Path) -> None:
@@ -368,12 +368,12 @@ def test_run_experiment_rejects_excessive_total_workload(tmp_path: Path) -> None
 def test_run_batch_search_does_not_leave_partial_parquet_files_on_early_failure(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import src.run_search as run_search_module
+    import objectless_alife.simulation as simulation_module
 
     def _fail(*args: object, **kwargs: object) -> list[int]:
         raise RuntimeError("boom")
 
-    monkeypatch.setattr(run_search_module, "generate_rule_table", _fail)
+    monkeypatch.setattr(simulation_module, "generate_rule_table", _fail)
     with pytest.raises(RuntimeError, match="boom"):
         run_batch_search(
             n_rules=1,

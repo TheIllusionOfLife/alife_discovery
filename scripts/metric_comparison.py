@@ -22,7 +22,7 @@ from scipy.stats import mannwhitneyu
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.stats import _holm_bonferroni  # noqa: E402
+from objectless_alife.stats import _holm_bonferroni  # noqa: E402
 
 DATA_DIR = PROJECT_ROOT / "data" / "stage_d"
 
