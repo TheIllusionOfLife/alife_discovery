@@ -7,11 +7,12 @@ from objectless_alife.run_search import run_experiment
 from scripts.no_filter_analysis import main as no_filter_main
 from scripts.phenotype_taxonomy import main as taxonomy_main
 from scripts.ranking_stability import main as ranking_main
+from scripts.run_pr26_followups import main as run_all_followups_main
 from scripts.synchronous_ablation import main as sync_main
 from scripts.te_null_analysis import main as te_main
 
 
-def _make_small_dataset(data_dir: Path) -> None:
+def _make_small_dataset(data_dir: Path, sim_seed_start: int = 0) -> None:
     run_experiment(
         ExperimentConfig(
             phases=(
@@ -24,7 +25,7 @@ def _make_small_dataset(data_dir: Path) -> None:
             out_dir=data_dir,
             steps=5,
             rule_seed_start=0,
-            sim_seed_start=0,
+            sim_seed_start=sim_seed_start,
         )
     )
 
@@ -45,6 +46,7 @@ def test_no_filter_analysis_smoke(tmp_path: Path) -> None:
     )
     payload = json.loads((out_dir / "summary.json").read_text())
     assert "phase_pairwise" in payload
+    assert (out_dir / "summary.csv").exists()
 
 
 def test_synchronous_ablation_smoke(tmp_path: Path) -> None:
@@ -63,6 +65,7 @@ def test_synchronous_ablation_smoke(tmp_path: Path) -> None:
     )
     payload = json.loads((out_dir / "summary.json").read_text())
     assert "phase_pairwise" in payload
+    assert (out_dir / "summary.csv").exists()
 
 
 def test_ranking_stability_smoke(tmp_path: Path) -> None:
@@ -81,6 +84,7 @@ def test_ranking_stability_smoke(tmp_path: Path) -> None:
     )
     payload = json.loads((out_dir / "summary.json").read_text())
     assert "pairwise_kendall_tau" in payload
+    assert (out_dir / "summary.csv").exists()
 
 
 def test_te_null_analysis_smoke(tmp_path: Path) -> None:
@@ -101,6 +105,27 @@ def test_te_null_analysis_smoke(tmp_path: Path) -> None:
     )
     payload = json.loads((out_dir / "summary.json").read_text())
     assert "conditions" in payload
+    assert (out_dir / "summary.csv").exists()
+
+
+def test_te_null_analysis_uses_experiment_run_mapping(tmp_path: Path) -> None:
+    data_dir = tmp_path / "mapped_data"
+    _make_small_dataset(data_dir, sim_seed_start=100)
+    out_dir = tmp_path / "te_mapped"
+    te_main(
+        [
+            "--data-dir",
+            str(data_dir),
+            "--out-dir",
+            str(out_dir),
+            "--top-k",
+            "2",
+            "--n-shuffles",
+            "10",
+        ]
+    )
+    payload = json.loads((out_dir / "summary.json").read_text())
+    assert payload["conditions"]["phase_2"]["n_rules"] >= 1
 
 
 def test_phenotype_taxonomy_smoke(tmp_path: Path) -> None:
@@ -119,3 +144,26 @@ def test_phenotype_taxonomy_smoke(tmp_path: Path) -> None:
     )
     payload = json.loads((out_dir / "taxonomy.json").read_text())
     assert "rows" in payload
+    assert (out_dir / "taxonomy.csv").exists()
+
+
+def test_run_pr26_followups_orchestrator_smoke(tmp_path: Path) -> None:
+    data_dir = tmp_path / "orchestrator_data"
+    _make_small_dataset(data_dir)
+    out_dir = tmp_path / "orchestrator_out"
+    run_all_followups_main(
+        [
+            "--data-dir",
+            str(data_dir),
+            "--out-dir",
+            str(out_dir),
+            "--quick",
+        ]
+    )
+    manifest = json.loads((out_dir / "manifest.json").read_text())
+    assert "outputs" in manifest
+    assert (out_dir / "no_filter" / "summary.json").exists()
+    assert (out_dir / "synchronous_ablation" / "summary.json").exists()
+    assert (out_dir / "ranking_stability" / "summary.json").exists()
+    assert (out_dir / "te_null" / "summary.json").exists()
+    assert (out_dir / "phenotypes" / "taxonomy.json").exists()

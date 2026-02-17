@@ -7,6 +7,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 from pathlib import Path
 
@@ -63,7 +64,12 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--seed-batches", type=int, default=1)
     parser.add_argument("--rule-seed-start", type=int, default=0)
     parser.add_argument("--sim-seed-start", type=int, default=0)
+    parser.add_argument("--quick", action="store_true", help="Run a small sanity-sized preset")
     args = parser.parse_args(argv)
+    if args.quick:
+        args.n_rules = 10
+        args.steps = 20
+        args.seed_batches = 1
 
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -109,6 +115,28 @@ def main(argv: list[str] | None = None) -> None:
         "phase_pairwise": comparisons,
     }
     (out_dir / "summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2))
+    csv_rows: list[dict[str, str | float | int]] = []
+    for phase, phase_result in comparisons.items():
+        metric_tests = phase_result.get("metric_tests", {})
+        for metric_name, metric_payload in metric_tests.items():
+            csv_rows.append(
+                {
+                    "phase": phase,
+                    "metric": metric_name,
+                    "p_value": float(metric_payload.get("p_value", float("nan"))),
+                    "p_value_corrected": float(
+                        metric_payload.get("p_value_corrected", float("nan"))
+                    ),
+                    "effect_size_r": float(metric_payload.get("effect_size_r", float("nan"))),
+                }
+            )
+    with (out_dir / "summary.csv").open("w", newline="") as f:
+        writer = csv.DictWriter(
+            f,
+            fieldnames=["phase", "metric", "p_value", "p_value_corrected", "effect_size_r"],
+        )
+        writer.writeheader()
+        writer.writerows(csv_rows)
     print(json.dumps(summary, ensure_ascii=False, indent=2))
 
 

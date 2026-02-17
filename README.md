@@ -120,6 +120,35 @@ uv run python scripts/te_null_analysis.py --data-dir data/stage_d --out-dir data
 uv run python scripts/phenotype_taxonomy.py --data-dir data/stage_d --out-dir data/post_hoc/phenotypes
 ```
 
+Run all PR #26 follow-ups in one command (writes `manifest.json`):
+
+```bash
+uv run python scripts/run_pr26_followups.py \
+  --data-dir data/stage_d \
+  --out-dir data/post_hoc/pr26_followups
+```
+
+Quick sanity mode for all follow-ups:
+
+```bash
+uv run python scripts/run_pr26_followups.py \
+  --data-dir data/stage_d \
+  --out-dir data/post_hoc/pr26_followups_quick \
+  --quick
+```
+
+Expected outputs and rough runtime guidance:
+- `scripts/no_filter_analysis.py`:
+  outputs `summary.json`, `summary.csv`; quick: minutes, paper-scale: hours.
+- `scripts/synchronous_ablation.py`:
+  outputs `summary.json`, `summary.csv`; quick: minutes, paper-scale: hours.
+- `scripts/ranking_stability.py`:
+  outputs `summary.json`, `summary.csv`; quick: minutes, paper-scale: hours.
+- `scripts/te_null_analysis.py`:
+  outputs `summary.json`, `summary.csv`; quick: minutes, paper-scale depends on `top-k` and `n-shuffles`.
+- `scripts/phenotype_taxonomy.py`:
+  outputs `taxonomy.json`, `taxonomy.csv`; quick: seconds to minutes.
+
 Switch update dynamics and viability filtering directly from CLI:
 
 ```bash

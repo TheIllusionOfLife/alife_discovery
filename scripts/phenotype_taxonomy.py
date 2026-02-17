@@ -9,6 +9,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 from pathlib import Path
 
@@ -37,7 +38,10 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--data-dir", type=Path, default=Path("data/stage_d"))
     parser.add_argument("--out-dir", type=Path, default=Path("data/post_hoc/phenotypes"))
     parser.add_argument("--top-k", type=int, default=50)
+    parser.add_argument("--quick", action="store_true", help="Run a small sanity-sized preset")
     args = parser.parse_args(argv)
+    if args.quick:
+        args.top_k = 10
 
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -104,6 +108,20 @@ def main(argv: list[str] | None = None) -> None:
         "rows": classified,
     }
     (out_dir / "taxonomy.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2))
+    with (out_dir / "taxonomy.csv").open("w", newline="") as f:
+        writer = csv.DictWriter(
+            f,
+            fieldnames=[
+                "rule_id",
+                "state_entropy",
+                "predictability_hamming",
+                "same_state_adjacency_fraction",
+                "mi_excess",
+                "phenotype",
+            ],
+        )
+        writer.writeheader()
+        writer.writerows(classified)
     print(json.dumps(payload, ensure_ascii=False, indent=2))
 
 

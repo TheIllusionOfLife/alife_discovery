@@ -7,6 +7,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import csv
 import itertools
 import json
 from pathlib import Path
@@ -47,7 +48,12 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--n-seed-batches", type=int, default=3)
     parser.add_argument("--rule-seed-start", type=int, default=0)
     parser.add_argument("--sim-seed-start", type=int, default=0)
+    parser.add_argument("--quick", action="store_true", help="Run a small sanity-sized preset")
     args = parser.parse_args(argv)
+    if args.quick:
+        args.n_rules = 10
+        args.steps = 20
+        args.n_seed_batches = 2
 
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -97,6 +103,25 @@ def main(argv: list[str] | None = None) -> None:
         "pairwise_kendall_tau": phase_results,
     }
     (out_dir / "summary.json").write_text(json.dumps(output, ensure_ascii=False, indent=2))
+    csv_rows: list[dict[str, str | float | int]] = []
+    for phase, rows in phase_results.items():
+        for row in rows:
+            csv_rows.append(
+                {
+                    "phase": phase,
+                    "batch_a": int(row["batch_a"]),
+                    "batch_b": int(row["batch_b"]),
+                    "kendall_tau": float(row["kendall_tau"]),
+                    "n_rules": int(row["n_rules"]),
+                }
+            )
+    with (out_dir / "summary.csv").open("w", newline="") as f:
+        writer = csv.DictWriter(
+            f,
+            fieldnames=["phase", "batch_a", "batch_b", "kendall_tau", "n_rules"],
+        )
+        writer.writeheader()
+        writer.writerows(csv_rows)
     print(json.dumps(output, ensure_ascii=False, indent=2))
 
 

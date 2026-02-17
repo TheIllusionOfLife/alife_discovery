@@ -9,6 +9,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import random
 import statistics
@@ -48,7 +49,19 @@ def _sim_log_for_rule_ids(
     return out
 
 
-def _rule_ids_for_phase(phase: int, seeds: list[int]) -> set[str]:
+def _rule_ids_for_phase_from_runs(data_dir: Path, phase: int, seeds: set[int]) -> set[str]:
+    runs_path = data_dir / "logs" / "experiment_runs.parquet"
+    if not runs_path.exists():
+        return set()
+    runs = pq.read_table(runs_path, columns=["rule_id", "phase", "rule_seed"]).to_pylist()
+    return {
+        str(row["rule_id"])
+        for row in runs
+        if int(row["phase"]) == phase and int(row["rule_seed"]) in seeds
+    }
+
+
+def _rule_ids_for_phase_fallback(phase: int, seeds: set[int]) -> set[str]:
     return {f"phase{phase}_rs{seed}_ss{seed}" for seed in seeds}
 
 
@@ -58,7 +71,11 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--out-dir", type=Path, default=Path("data/post_hoc/te_null"))
     parser.add_argument("--top-k", type=int, default=50)
     parser.add_argument("--n-shuffles", type=int, default=200)
+    parser.add_argument("--quick", action="store_true", help="Run a small sanity-sized preset")
     args = parser.parse_args(argv)
+    if args.quick:
+        args.top_k = 10
+        args.n_shuffles = 20
 
     data_dir = Path(args.data_dir)
     out_dir = Path(args.out_dir)
@@ -67,6 +84,7 @@ def main(argv: list[str] | None = None) -> None:
     p2_metrics = data_dir / "phase_2" / "logs" / "metrics_summary.parquet"
     p2_rules = data_dir / "phase_2" / "rules"
     top_seeds = select_top_rules_by_excess_mi(p2_metrics, p2_rules, top_k=args.top_k)
+    top_seed_set = set(top_seeds)
 
     control_log = data_dir / "control" / "logs" / "simulation_log.parquet"
     if not control_log.exists():
@@ -79,7 +97,9 @@ def main(argv: list[str] | None = None) -> None:
     summary: dict[str, dict[str, float | int]] = {}
 
     for label, (phase, sim_log_path) in conditions.items():
-        rule_ids = _rule_ids_for_phase(phase, top_seeds)
+        rule_ids = _rule_ids_for_phase_from_runs(data_dir, phase, top_seed_set)
+        if not rule_ids:
+            rule_ids = _rule_ids_for_phase_fallback(phase, top_seed_set)
         logs_by_rule = _sim_log_for_rule_ids(sim_log_path, rule_ids)
         te_vals: list[float] = []
         te_null_vals: list[float] = []
@@ -112,6 +132,29 @@ def main(argv: list[str] | None = None) -> None:
         "conditions": summary,
     }
     (out_dir / "summary.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2))
+    csv_rows = [
+        {
+            "condition": condition,
+            "n_rules": int(stats["n_rules"]),
+            "te_median": float(stats["te_median"]),
+            "te_null_median": float(stats["te_null_median"]),
+            "te_excess_median": float(stats["te_excess_median"]),
+        }
+        for condition, stats in summary.items()
+    ]
+    with (out_dir / "summary.csv").open("w", newline="") as f:
+        writer = csv.DictWriter(
+            f,
+            fieldnames=[
+                "condition",
+                "n_rules",
+                "te_median",
+                "te_null_median",
+                "te_excess_median",
+            ],
+        )
+        writer.writeheader()
+        writer.writerows(csv_rows)
     print(json.dumps(payload, ensure_ascii=False, indent=2))
 
 
