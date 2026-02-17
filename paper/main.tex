@@ -442,6 +442,18 @@ The pairwise comparisons confirm this (Table~\ref{tab:stats}): Phase~1
 produces significantly higher MI than Control despite having smaller tables,
 and Phase~2 vastly exceeds Control despite equal table size.
 
+\subsection{Filter-Selection Confound Check}
+
+A key methodological concern is that viability filters might indirectly favor
+high-MI rules, creating an apparent Phase~2 advantage through selection bias.
+To test this directly, we measured point-biserial correlation between survival
+status and final-step MI within each condition. The correlations are nearly
+identical for Phase~1 and Phase~2 ($r \approx 0.14$ in both), while Control is
+higher ($r = 0.45$) due to its substantially lower survival rate.
+The relevant comparison is therefore Phase~1 vs.\ Phase~2: because their
+filter--MI coupling is matched, the Phase~2 excess-MI advantage cannot be
+explained by differential filter selection.
+
 \subsection{Temporal Dynamics}
 
 The four conditions exhibit qualitatively distinct temporal behaviors
@@ -458,13 +470,11 @@ The four conditions exhibit qualitatively distinct temporal behaviors
         genuine coordination.
 \end{itemize}
 
-This pattern is suggestive of an edge-of-chaos
-interpretation~\citep{langton1990computation, packard1988adaptation}: Phase~1
-falls into frozen order, Control produces undirected chaos, and Phase~2
-occupies an intermediate regime where coordination persists dynamically.
-However, this observation is based on a small sample of top-performing rules
-per condition and lacks quantitative measures of criticality (e.g., Lyapunov
-exponents); we note it as a qualitative pattern rather than a strong claim.
+This pattern is an exploratory qualitative observation only. It is consistent
+with a possible frozen--dynamic--chaotic ordering across conditions, but we do
+not claim edge-of-chaos evidence here because the analysis is based on a small
+sample of top-performing rules and does not include quantitative criticality
+measures (e.g., Lyapunov exponents).
 
 \begin{figure}[htbp]
 \centering
@@ -538,13 +548,11 @@ large-scale spatial clustering.
 This result is not a consequence of having more rules to choose from, but of
 each rule being able to respond to richer local information.
 
-\paragraph{Edge-of-chaos interpretation.}
-The temporal dynamics are suggestive of a connection to the edge-of-chaos
-hypothesis~\citep{langton1990computation}. Phase~1's frozen dynamics and
-Control's chaotic behavior bracket Phase~2, which maintains dynamic spatial
-coordination without collapsing into static patterns. This qualitative
-observation---based on top-performing rules---warrants future investigation
-with quantitative criticality measures.
+\paragraph{Exploratory temporal pattern (not a primary claim).}
+The temporal trajectories suggest a possible frozen--dynamic--chaotic ordering
+(Phase~1, Phase~2, Control), but we treat this strictly as exploratory context,
+not as evidence for edge-of-chaos theory. Establishing such a claim would
+require dedicated criticality analyses beyond the scope of the present work.
 
 \paragraph{Viability filtering as minimal selection.}
 Our methodology embodies a minimal philosophy: generate random configurations,
