@@ -506,32 +506,28 @@ def transfer_entropy_shuffle_null(
     if len(sorted_steps) < 2:
         return 0.0
 
-    base_rows = [
+    base_rows: list[tuple[int, int, int, int, int]] = [
         (int(step), int(agent_id), int(x), int(y), int(state))
         for step, agent_id, x, y, state in sim_log
     ]
+    # Pre-index target rows once to avoid rebuilding key maps per shuffle.
+    next_step_to_row_indices: dict[int, list[int]] = {}
+    next_step_to_states: dict[int, list[int]] = {}
+    for step in sorted_steps[1:]:
+        indices = [idx for idx, row in enumerate(base_rows) if row[0] == step]
+        next_step_to_row_indices[step] = indices
+        next_step_to_states[step] = [base_rows[idx][4] for idx in indices]
+
     te_sum = 0.0
     for _ in range(n_shuffles):
-        shuffled_state_by_key: dict[tuple[int, int], int] = {}
-        for i in range(len(sorted_steps) - 1):
-            t1 = sorted_steps[i + 1]
-            next_rows = by_step[t1]
-            states = [int(state) for _, _, _, _, state in next_rows]
-            shuffled_states = states.copy()
+        shuffled_rows = list(base_rows)
+        for t1 in sorted_steps[1:]:
+            shuffled_states = next_step_to_states[t1].copy()
             rng.shuffle(shuffled_states)
-            for row_idx, (_, agent_id, _, _, _) in enumerate(next_rows):
-                shuffled_state_by_key[(t1, int(agent_id))] = shuffled_states[row_idx]
-        shuffled_log = [
-            (
-                step,
-                agent_id,
-                x,
-                y,
-                shuffled_state_by_key.get((step, agent_id), state),
-            )
-            for step, agent_id, x, y, state in base_rows
-        ]
-        te_sum += neighbor_transfer_entropy(shuffled_log, grid_width, grid_height)
+            for pos, row_idx in enumerate(next_step_to_row_indices[t1]):
+                step, agent_id, x, y, _state = shuffled_rows[row_idx]
+                shuffled_rows[row_idx] = (step, agent_id, x, y, shuffled_states[pos])
+        te_sum += neighbor_transfer_entropy(shuffled_rows, grid_width, grid_height)
     return te_sum / n_shuffles
 
 

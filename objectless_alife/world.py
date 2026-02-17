@@ -210,8 +210,8 @@ class World:
                 state_by_agent_id=frozen_states,
             )
 
-        for agent_id, action in enumerate(actions):
-            self.apply_action(agent_id=agent_id, action=action)
+        for agent_id in order:
+            self.apply_action(agent_id=agent_id, action=actions[agent_id])
         return actions
 
     def _select_action_for_agent(

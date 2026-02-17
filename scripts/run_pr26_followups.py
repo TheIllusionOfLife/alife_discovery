@@ -49,9 +49,13 @@ def main(argv: list[str] | None = None) -> None:
     no_filter_args = ["--out-dir", str(no_filter_dir)]
     if args.quick:
         no_filter_args.append("--quick")
-    manifest["commands"] = {
-        "no_filter": ["uv", "run", "python", "scripts/no_filter_analysis.py", *no_filter_args],
-    }
+    manifest["commands"]["no_filter"] = [
+        "uv",
+        "run",
+        "python",
+        "scripts/no_filter_analysis.py",
+        *no_filter_args,
+    ]
     try:
         run_no_filter(no_filter_args)
         manifest["analysis_status"] = {**manifest["analysis_status"], "no_filter": "success"}

@@ -10,6 +10,8 @@ import argparse
 import json
 from pathlib import Path
 
+import pyarrow as pa
+import pyarrow.compute as pc
 import pyarrow.parquet as pq
 
 from objectless_alife.config import ExperimentConfig
@@ -23,7 +25,8 @@ from scripts._analysis_common import (
 
 def _survival_rate(runs_path: Path) -> float:
     table = pq.read_table(runs_path, columns=["survived"])
-    survived = sum(1 for v in table.column("survived").to_pylist() if bool(v))
+    survived_scalar = pc.sum(pc.cast(table.column("survived"), pa.int64()))
+    survived = int(survived_scalar.as_py()) if survived_scalar is not None else 0
     total = table.num_rows
     return 0.0 if total == 0 else survived / total
 
