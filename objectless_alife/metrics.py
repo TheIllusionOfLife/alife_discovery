@@ -486,6 +486,70 @@ def neighbor_transfer_entropy(
     return max(te - correction, 0.0)
 
 
+def transfer_entropy_shuffle_null(
+    sim_log: Sequence[tuple[int, int, int, int, int]],
+    grid_width: int,
+    grid_height: int,
+    n_shuffles: int = 200,
+    rng: random.Random | None = None,
+) -> float:
+    """Mean TE under a null that shuffles next-step states within each step pair."""
+    if not sim_log or n_shuffles <= 0:
+        return 0.0
+    if rng is None:
+        rng = random.Random()
+
+    by_step: dict[int, list[tuple[int, int, int, int, int]]] = {}
+    for row in sim_log:
+        by_step.setdefault(int(row[0]), []).append(row)
+    sorted_steps = sorted(by_step.keys())
+    if len(sorted_steps) < 2:
+        return 0.0
+
+    base_rows: list[tuple[int, int, int, int, int]] = [
+        (int(step), int(agent_id), int(x), int(y), int(state))
+        for step, agent_id, x, y, state in sim_log
+    ]
+    # Pre-index target rows once to avoid rebuilding key maps per shuffle.
+    next_step_to_row_indices: dict[int, list[int]] = {}
+    next_step_to_states: dict[int, list[int]] = {}
+    for step in sorted_steps[1:]:
+        indices = [idx for idx, row in enumerate(base_rows) if row[0] == step]
+        next_step_to_row_indices[step] = indices
+        next_step_to_states[step] = [base_rows[idx][4] for idx in indices]
+
+    te_sum = 0.0
+    for _ in range(n_shuffles):
+        shuffled_rows = list(base_rows)
+        for t1 in sorted_steps[1:]:
+            shuffled_states = next_step_to_states[t1].copy()
+            rng.shuffle(shuffled_states)
+            for pos, row_idx in enumerate(next_step_to_row_indices[t1]):
+                step, agent_id, x, y, _state = shuffled_rows[row_idx]
+                shuffled_rows[row_idx] = (step, agent_id, x, y, shuffled_states[pos])
+        te_sum += neighbor_transfer_entropy(shuffled_rows, grid_width, grid_height)
+    return te_sum / n_shuffles
+
+
+def transfer_entropy_excess(
+    sim_log: Sequence[tuple[int, int, int, int, int]],
+    grid_width: int,
+    grid_height: int,
+    n_shuffles: int = 200,
+    rng: random.Random | None = None,
+) -> float:
+    """Non-negative TE excess: observed TE minus shuffle-null TE."""
+    observed = neighbor_transfer_entropy(sim_log, grid_width, grid_height)
+    null = transfer_entropy_shuffle_null(
+        sim_log,
+        grid_width,
+        grid_height,
+        n_shuffles=n_shuffles,
+        rng=rng,
+    )
+    return max(observed - null, 0.0)
+
+
 def block_ncd(left: bytes, right: bytes) -> float:
     """Compute normalized compression distance for two byte blocks."""
     if not left and not right:

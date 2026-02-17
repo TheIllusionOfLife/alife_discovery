@@ -243,7 +243,12 @@ def run_batch_search(
             low_activity_triggered = False
 
             for step in range(world_cfg.steps):
-                actions = world.step(rule_table, phase, step_number=step)
+                actions = world.step(
+                    rule_table,
+                    phase,
+                    step_number=step,
+                    update_mode=search_config.update_mode,
+                )
                 snapshot = world.snapshot()
                 states = world.state_vector()
                 snapshot_bytes = serialize_snapshot(
@@ -319,22 +324,23 @@ def run_batch_search(
                     if low_activity_detector is not None
                     else False
                 )
-                if uniform_triggered:
-                    terminated_at = step
-                    termination_reason = TerminationReason.STATE_UNIFORM.value
-                    break
-                elif halt_triggered:
-                    terminated_at = step
-                    termination_reason = TerminationReason.HALT.value
-                    break
-                elif short_period_triggered:
-                    terminated_at = step
-                    termination_reason = TerminationReason.SHORT_PERIOD.value
-                    break
-                elif low_activity_triggered:
-                    terminated_at = step
-                    termination_reason = TerminationReason.LOW_ACTIVITY.value
-                    break
+                if search_config.enable_viability_filters:
+                    if uniform_triggered:
+                        terminated_at = step
+                        termination_reason = TerminationReason.STATE_UNIFORM.value
+                        break
+                    elif halt_triggered:
+                        terminated_at = step
+                        termination_reason = TerminationReason.HALT.value
+                        break
+                    elif short_period_triggered:
+                        terminated_at = step
+                        termination_reason = TerminationReason.SHORT_PERIOD.value
+                        break
+                    elif low_activity_triggered:
+                        terminated_at = step
+                        termination_reason = TerminationReason.LOW_ACTIVITY.value
+                        break
 
                 prev_states = states
 
@@ -387,6 +393,8 @@ def run_batch_search(
                     "termination_reason": termination_reason,
                     "filter_short_period": search_config.filter_short_period,
                     "filter_low_activity": search_config.filter_low_activity,
+                    "enable_viability_filters": search_config.enable_viability_filters,
+                    "update_mode": search_config.update_mode.value,
                     "schema_version": RULE_PAYLOAD_SCHEMA_VERSION,
                 },
             }

@@ -15,7 +15,7 @@ import pyarrow as pa
 
 AGGREGATE_SCHEMA_VERSION = 1
 DENSITY_SWEEP_SCHEMA_VERSION = 1
-RULE_PAYLOAD_SCHEMA_VERSION = 2
+RULE_PAYLOAD_SCHEMA_VERSION = 3
 
 # ---------------------------------------------------------------------------
 # Core simulation & metrics schemas
@@ -141,6 +141,8 @@ MULTI_SEED_SCHEMA = pa.schema(
         ("mi_shuffle_null", pa.float64()),
         ("mi_excess", pa.float64()),
         ("same_state_adjacency_fraction", pa.float64()),
+        ("update_mode", pa.string()),
+        ("enable_viability_filters", pa.bool_()),
     ]
 )
 
@@ -153,5 +155,6 @@ HALT_WINDOW_SWEEP_SCHEMA = pa.schema(
         ("neighbor_mutual_information", pa.float64()),
         ("mi_shuffle_null", pa.float64()),
         ("mi_excess", pa.float64()),
+        ("update_mode", pa.string()),
     ]
 )

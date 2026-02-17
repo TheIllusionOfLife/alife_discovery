@@ -42,6 +42,7 @@ from objectless_alife.config import (  # noqa: F401
     RuntimeConfig,
     SearchConfig,
     SimulationResult,
+    UpdateMode,
 )
 from objectless_alife.rules import ObservationPhase
 from objectless_alife.schemas import (  # noqa: F401
@@ -135,6 +136,15 @@ def _parse_positive_int_csv(raw_values: str, label: str) -> tuple[int, ...]:
     return tuple(values)
 
 
+def _parse_update_mode(raw_update_mode: str) -> UpdateMode:
+    """Parse update mode from CLI/config."""
+    try:
+        return UpdateMode(raw_update_mode)
+    except ValueError as exc:
+        valid = ", ".join(mode.value for mode in UpdateMode)
+        raise ValueError(f"update-mode must be one of {valid}") from exc
+
+
 # ---------------------------------------------------------------------------
 # Main CLI
 # ---------------------------------------------------------------------------
@@ -158,6 +168,17 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--n-rules", type=int, default=None)
     parser.add_argument("--steps", type=int, default=None)
     parser.add_argument("--halt-window", type=int, default=None)
+    parser.add_argument(
+        "--update-mode",
+        type=str,
+        choices=[mode.value for mode in UpdateMode],
+        default=None,
+    )
+    parser.add_argument(
+        "--enable-viability-filters",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+    )
     parser.add_argument("--rule-seed", type=int, default=None)
     parser.add_argument("--sim-seed", type=int, default=None)
     parser.add_argument("--out-dir", type=Path, default=None)
@@ -244,6 +265,14 @@ def main(argv: list[str] | None = None) -> None:
     n_rules = _coerce_int(_get(args.n_rules, "n_rules", 100), "n_rules")
     steps = _coerce_int(_get(args.steps, "steps", 200), "steps")
     halt_window = _coerce_int(_get(args.halt_window, "halt_window", 10), "halt_window")
+    update_mode_raw = _coerce_str(
+        _get(args.update_mode, "update_mode", UpdateMode.SEQUENTIAL.value),
+        "update_mode",
+    )
+    update_mode = _parse_update_mode(update_mode_raw)
+    enable_viability_filters = _get_bool(
+        args.enable_viability_filters, "enable_viability_filters", True
+    )
     rule_seed = _coerce_int(_get(args.rule_seed, "rule_seed", 0), "rule_seed")
     sim_seed = _coerce_int(_get(args.sim_seed, "sim_seed", 0), "sim_seed")
     out_dir = Path(_coerce_str(_get(args.out_dir, "out_dir", "data"), "out_dir"))
@@ -290,6 +319,8 @@ def main(argv: list[str] | None = None) -> None:
             out_dir=out_dir,
             steps=steps,
             halt_window=halt_window,
+            enable_viability_filters=enable_viability_filters,
+            update_mode=update_mode,
             rule_seed_start=rule_seed,
             sim_seed_start=sim_seed,
             filter_short_period=filter_short_period,
@@ -319,6 +350,8 @@ def main(argv: list[str] | None = None) -> None:
             out_dir=out_dir,
             steps=steps,
             halt_window=halt_window,
+            enable_viability_filters=enable_viability_filters,
+            update_mode=update_mode,
             rule_seed_start=rule_seed,
             sim_seed_start=sim_seed,
             filter_short_period=filter_short_period,
@@ -344,6 +377,8 @@ def main(argv: list[str] | None = None) -> None:
         search_config = SearchConfig(
             steps=steps,
             halt_window=halt_window,
+            enable_viability_filters=enable_viability_filters,
+            update_mode=update_mode,
             filter_short_period=filter_short_period,
             short_period_max_period=short_period_max_period,
             short_period_history_size=short_period_history_size,

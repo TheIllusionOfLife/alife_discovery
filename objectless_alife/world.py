@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from random import Random
 
+from objectless_alife.config import UpdateMode
 from objectless_alife.rules import (
     CLOCK_PERIOD,
     ObservationPhase,
@@ -12,6 +13,12 @@ from objectless_alife.rules import (
     compute_phase2_index,
     dominant_neighbor_state,
 )
+
+NUM_ACTIONS = 9
+"""Total action count: 4 movement + 4 state-change + 1 no-op."""
+
+NOOP_ACTION = NUM_ACTIONS - 1
+"""Explicit no-op action ID."""
 
 
 @dataclass
@@ -115,7 +122,7 @@ class World:
 
         Action 8 is an explicit no-op. Values outside [0, 8] are invalid.
         """
-        if not 0 <= action <= 8:
+        if not 0 <= action <= NOOP_ACTION:
             raise ValueError("action must be in [0, 8]")
 
         agent = self.agents[agent_id]
@@ -135,50 +142,137 @@ class World:
             agent.state = action - 4
 
     def step(
-        self, rule_table: list[int], phase: ObservationPhase, step_number: int = 0
+        self,
+        rule_table: list[int],
+        phase: ObservationPhase,
+        step_number: int = 0,
+        update_mode: UpdateMode = UpdateMode.SEQUENTIAL,
     ) -> list[int]:
-        """Advance one random-sequential simulation step and return intended actions."""
+        """Advance one simulation step and return intended actions."""
+        if update_mode == UpdateMode.SEQUENTIAL:
+            return self._step_sequential(rule_table, phase, step_number)
+        if update_mode == UpdateMode.SYNCHRONOUS:
+            return self._step_synchronous(rule_table, phase, step_number)
+        raise ValueError(f"Unhandled update mode: {update_mode}")
+
+    def _step_sequential(
+        self,
+        rule_table: list[int],
+        phase: ObservationPhase,
+        step_number: int,
+    ) -> list[int]:
+        """Advance one random-sequential simulation step."""
         order = list(range(len(self.agents)))
         self.rng.shuffle(order)
-        actions = [8] * len(self.agents)
+        actions = [NOOP_ACTION] * len(self.agents)
+        state_by_agent_id = {a.agent_id: a.state for a in self.agents}
 
         for agent_id in order:
             agent = self.agents[agent_id]
-
-            if phase == ObservationPhase.RANDOM_WALK:
-                action = self.rng.randint(0, 8)
-                actions[agent_id] = action
-                self.apply_action(agent_id=agent_id, action=action)
-                continue
-
-            neighbor_states = self._neighbor_states(agent.x, agent.y)
-            neighbor_count = len(neighbor_states)
-
-            if phase == ObservationPhase.PHASE1_DENSITY:
-                index = compute_phase1_index(agent.state, neighbor_count)
-            elif phase == ObservationPhase.CONTROL_DENSITY_CLOCK:
-                step_mod = step_number % CLOCK_PERIOD
-                index = compute_control_index(agent.state, neighbor_count, step_mod)
-            elif phase == ObservationPhase.PHASE2_PROFILE:
-                dom = dominant_neighbor_state(neighbor_states)
-                index = compute_phase2_index(agent.state, neighbor_count, dom)
-            elif phase == ObservationPhase.PHASE1_CAPACITY_MATCHED:
-                dom = dominant_neighbor_state(neighbor_states)
-                index = compute_capacity_matched_index(agent.state, neighbor_count, dom)
-            elif phase == ObservationPhase.PHASE2_RANDOM_ENCODING:
-                dom = dominant_neighbor_state(neighbor_states)
-                index = compute_phase2_index(agent.state, neighbor_count, dom)
-            else:
-                raise ValueError(f"Unhandled observation phase: {phase}")
-
-            action = rule_table[index]
+            action = self._select_action_for_agent(
+                agent=agent,
+                phase=phase,
+                step_number=step_number,
+                rule_table=rule_table,
+                occupancy=self._occupancy,
+                state_by_agent_id=state_by_agent_id,
+            )
             actions[agent_id] = action
             self.apply_action(agent_id=agent_id, action=action)
+            state_by_agent_id[agent_id] = self.agents[agent_id].state
 
         return actions
 
+    def _step_synchronous(
+        self,
+        rule_table: list[int],
+        phase: ObservationPhase,
+        step_number: int,
+    ) -> list[int]:
+        """Advance one synchronous simulation step.
+
+        Decisions are computed from a frozen step-start snapshot, then applied.
+        """
+        order = list(range(len(self.agents)))
+        self.rng.shuffle(order)
+        frozen_occupancy = dict(self._occupancy)
+        frozen_states = {a.agent_id: a.state for a in self.agents}
+        actions = [NOOP_ACTION] * len(self.agents)
+
+        for agent_id in order:
+            agent = self.agents[agent_id]
+            actions[agent_id] = self._select_action_for_agent(
+                agent=agent,
+                phase=phase,
+                step_number=step_number,
+                rule_table=rule_table,
+                occupancy=frozen_occupancy,
+                state_by_agent_id=frozen_states,
+            )
+
+        for agent_id in order:
+            self.apply_action(agent_id=agent_id, action=actions[agent_id])
+        return actions
+
+    def _select_action_for_agent(
+        self,
+        *,
+        agent: Agent,
+        phase: ObservationPhase,
+        step_number: int,
+        rule_table: list[int],
+        occupancy: dict[tuple[int, int], int],
+        state_by_agent_id: dict[int, int],
+    ) -> int:
+        """Select an action for one agent from the provided observation snapshot."""
+        if phase == ObservationPhase.RANDOM_WALK:
+            return self.rng.randrange(NUM_ACTIONS)
+
+        neighbor_states = self._neighbor_states_from_observation(
+            x=agent.x,
+            y=agent.y,
+            occupancy=occupancy,
+            state_by_agent_id=state_by_agent_id,
+        )
+        neighbor_count = len(neighbor_states)
+        self_state = state_by_agent_id[agent.agent_id]
+
+        if phase == ObservationPhase.PHASE1_DENSITY:
+            index = compute_phase1_index(self_state, neighbor_count)
+        elif phase == ObservationPhase.CONTROL_DENSITY_CLOCK:
+            step_mod = step_number % CLOCK_PERIOD
+            index = compute_control_index(self_state, neighbor_count, step_mod)
+        elif phase == ObservationPhase.PHASE2_PROFILE:
+            dom = dominant_neighbor_state(neighbor_states)
+            index = compute_phase2_index(self_state, neighbor_count, dom)
+        elif phase == ObservationPhase.PHASE1_CAPACITY_MATCHED:
+            dom = dominant_neighbor_state(neighbor_states)
+            index = compute_capacity_matched_index(self_state, neighbor_count, dom)
+        elif phase == ObservationPhase.PHASE2_RANDOM_ENCODING:
+            dom = dominant_neighbor_state(neighbor_states)
+            index = compute_phase2_index(self_state, neighbor_count, dom)
+        else:
+            raise ValueError(f"Unhandled observation phase: {phase}")
+        return rule_table[index]
+
     def _neighbor_states(self, x: int, y: int) -> list[int]:
         """Collect occupied-neighbor states from 4-neighborhood on torus grid."""
+        return self._neighbor_states_from_observation(
+            x=x,
+            y=y,
+            occupancy=self._occupancy,
+            state_by_agent_id={a.agent_id: a.state for a in self.agents},
+        )
+
+    def _neighbor_states_from_observation(
+        self,
+        *,
+        x: int,
+        y: int,
+        occupancy: dict[tuple[int, int], int],
+        state_by_agent_id: dict[int, int],
+    ) -> list[int]:
+        """Collect occupied-neighbor states from an explicit snapshot."""
         neighbors = [
             (x, (y - 1) % self.config.grid_height),
             (x, (y + 1) % self.config.grid_height),
@@ -186,9 +280,9 @@ class World:
             ((x + 1) % self.config.grid_width, y),
         ]
         return [
-            self.agents[agent_id].state
+            state_by_agent_id[agent_id]
             for nx, ny in neighbors
-            if (agent_id := self._occupancy.get((nx, ny))) is not None
+            if (agent_id := occupancy.get((nx, ny))) is not None
         ]
 
     @staticmethod

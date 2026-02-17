@@ -110,6 +110,64 @@ uv run python -m objectless_alife.stats --data-dir data/stage_b
 uv run python -m objectless_alife.stats --pairwise --dir-a data/stage_b --dir-b data/stage_c
 ```
 
+Run follow-up heavy-compute analyses from PR #26:
+
+```bash
+uv run python scripts/no_filter_analysis.py --out-dir data/post_hoc/no_filter
+uv run python scripts/synchronous_ablation.py --out-dir data/post_hoc/synchronous_ablation
+uv run python scripts/ranking_stability.py --out-dir data/post_hoc/ranking_stability
+uv run python scripts/te_null_analysis.py --data-dir data/stage_d --out-dir data/post_hoc/te_null
+uv run python scripts/phenotype_taxonomy.py --data-dir data/stage_d --out-dir data/post_hoc/phenotypes
+```
+
+Run all PR #26 follow-ups in one command (writes `manifest.json`):
+
+```bash
+uv run python scripts/run_pr26_followups.py \
+  --data-dir data/stage_d \
+  --out-dir data/post_hoc/pr26_followups
+```
+
+Render supplementary-ready TeX macros from follow-up outputs:
+
+```bash
+uv run python scripts/render_pr26_followups_tex.py \
+  --followup-dir data/post_hoc/pr26_followups \
+  --output paper/generated/pr26_followups.tex
+```
+
+Quick sanity mode for all follow-ups:
+
+```bash
+uv run python scripts/run_pr26_followups.py \
+  --data-dir data/stage_d \
+  --out-dir data/post_hoc/pr26_followups_quick \
+  --quick
+```
+
+Expected outputs and rough runtime guidance:
+- `scripts/no_filter_analysis.py`:
+  outputs `summary.json`, `summary.csv`; quick: minutes, paper-scale: hours.
+- `scripts/synchronous_ablation.py`:
+  outputs `summary.json`, `summary.csv`; quick: minutes, paper-scale: hours.
+- `scripts/ranking_stability.py`:
+  outputs `summary.json`, `summary.csv`; quick: minutes, paper-scale: hours.
+- `scripts/te_null_analysis.py`:
+  outputs `summary.json`, `summary.csv`; quick: minutes, paper-scale depends on `top-k` and `n-shuffles`.
+- `scripts/phenotype_taxonomy.py`:
+  outputs `taxonomy.json`, `taxonomy.csv`; quick: seconds to minutes.
+
+Switch update dynamics and viability filtering directly from CLI:
+
+```bash
+uv run python -m objectless_alife.run_search \
+  --phase 2 \
+  --n-rules 100 \
+  --update-mode synchronous \
+  --no-enable-viability-filters \
+  --out-dir data
+```
+
 ## Documentation Map
 
 - `spec.md`: canonical implementation spec

@@ -21,6 +21,8 @@ from objectless_alife.metrics import (
     shuffle_null_mi,
     spatial_scramble_mi,
     state_entropy,
+    transfer_entropy_excess,
+    transfer_entropy_shuffle_null,
 )
 
 
@@ -392,3 +394,35 @@ def test_transfer_entropy_empty_log() -> None:
     """Empty simulation log → 0.0."""
     te = neighbor_transfer_entropy([], 5, 5)
     assert te == 0.0
+
+
+def test_transfer_entropy_shuffle_null_is_deterministic() -> None:
+    sim_log = []
+    for step in range(10):
+        sim_log.append((step, 0, 0, 0, step % 4))
+        sim_log.append((step, 1, 1, 0, (step + 1) % 4))
+    r1 = transfer_entropy_shuffle_null(sim_log, 5, 5, n_shuffles=20, rng=random.Random(123))
+    r2 = transfer_entropy_shuffle_null(sim_log, 5, 5, n_shuffles=20, rng=random.Random(123))
+    assert r1 == pytest.approx(r2)
+
+
+def test_transfer_entropy_excess_is_non_negative() -> None:
+    sim_log = []
+    for step in range(10):
+        sim_log.append((step, 0, 0, 0, step % 4))
+        sim_log.append((step, 1, 1, 0, step % 4))
+    excess = transfer_entropy_excess(sim_log, 5, 5, n_shuffles=20, rng=random.Random(3))
+    assert excess >= 0.0
+
+
+def test_transfer_entropy_shuffle_null_empty_log() -> None:
+    assert transfer_entropy_shuffle_null([], 5, 5, n_shuffles=10, rng=random.Random(0)) == 0.0
+
+
+def test_transfer_entropy_shuffle_null_single_step_log() -> None:
+    sim_log = [(0, 0, 0, 0, 1), (0, 1, 1, 0, 2)]
+    assert transfer_entropy_shuffle_null(sim_log, 5, 5, n_shuffles=10, rng=random.Random(0)) == 0.0
+
+
+def test_transfer_entropy_excess_empty_log() -> None:
+    assert transfer_entropy_excess([], 5, 5, n_shuffles=10, rng=random.Random(0)) == 0.0

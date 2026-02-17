@@ -7,6 +7,7 @@ multi-seed, and halt-window-sweep runs live here.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 
 from objectless_alife.rules import ObservationPhase
@@ -37,12 +38,21 @@ class SimulationResult:
 # ---------------------------------------------------------------------------
 
 
+class UpdateMode(Enum):
+    """Agent update semantics for one simulation step."""
+
+    SEQUENTIAL = "sequential"
+    SYNCHRONOUS = "synchronous"
+
+
 @dataclass(frozen=True)
 class RuntimeConfig:
     """Core runtime knobs shared by search/experiment/sweep runs."""
 
     steps: int = 200
     halt_window: int = 10
+    enable_viability_filters: bool = True
+    update_mode: UpdateMode = UpdateMode.SEQUENTIAL
 
 
 @dataclass(frozen=True)
@@ -72,6 +82,8 @@ class SearchConfig:
 
     steps: int = 200
     halt_window: int = 10
+    enable_viability_filters: bool = True
+    update_mode: UpdateMode = UpdateMode.SEQUENTIAL
     filter_short_period: bool = False
     short_period_max_period: int = 2
     short_period_history_size: int = 8
@@ -96,6 +108,8 @@ class SearchConfig:
         return cls(
             steps=runtime.steps,
             halt_window=runtime.halt_window,
+            enable_viability_filters=runtime.enable_viability_filters,
+            update_mode=runtime.update_mode,
             filter_short_period=filters.filter_short_period,
             short_period_max_period=filters.short_period_max_period,
             short_period_history_size=filters.short_period_history_size,
@@ -110,7 +124,12 @@ class SearchConfig:
     def to_components(self) -> tuple[RuntimeConfig, FilterConfig, MetricComputeConfig]:
         """Decompose SearchConfig into reusable sub-config components."""
         return (
-            RuntimeConfig(steps=self.steps, halt_window=self.halt_window),
+            RuntimeConfig(
+                steps=self.steps,
+                halt_window=self.halt_window,
+                enable_viability_filters=self.enable_viability_filters,
+                update_mode=self.update_mode,
+            ),
             FilterConfig(
                 filter_short_period=self.filter_short_period,
                 short_period_max_period=self.short_period_max_period,
@@ -131,6 +150,8 @@ def _search_config_from_legacy_fields(
     *,
     steps: int,
     halt_window: int,
+    enable_viability_filters: bool,
+    update_mode: UpdateMode,
     filter_short_period: bool,
     short_period_max_period: int,
     short_period_history_size: int,
@@ -144,6 +165,8 @@ def _search_config_from_legacy_fields(
     return SearchConfig(
         steps=steps,
         halt_window=halt_window,
+        enable_viability_filters=enable_viability_filters,
+        update_mode=update_mode,
         filter_short_period=filter_short_period,
         short_period_max_period=short_period_max_period,
         short_period_history_size=short_period_history_size,
@@ -168,6 +191,8 @@ class ExperimentConfig:
     out_dir: Path = Path("data")
     steps: int = 200
     halt_window: int = 10
+    enable_viability_filters: bool = True
+    update_mode: UpdateMode = UpdateMode.SEQUENTIAL
     rule_seed_start: int = 0
     sim_seed_start: int = 0
     filter_short_period: bool = False
@@ -194,6 +219,8 @@ class ExperimentConfig:
         return _search_config_from_legacy_fields(
             steps=self.steps,
             halt_window=self.halt_window,
+            enable_viability_filters=self.enable_viability_filters,
+            update_mode=self.update_mode,
             filter_short_period=self.filter_short_period,
             short_period_max_period=self.short_period_max_period,
             short_period_history_size=self.short_period_history_size,
@@ -221,6 +248,8 @@ class DensitySweepConfig:
     out_dir: Path = Path("data")
     steps: int = 200
     halt_window: int = 10
+    enable_viability_filters: bool = True
+    update_mode: UpdateMode = UpdateMode.SEQUENTIAL
     rule_seed_start: int = 0
     sim_seed_start: int = 0
     filter_short_period: bool = False
@@ -247,6 +276,8 @@ class DensitySweepConfig:
         return _search_config_from_legacy_fields(
             steps=self.steps,
             halt_window=self.halt_window,
+            enable_viability_filters=self.enable_viability_filters,
+            update_mode=self.update_mode,
             filter_short_period=self.filter_short_period,
             short_period_max_period=self.short_period_max_period,
             short_period_history_size=self.short_period_history_size,
@@ -272,6 +303,8 @@ class MultiSeedConfig:
     out_dir: Path = Path("data/multi_seed")
     steps: int = 200
     halt_window: int = 10
+    enable_viability_filters: bool = True
+    update_mode: UpdateMode = UpdateMode.SEQUENTIAL
     phase: ObservationPhase = ObservationPhase.PHASE2_PROFILE
     shuffle_null_n_shuffles: int = 200
 
@@ -284,6 +317,7 @@ class HaltWindowSweepConfig:
     halt_windows: tuple[int, ...] = (5, 10, 20)
     out_dir: Path = Path("data/halt_window_sweep")
     steps: int = 200
+    update_mode: UpdateMode = UpdateMode.SEQUENTIAL
     phase: ObservationPhase = ObservationPhase.PHASE2_PROFILE
     shuffle_null_n_shuffles: int = 200
 
