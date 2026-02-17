@@ -93,7 +93,9 @@ body {
   cursor: pointer;
 }
 
-.ctrl-select:focus {
+.ctrl-select:focus,
+.ctrl-btn:focus,
+.ctrl-slider:focus {
   outline: 2px solid transparent;
   border-color: #00d4ff;
   box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.3);
