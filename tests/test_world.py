@@ -1,5 +1,6 @@
 import pytest
 
+from objectless_alife.config import UpdateMode
 from objectless_alife.rules import ObservationPhase, generate_rule_table
 from objectless_alife.world import Agent, World, WorldConfig
 
@@ -171,3 +172,46 @@ def test_snapshot_and_state_vector_do_not_depend_on_sorted_builtin(
 
     assert world.snapshot() == ((0, 1, 1, 2), (1, 2, 2, 3))
     assert world.state_vector() == [2, 3]
+
+
+def test_synchronous_mode_is_deterministic_for_same_seed() -> None:
+    config = WorldConfig(grid_width=10, grid_height=10, num_agents=4, steps=5)
+    w1 = World(config=config, sim_seed=123)
+    w2 = World(config=config, sim_seed=123)
+    rule_table = [8] * 20
+    for step in range(3):
+        w1.step(
+            rule_table,
+            ObservationPhase.PHASE1_DENSITY,
+            step_number=step,
+            update_mode=UpdateMode.SYNCHRONOUS,
+        )
+        w2.step(
+            rule_table,
+            ObservationPhase.PHASE1_DENSITY,
+            step_number=step,
+            update_mode=UpdateMode.SYNCHRONOUS,
+        )
+    assert w1.snapshot() == w2.snapshot()
+
+
+def test_synchronous_and_sequential_can_diverge() -> None:
+    config = WorldConfig(grid_width=5, grid_height=5, num_agents=2, steps=1)
+    agents = [
+        Agent(agent_id=0, x=0, y=0, state=0),
+        Agent(agent_id=1, x=1, y=0, state=0),
+    ]
+    w_seq = World.from_agents(config, agents, sim_seed=7)
+    w_sync = World.from_agents(config, agents, sim_seed=7)
+    w_seq.rng.shuffle = lambda _seq: None  # type: ignore[method-assign]
+    w_sync.rng.shuffle = lambda _seq: None  # type: ignore[method-assign]
+    table = [8] * 100
+    # self_state=0, neighbor_count=1, dominant=0 -> set state to 1
+    table[5] = 5
+    # self_state=0, neighbor_count=1, dominant=1 -> no-op
+    table[6] = 8
+
+    w_seq.step(table, ObservationPhase.PHASE2_PROFILE, update_mode=UpdateMode.SEQUENTIAL)
+    w_sync.step(table, ObservationPhase.PHASE2_PROFILE, update_mode=UpdateMode.SYNCHRONOUS)
+
+    assert w_seq.snapshot() != w_sync.snapshot()

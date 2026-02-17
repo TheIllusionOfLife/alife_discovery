@@ -19,6 +19,7 @@ from objectless_alife.run_search import (
     MultiSeedConfig,
     RuntimeConfig,
     SearchConfig,
+    UpdateMode,
     _collect_final_metric_rows,
     _entropy_from_action_counts,
     _parse_grid_sizes,
@@ -81,7 +82,12 @@ def test_run_batch_search_writes_json_and_parquet(tmp_path: Path) -> None:
 
 def test_search_config_components_round_trip() -> None:
     search = SearchConfig.from_components(
-        runtime=RuntimeConfig(steps=50, halt_window=7),
+        runtime=RuntimeConfig(
+            steps=50,
+            halt_window=7,
+            enable_viability_filters=False,
+            update_mode=UpdateMode.SYNCHRONOUS,
+        ),
         filters=FilterConfig(
             filter_short_period=True,
             short_period_max_period=3,
@@ -99,6 +105,8 @@ def test_search_config_components_round_trip() -> None:
     runtime, filters, metrics = search.to_components()
     assert runtime.steps == 50
     assert runtime.halt_window == 7
+    assert runtime.enable_viability_filters is False
+    assert runtime.update_mode == UpdateMode.SYNCHRONOUS
     assert filters.filter_short_period is True
     assert filters.low_activity_window == 4
     assert metrics.block_ncd_window == 12
@@ -887,6 +895,8 @@ def test_run_search_main_config_parses_string_booleans(tmp_path: Path) -> None:
                 "fast_metrics": "false",
                 "filter_short_period": "true",
                 "filter_low_activity": "false",
+                "enable_viability_filters": "false",
+                "update_mode": "synchronous",
             }
         )
     )
@@ -895,6 +905,8 @@ def test_run_search_main_config_parses_string_booleans(tmp_path: Path) -> None:
     payload = json.loads(next(((tmp_path / "run" / "rules").glob("*.json"))).read_text())
     assert payload["metadata"]["filter_short_period"] is True
     assert payload["metadata"]["filter_low_activity"] is False
+    assert payload["metadata"]["enable_viability_filters"] is False
+    assert payload["metadata"]["update_mode"] == "synchronous"
 
 
 def test_run_search_main_config_rejects_invalid_boolean(tmp_path: Path) -> None:
@@ -964,6 +976,30 @@ def test_halt_window_sweep_output_schema(tmp_path: Path) -> None:
     }
     assert expected_cols.issubset(table.column_names)
     assert table.num_rows == 2 * 2  # 2 rules x 2 halt_windows
+
+
+def test_run_batch_search_supports_synchronous_update_mode(tmp_path: Path) -> None:
+    run_batch_search(
+        n_rules=1,
+        phase=ObservationPhase.PHASE1_DENSITY,
+        out_dir=tmp_path,
+        config=SearchConfig(steps=6, update_mode=UpdateMode.SYNCHRONOUS),
+    )
+    payload = json.loads(next((tmp_path / "rules").glob("*.json")).read_text())
+    assert payload["metadata"]["update_mode"] == "synchronous"
+
+
+def test_run_batch_search_disable_viability_filters_runs_full_horizon(tmp_path: Path) -> None:
+    run_batch_search(
+        n_rules=1,
+        phase=ObservationPhase.PHASE1_DENSITY,
+        out_dir=tmp_path,
+        config=SearchConfig(steps=6, enable_viability_filters=False),
+    )
+    metrics = pq.read_table(tmp_path / "logs" / "metrics_summary.parquet")
+    assert metrics.num_rows == 6
+    payload = json.loads(next((tmp_path / "rules").glob("*.json")).read_text())
+    assert payload["metadata"]["enable_viability_filters"] is False
 
 
 def test_halt_window_sweep_workload_cap(tmp_path: Path) -> None:

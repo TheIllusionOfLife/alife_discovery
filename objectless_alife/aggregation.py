@@ -24,6 +24,7 @@ from objectless_alife.config import (
     MultiSeedConfig,
     SearchConfig,
     SimulationResult,
+    UpdateMode,
 )
 from objectless_alife.filters import HaltDetector, StateUniformDetector, TerminationReason
 from objectless_alife.metrics import (
@@ -670,6 +671,8 @@ def _run_simulation_to_completion(
     phase: ObservationPhase,
     halt_detector: HaltDetector,
     uniform_detector: StateUniformDetector,
+    update_mode: UpdateMode,
+    enable_viability_filters: bool = True,
 ) -> tuple[str | None, tuple[tuple[int, int, int, int], ...]]:
     """Run a single simulation until termination or completion.
 
@@ -677,10 +680,12 @@ def _run_simulation_to_completion(
     """
     termination_reason: str | None = None
     for step in range(world.config.steps):
-        world.step(rule_table, phase, step_number=step)
+        world.step(rule_table, phase, step_number=step, update_mode=update_mode)
         snapshot = world.snapshot()
         states = world.state_vector()
 
+        if not enable_viability_filters:
+            continue
         if uniform_detector.observe(states):
             termination_reason = TerminationReason.STATE_UNIFORM.value
             break
@@ -722,7 +727,13 @@ def run_multi_seed_robustness(config: MultiSeedConfig) -> Path:
             uniform_detector = StateUniformDetector()
 
             termination_reason, snapshot = _run_simulation_to_completion(
-                world, rule_table, config.phase, halt_detector, uniform_detector
+                world,
+                rule_table,
+                config.phase,
+                halt_detector,
+                uniform_detector,
+                config.update_mode,
+                config.enable_viability_filters,
             )
 
             survived = termination_reason is None
@@ -749,6 +760,8 @@ def run_multi_seed_robustness(config: MultiSeedConfig) -> Path:
                     "mi_shuffle_null": mi_null,
                     "mi_excess": mi_exc,
                     "same_state_adjacency_fraction": adj_frac,
+                    "update_mode": config.update_mode.value,
+                    "enable_viability_filters": config.enable_viability_filters,
                 }
             )
 
@@ -785,7 +798,12 @@ def run_halt_window_sweep(config: HaltWindowSweepConfig) -> Path:
             uniform_detector = StateUniformDetector()
 
             termination_reason, snapshot = _run_simulation_to_completion(
-                world, rule_table, config.phase, halt_detector, uniform_detector
+                world,
+                rule_table,
+                config.phase,
+                halt_detector,
+                uniform_detector,
+                config.update_mode,
             )
 
             survived = termination_reason is None
@@ -808,6 +826,7 @@ def run_halt_window_sweep(config: HaltWindowSweepConfig) -> Path:
                     "neighbor_mutual_information": mi,
                     "mi_shuffle_null": mi_null,
                     "mi_excess": mi_exc,
+                    "update_mode": config.update_mode.value,
                 }
             )
 

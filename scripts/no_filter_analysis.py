@@ -1,0 +1,116 @@
+"""Run paper-scale filtered vs no-filter comparison across conditions.
+
+Usage:
+    uv run python scripts/no_filter_analysis.py --out-dir data/post_hoc/no_filter
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+from pathlib import Path
+
+import pyarrow.parquet as pq
+
+from objectless_alife.config import ExperimentConfig
+from objectless_alife.rules import ObservationPhase
+from objectless_alife.run_search import run_experiment
+from objectless_alife.stats import run_pairwise_analysis
+
+
+def _survival_rate(runs_path: Path) -> float:
+    table = pq.read_table(runs_path, columns=["survived"])
+    survived = sum(1 for v in table.column("survived").to_pylist() if bool(v))
+    total = table.num_rows
+    return 0.0 if total == 0 else survived / total
+
+
+def _run_condition(
+    *,
+    out_dir: Path,
+    enable_viability_filters: bool,
+    n_rules: int,
+    steps: int,
+    seed_batches: int,
+    rule_seed_start: int,
+    sim_seed_start: int,
+) -> Path:
+    mode_dir = out_dir / ("filtered" if enable_viability_filters else "no_filter")
+    run_experiment(
+        ExperimentConfig(
+            phases=(
+                ObservationPhase.PHASE1_DENSITY,
+                ObservationPhase.PHASE2_PROFILE,
+                ObservationPhase.CONTROL_DENSITY_CLOCK,
+            ),
+            n_rules=n_rules,
+            n_seed_batches=seed_batches,
+            out_dir=mode_dir,
+            steps=steps,
+            enable_viability_filters=enable_viability_filters,
+            rule_seed_start=rule_seed_start,
+            sim_seed_start=sim_seed_start,
+        )
+    )
+    return mode_dir
+
+
+def main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(description="Filtered vs no-filter supplementary analysis")
+    parser.add_argument("--out-dir", type=Path, default=Path("data/post_hoc/no_filter"))
+    parser.add_argument("--n-rules", type=int, default=5000)
+    parser.add_argument("--steps", type=int, default=200)
+    parser.add_argument("--seed-batches", type=int, default=1)
+    parser.add_argument("--rule-seed-start", type=int, default=0)
+    parser.add_argument("--sim-seed-start", type=int, default=0)
+    args = parser.parse_args(argv)
+
+    out_dir = Path(args.out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    filtered_dir = _run_condition(
+        out_dir=out_dir,
+        enable_viability_filters=True,
+        n_rules=args.n_rules,
+        steps=args.steps,
+        seed_batches=args.seed_batches,
+        rule_seed_start=args.rule_seed_start,
+        sim_seed_start=args.sim_seed_start,
+    )
+    no_filter_dir = _run_condition(
+        out_dir=out_dir,
+        enable_viability_filters=False,
+        n_rules=args.n_rules,
+        steps=args.steps,
+        seed_batches=args.seed_batches,
+        rule_seed_start=args.rule_seed_start,
+        sim_seed_start=args.sim_seed_start,
+    )
+
+    comparisons: dict[str, dict] = {}
+    for phase in ("phase_1", "phase_2", "phase_3"):
+        comparisons[phase] = run_pairwise_analysis(
+            metrics_a=filtered_dir / phase / "logs" / "metrics_summary.parquet",
+            metrics_b=no_filter_dir / phase / "logs" / "metrics_summary.parquet",
+            rules_a=filtered_dir / phase / "rules",
+            rules_b=no_filter_dir / phase / "rules",
+            label_a=f"{phase}_filtered",
+            label_b=f"{phase}_no_filter",
+        )
+
+    summary = {
+        "n_rules": args.n_rules,
+        "steps": args.steps,
+        "seed_batches": args.seed_batches,
+        "filtered_survival_rate": _survival_rate(filtered_dir / "logs" / "experiment_runs.parquet"),
+        "no_filter_survival_rate": _survival_rate(
+            no_filter_dir / "logs" / "experiment_runs.parquet"
+        ),
+        "phase_pairwise": comparisons,
+    }
+    (out_dir / "summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2))
+    print(json.dumps(summary, ensure_ascii=False, indent=2))
+
+
+if __name__ == "__main__":
+    main()

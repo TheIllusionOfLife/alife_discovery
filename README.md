@@ -110,6 +110,27 @@ uv run python -m objectless_alife.stats --data-dir data/stage_b
 uv run python -m objectless_alife.stats --pairwise --dir-a data/stage_b --dir-b data/stage_c
 ```
 
+Run follow-up heavy-compute analyses from PR #26:
+
+```bash
+uv run python scripts/no_filter_analysis.py --out-dir data/post_hoc/no_filter
+uv run python scripts/synchronous_ablation.py --out-dir data/post_hoc/synchronous_ablation
+uv run python scripts/ranking_stability.py --out-dir data/post_hoc/ranking_stability
+uv run python scripts/te_null_analysis.py --data-dir data/stage_d --out-dir data/post_hoc/te_null
+uv run python scripts/phenotype_taxonomy.py --data-dir data/stage_d --out-dir data/post_hoc/phenotypes
+```
+
+Switch update dynamics and viability filtering directly from CLI:
+
+```bash
+uv run python -m objectless_alife.run_search \
+  --phase 2 \
+  --n-rules 100 \
+  --update-mode synchronous \
+  --no-enable-viability-filters \
+  --out-dir data
+```
+
 ## Documentation Map
 
 - `spec.md`: canonical implementation spec
