@@ -51,6 +51,21 @@ class World:
         self.rng = Random(sim_seed)
         self.agents = self._initialize_agents()
         self._occupancy = {(agent.x, agent.y): agent.agent_id for agent in self.agents}
+        self._neighbor_cache = self._build_neighbor_cache()
+
+    def _build_neighbor_cache(self) -> dict[tuple[int, int], tuple[tuple[int, int], ...]]:
+        """Precompute neighbor coordinates for all grid cells."""
+        cache = {}
+        w, h = self.config.grid_width, self.config.grid_height
+        for x in range(w):
+            for y in range(h):
+                cache[(x, y)] = (
+                    (x, (y - 1) % h),
+                    (x, (y + 1) % h),
+                    ((x - 1) % w, y),
+                    ((x + 1) % w, y),
+                )
+        return cache
 
     @classmethod
     def from_agents(cls, config: WorldConfig, agents: list[Agent], sim_seed: int) -> "World":
@@ -71,6 +86,7 @@ class World:
         if len({(a.x, a.y) for a in world.agents}) != len(world.agents):
             raise ValueError("Agents cannot overlap")
         world._occupancy = {(agent.x, agent.y): agent.agent_id for agent in world.agents}
+        world._neighbor_cache = world._build_neighbor_cache()
         return world
 
     def _initialize_agents(self) -> list[Agent]:
@@ -273,12 +289,7 @@ class World:
         state_by_agent_id: dict[int, int],
     ) -> list[int]:
         """Collect occupied-neighbor states from an explicit snapshot."""
-        neighbors = [
-            (x, (y - 1) % self.config.grid_height),
-            (x, (y + 1) % self.config.grid_height),
-            ((x - 1) % self.config.grid_width, y),
-            ((x + 1) % self.config.grid_width, y),
-        ]
+        neighbors = self._neighbor_cache[(x, y)]
         return [
             state_by_agent_id[agent_id]
             for nx, ny in neighbors
