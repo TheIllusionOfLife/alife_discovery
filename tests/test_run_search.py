@@ -402,6 +402,9 @@ def test_run_search_main_experiment_mode_accepts_more_than_two_distinct_phases(
     payload = json.loads((logs_dir / "phase_comparison.json").read_text())
     assert payload["phases"] == [1, 2, 3]
     assert len(payload["pairwise_deltas"]) == 3
+    assert payload["deltas_base_phase"] == 1
+    assert payload["deltas_target_phase"] == 2
+    assert payload["deltas"]
 
 
 def test_run_search_main_experiment_mode_rejects_invalid_phase_text(tmp_path: Path) -> None:
@@ -869,6 +872,61 @@ def test_run_search_main_rejects_density_sweep_and_experiment_together(tmp_path:
                 "--out-dir",
                 str(tmp_path),
             ]
+        )
+
+
+def test_run_search_main_config_parses_string_booleans(tmp_path: Path) -> None:
+    config_path = tmp_path / "config.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "phase": 1,
+                "n_rules": 1,
+                "steps": 4,
+                "out_dir": str(tmp_path / "run"),
+                "fast_metrics": "false",
+                "filter_short_period": "true",
+                "filter_low_activity": "false",
+            }
+        )
+    )
+
+    main(["--config", str(config_path)])
+    payload = json.loads(next(((tmp_path / "run" / "rules").glob("*.json"))).read_text())
+    assert payload["metadata"]["filter_short_period"] is True
+    assert payload["metadata"]["filter_low_activity"] is False
+
+
+def test_run_search_main_config_rejects_invalid_boolean(tmp_path: Path) -> None:
+    config_path = tmp_path / "config_bad.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "phase": 1,
+                "n_rules": 1,
+                "out_dir": str(tmp_path / "run"),
+                "fast_metrics": "definitely",
+            }
+        )
+    )
+
+    with pytest.raises(ValueError, match="boolean"):
+        main(["--config", str(config_path)])
+
+
+def test_experiment_config_rejects_conflicting_search_config() -> None:
+    with pytest.raises(ValueError, match="conflicts"):
+        ExperimentConfig(
+            steps=100,
+            search_config=SearchConfig(steps=200),
+        )
+
+
+def test_density_sweep_config_rejects_conflicting_search_config() -> None:
+    with pytest.raises(ValueError, match="conflicts"):
+        DensitySweepConfig(
+            steps=100,
+            search_config=SearchConfig(steps=200),
         )
 
 

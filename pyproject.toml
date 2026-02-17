@@ -37,4 +37,9 @@ select = ["E", "F", "I", "B"]
 [tool.mypy]
 python_version = "3.11"
 ignore_missing_imports = true
-files = ["objectless_alife/config.py"]
+files = [
+  "objectless_alife/config.py",
+  "objectless_alife/aggregation.py",
+  "objectless_alife/run_search.py",
+  "objectless_alife/stats.py",
+]
