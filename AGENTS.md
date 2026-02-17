@@ -32,35 +32,35 @@ tectonic paper/main.tex
 - Batch search (phase 1 baseline):
 
 ```bash
-uv run python -m src.run_search --phase 1 --n-rules 100 --out-dir data
+uv run python -m objectless_alife.run_search --phase 1 --n-rules 100 --out-dir data
 ```
 
 - Experiment mode (phase comparison):
 
 ```bash
-uv run python -m src.run_search --experiment --phases 1,2 --seed-batches 3 --n-rules 100 --steps 200 --out-dir data
+uv run python -m objectless_alife.run_search --experiment --phases 1,2 --seed-batches 3 --n-rules 100 --steps 200 --out-dir data
 ```
 
 - Density sweep mode (explicit grid/agent combinations across both phases):
 
 ```bash
-uv run python -m src.run_search --density-sweep --grid-sizes 20x20,30x30 --agent-counts 30,60 --seed-batches 2 --n-rules 100 --steps 200 --out-dir data
+uv run python -m objectless_alife.run_search --density-sweep --grid-sizes 20x20,30x30 --agent-counts 30,60 --seed-batches 2 --n-rules 100 --steps 200 --out-dir data
 ```
 
 - Visualization CLI (subcommands: `single`, `batch`, `figure`, `filmstrip`):
 
 ```bash
-uv run python -m src.visualize single --simulation-log data/logs/simulation_log.parquet --metrics-summary data/logs/metrics_summary.parquet --rule-json data/rules/<rule_id>.json --output output/preview.gif --fps 8
-uv run python -m src.visualize batch --data-dir data/stage_b --top-n 5 --output-dir output/batch
-uv run python -m src.visualize figure --data-dir data/stage_b --output-dir output/figures
-uv run python -m src.visualize filmstrip --simulation-log data/logs/simulation_log.parquet --output output/filmstrip.png --n-frames 8
+uv run python -m objectless_alife.visualize single --simulation-log data/logs/simulation_log.parquet --metrics-summary data/logs/metrics_summary.parquet --rule-json data/rules/<rule_id>.json --output output/preview.gif --fps 8
+uv run python -m objectless_alife.visualize batch --phase-dir P1=data/stage_b/phase_1 --phase-dir P2=data/stage_b/phase_2 --top-n 5 --output-dir output/batch
+uv run python -m objectless_alife.visualize figure --p1-dir data/stage_b/phase_1 --p2-dir data/stage_b/phase_2 --control-dir data/stage_c/control --output-dir output/figures
+uv run python -m objectless_alife.visualize filmstrip --simulation-log data/logs/simulation_log.parquet --rule-json data/rules/<rule_id>.json --output output/filmstrip.png --n-frames 8
 ```
 
 - Statistical significance testing:
 
 ```bash
-uv run python -m src.stats --data-dir data/stage_b
-uv run python -m src.stats --pairwise --dir-a data/stage_b --dir-b data/stage_c
+uv run python -m objectless_alife.stats --data-dir data/stage_b
+uv run python -m objectless_alife.stats --pairwise --dir-a data/stage_b --dir-b data/stage_c
 ```
 
 ## Code Style And Architecture Rules

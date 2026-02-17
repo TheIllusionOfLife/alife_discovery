@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
 
@@ -12,9 +13,13 @@ from objectless_alife.run_search import (
     PHASE_SUMMARY_METRIC_NAMES,
     DensitySweepConfig,
     ExperimentConfig,
+    FilterConfig,
     HaltWindowSweepConfig,
+    MetricComputeConfig,
     MultiSeedConfig,
+    RuntimeConfig,
     SearchConfig,
+    _collect_final_metric_rows,
     _entropy_from_action_counts,
     _parse_grid_sizes,
     _parse_phase,
@@ -64,6 +69,7 @@ def test_run_batch_search_writes_json_and_parquet(tmp_path: Path) -> None:
         "cluster_count",
         "quasi_periodicity_peaks",
         "phase_transition_max_delta",
+        "same_state_adjacency_fraction",
         "neighbor_mutual_information",
         "action_entropy_mean",
         "action_entropy_variance",
@@ -71,6 +77,45 @@ def test_run_batch_search_writes_json_and_parquet(tmp_path: Path) -> None:
     }
     assert sim_columns.issubset(sim_table.column_names)
     assert metric_columns.issubset(metric_table.column_names)
+
+
+def test_search_config_components_round_trip() -> None:
+    search = SearchConfig.from_components(
+        runtime=RuntimeConfig(steps=50, halt_window=7),
+        filters=FilterConfig(
+            filter_short_period=True,
+            short_period_max_period=3,
+            short_period_history_size=10,
+            filter_low_activity=True,
+            low_activity_window=4,
+            low_activity_min_unique_ratio=0.25,
+        ),
+        metrics=MetricComputeConfig(
+            block_ncd_window=12,
+            shuffle_null_n_shuffles=25,
+            skip_null_models=True,
+        ),
+    )
+    runtime, filters, metrics = search.to_components()
+    assert runtime.steps == 50
+    assert runtime.halt_window == 7
+    assert filters.filter_short_period is True
+    assert filters.low_activity_window == 4
+    assert metrics.block_ncd_window == 12
+    assert metrics.skip_null_models is True
+
+
+def test_collect_final_metric_rows_requires_rule_id_and_step(tmp_path: Path) -> None:
+    metrics_path = tmp_path / "metrics.parquet"
+    table = pa.table({"state_entropy": [0.1, 0.2]})
+    pq.write_table(table, metrics_path)
+    with pytest.raises(ValueError, match="required column"):
+        _collect_final_metric_rows(
+            metrics_path=metrics_path,
+            metric_columns=["rule_id", "step", "state_entropy"],
+            phase_results=[],
+            default_final_step=0,
+        )
 
 
 def test_run_batch_search_deterministic_rule_ids(tmp_path: Path) -> None:
@@ -318,8 +363,8 @@ def test_run_search_main_experiment_mode_generates_aggregate_files(tmp_path: Pat
     assert (logs_dir / "phase_comparison.json").exists()
 
 
-def test_run_search_main_experiment_mode_rejects_more_than_two_phases(tmp_path: Path) -> None:
-    with pytest.raises(ValueError, match="exactly two"):
+def test_run_search_main_experiment_mode_rejects_duplicate_phases(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="distinct"):
         main(
             [
                 "--experiment",
@@ -333,6 +378,33 @@ def test_run_search_main_experiment_mode_rejects_more_than_two_phases(tmp_path: 
                 str(tmp_path),
             ]
         )
+
+
+def test_run_search_main_experiment_mode_accepts_more_than_two_distinct_phases(
+    tmp_path: Path,
+) -> None:
+    main(
+        [
+            "--experiment",
+            "--phases",
+            "1,2,3",
+            "--seed-batches",
+            "1",
+            "--n-rules",
+            "1",
+            "--steps",
+            "4",
+            "--out-dir",
+            str(tmp_path),
+        ]
+    )
+    logs_dir = tmp_path / "logs"
+    payload = json.loads((logs_dir / "phase_comparison.json").read_text())
+    assert payload["phases"] == [1, 2, 3]
+    assert len(payload["pairwise_deltas"]) == 3
+    assert payload["deltas_base_phase"] == 1
+    assert payload["deltas_target_phase"] == 2
+    assert payload["deltas"]
 
 
 def test_run_search_main_experiment_mode_rejects_invalid_phase_text(tmp_path: Path) -> None:
@@ -638,6 +710,15 @@ def test_mi_shuffle_null_in_phase_summary_metric_names() -> None:
     assert "mi_shuffle_null" in PHASE_SUMMARY_METRIC_NAMES
 
 
+def test_same_state_adjacency_fraction_in_metrics_schema() -> None:
+    field_names = [field.name for field in METRICS_SCHEMA]
+    assert "same_state_adjacency_fraction" in field_names
+
+
+def test_same_state_adjacency_fraction_in_phase_summary_metric_names() -> None:
+    assert "same_state_adjacency_fraction" in PHASE_SUMMARY_METRIC_NAMES
+
+
 def test_mi_shuffle_null_column_in_output_parquet(tmp_path: Path) -> None:
     """mi_shuffle_null column appears in metrics_summary.parquet output."""
     run_batch_search(
@@ -651,6 +732,17 @@ def test_mi_shuffle_null_column_in_output_parquet(tmp_path: Path) -> None:
     # Should be a constant value (backfilled to all steps)
     values = metrics.column("mi_shuffle_null").to_pylist()
     assert all(v == values[0] for v in values)
+
+
+def test_same_state_adjacency_fraction_column_in_output_parquet(tmp_path: Path) -> None:
+    run_batch_search(
+        n_rules=1,
+        phase=ObservationPhase.PHASE1_DENSITY,
+        out_dir=tmp_path,
+        steps=5,
+    )
+    metrics = pq.read_table(tmp_path / "logs" / "metrics_summary.parquet")
+    assert "same_state_adjacency_fraction" in metrics.column_names
 
 
 def test_mi_excess_in_phase_summary_metric_names() -> None:
@@ -780,6 +872,61 @@ def test_run_search_main_rejects_density_sweep_and_experiment_together(tmp_path:
                 "--out-dir",
                 str(tmp_path),
             ]
+        )
+
+
+def test_run_search_main_config_parses_string_booleans(tmp_path: Path) -> None:
+    config_path = tmp_path / "config.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "phase": 1,
+                "n_rules": 1,
+                "steps": 4,
+                "out_dir": str(tmp_path / "run"),
+                "fast_metrics": "false",
+                "filter_short_period": "true",
+                "filter_low_activity": "false",
+            }
+        )
+    )
+
+    main(["--config", str(config_path)])
+    payload = json.loads(next(((tmp_path / "run" / "rules").glob("*.json"))).read_text())
+    assert payload["metadata"]["filter_short_period"] is True
+    assert payload["metadata"]["filter_low_activity"] is False
+
+
+def test_run_search_main_config_rejects_invalid_boolean(tmp_path: Path) -> None:
+    config_path = tmp_path / "config_bad.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "phase": 1,
+                "n_rules": 1,
+                "out_dir": str(tmp_path / "run"),
+                "fast_metrics": "definitely",
+            }
+        )
+    )
+
+    with pytest.raises(ValueError, match="boolean"):
+        main(["--config", str(config_path)])
+
+
+def test_experiment_config_rejects_conflicting_search_config() -> None:
+    with pytest.raises(ValueError, match="conflicts"):
+        ExperimentConfig(
+            steps=100,
+            search_config=SearchConfig(steps=200),
+        )
+
+
+def test_density_sweep_config_rejects_conflicting_search_config() -> None:
+    with pytest.raises(ValueError, match="conflicts"):
+        DensitySweepConfig(
+            steps=100,
+            search_config=SearchConfig(steps=200),
         )
 
 

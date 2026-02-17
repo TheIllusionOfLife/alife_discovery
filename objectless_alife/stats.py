@@ -13,6 +13,7 @@ import statistics
 import zlib
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import cast
 
 import pyarrow as pa
 import pyarrow.compute as pc
@@ -20,6 +21,7 @@ import pyarrow.parquet as pq
 from scipy.stats import chi2_contingency, mannwhitneyu, pointbiserialr
 
 from objectless_alife.run_search import PHASE_SUMMARY_METRIC_NAMES
+from objectless_alife.schemas import METRICS_SCHEMA
 
 
 def wilson_score_ci(
@@ -87,27 +89,50 @@ def bootstrap_median_ci(
 def load_final_step_metrics(parquet_path: Path) -> pa.Table:
     """Load metrics_summary.parquet and return one row per rule at its final step."""
     table = pq.read_table(parquet_path)
-    # Compute max step per rule_id using Arrow group-by
-    grouped = table.group_by("rule_id").aggregate([("step", "max")])
-    # Join back to get only the final-step rows
-    max_step_map = {
-        rid: s
-        for rid, s in zip(
-            grouped.column("rule_id").to_pylist(),
-            grouped.column("step_max").to_pylist(),
-            strict=True,
+    if any(pa.types.is_null(field.type) for field in table.schema):
+        expected_types = {field.name: field.type for field in METRICS_SCHEMA}
+        cast_schema = pa.schema(
+            [
+                pa.field(
+                    field.name,
+                    expected_types[field.name]
+                    if pa.types.is_null(field.type) and field.name in expected_types
+                    else field.type,
+                    nullable=True,
+                )
+                for field in table.schema
+            ]
         )
-    }
-    rule_ids = table.column("rule_id")
-    steps = table.column("step")
-    mask = pc.and_(
-        pc.is_in(rule_ids, pa.array(list(max_step_map.keys()))),
-        pc.equal(
-            steps,
-            pa.array([max_step_map.get(r, -1) for r in rule_ids.to_pylist()]),
-        ),
+        table = table.cast(cast_schema, safe=False)
+
+    # Compute max step per rule_id and join in Arrow space to avoid
+    # large Python materialization for wide experiment outputs.
+    grouped = table.group_by("rule_id").aggregate([("step", "max")])
+    final_rows = table.join(
+        grouped,
+        keys=["rule_id", "step"],
+        right_keys=["rule_id", "step_max"],
+        join_type="inner",
     )
-    return table.filter(mask)
+    table = final_rows.select(table.column_names)
+
+    if (
+        "mi_excess" not in table.column_names
+        and "neighbor_mutual_information" in table.column_names
+        and "mi_shuffle_null" in table.column_names
+    ):
+        mi = pc.cast(table.column("neighbor_mutual_information"), pa.float64(), safe=False)
+        mi_null = pc.cast(table.column("mi_shuffle_null"), pa.float64(), safe=False)
+        diff = pc.subtract(mi, mi_null)
+        finite_diff = pc.if_else(
+            pc.is_finite(diff),
+            diff,
+            pa.scalar(None, type=pa.float64()),
+        )
+        mi_excess = pc.max_element_wise(finite_diff, pa.scalar(0.0))
+        table = table.append_column("mi_excess", mi_excess)
+
+    return table
 
 
 def phase_comparison_tests(
@@ -122,15 +147,20 @@ def phase_comparison_tests(
     """
     results: dict[str, dict] = {}
 
+    def _finite_values(col: pa.ChunkedArray) -> list[float]:
+        col_f64 = pc.cast(col, pa.float64(), safe=False)
+        finite_mask = pc.and_(pc.is_valid(col_f64), pc.is_finite(col_f64))
+        return pc.filter(col_f64, finite_mask).to_pylist()
+
     for metric in metrics_to_test:
         if metric not in phase1_metrics.column_names or metric not in phase2_metrics.column_names:
             continue
         col1 = phase1_metrics.column(metric)
         col2 = phase2_metrics.column(metric)
 
-        # Drop nulls and NaNs
-        vals1 = [v for v in col1.to_pylist() if v is not None and v == v]
-        vals2 = [v for v in col2.to_pylist() if v is not None and v == v]
+        # Drop nulls and NaNs in Arrow before conversion.
+        vals1 = _finite_values(col1)
+        vals2 = _finite_values(col2)
 
         if len(vals1) < 2 or len(vals2) < 2:
             continue
@@ -230,6 +260,57 @@ def survival_rate_test(runs_table: pa.Table) -> dict:
         "phase2_survived": counts[p2]["survived"],
         "phase2_total": counts[p2]["survived"] + counts[p2]["terminated"],
     }
+
+
+def _survival_counts_by_phase(runs_table: pa.Table) -> dict[int, dict[str, int]]:
+    """Return survived/terminated counts keyed by phase."""
+    phases = runs_table.column("phase").to_pylist()
+    survived = runs_table.column("survived").to_pylist()
+    counts: dict[int, dict[str, int]] = {}
+    for phase, surv in zip(phases, survived, strict=True):
+        p = int(phase)
+        if p not in counts:
+            counts[p] = {"survived": 0, "terminated": 0}
+        if surv:
+            counts[p]["survived"] += 1
+        else:
+            counts[p]["terminated"] += 1
+    return counts
+
+
+def pairwise_survival_tests(runs_table: pa.Table) -> list[dict[str, float | int]]:
+    """Return chi-squared survival tests for every phase pair in runs_table."""
+    counts = _survival_counts_by_phase(runs_table)
+    sorted_phases = sorted(counts.keys())
+    results: list[dict[str, float | int]] = []
+    for i in range(len(sorted_phases)):
+        for j in range(i + 1, len(sorted_phases)):
+            p1 = sorted_phases[i]
+            p2 = sorted_phases[j]
+            contingency = [
+                [counts[p1]["survived"], counts[p1]["terminated"]],
+                [counts[p2]["survived"], counts[p2]["terminated"]],
+            ]
+            total_survived = counts[p1]["survived"] + counts[p2]["survived"]
+            total_terminated = counts[p1]["terminated"] + counts[p2]["terminated"]
+            if total_survived == 0 or total_terminated == 0:
+                chi2_val = float("nan")
+                p_value_val = float("nan")
+            else:
+                chi2_val, p_value_val, _, _ = chi2_contingency(contingency)
+            results.append(
+                {
+                    "phase_a": p1,
+                    "phase_b": p2,
+                    "chi2": float(chi2_val),
+                    "p_value": float(p_value_val),
+                    "phase_a_survived": counts[p1]["survived"],
+                    "phase_a_total": counts[p1]["survived"] + counts[p1]["terminated"],
+                    "phase_b_survived": counts[p2]["survived"],
+                    "phase_b_total": counts[p2]["survived"] + counts[p2]["terminated"],
+                }
+            )
+    return results
 
 
 def pairwise_metric_comparison(
@@ -380,21 +461,49 @@ def run_statistical_analysis(data_dir: Path) -> dict:
     runs_path = data_dir / "logs" / "experiment_runs.parquet"
     runs_table = pq.read_table(runs_path)
 
-    # Load per-phase final-step metrics
-    p1_metrics = load_final_step_metrics(data_dir / "phase_1" / "logs" / "metrics_summary.parquet")
-    p2_metrics = load_final_step_metrics(data_dir / "phase_2" / "logs" / "metrics_summary.parquet")
+    phase_values = sorted({int(v) for v in runs_table.column("phase").to_pylist()})
+    phase_metrics: dict[int, pa.Table] = {}
+    for phase in phase_values:
+        metrics_path = data_dir / f"phase_{phase}" / "logs" / "metrics_summary.parquet"
+        if metrics_path.exists():
+            phase_metrics[phase] = load_final_step_metrics(metrics_path)
 
-    # Metric tests
-    metric_results = phase_comparison_tests(p1_metrics, p2_metrics, PHASE_SUMMARY_METRIC_NAMES)
+    pairwise_metric_tests: list[dict[str, object]] = []
+    for i in range(len(phase_values)):
+        for j in range(i + 1, len(phase_values)):
+            p1 = phase_values[i]
+            p2 = phase_values[j]
+            table1 = phase_metrics.get(p1)
+            table2 = phase_metrics.get(p2)
+            if table1 is None or table2 is None:
+                continue
+            pairwise_metric_tests.append(
+                {
+                    "phase_a": p1,
+                    "phase_b": p2,
+                    "metric_tests": phase_comparison_tests(
+                        table1, table2, PHASE_SUMMARY_METRIC_NAMES
+                    ),
+                }
+            )
 
-    # Survival test
-    surv_result = survival_rate_test(runs_table)
+    pairwise_survival = pairwise_survival_tests(runs_table)
+
+    # Backward-compatible top-level fields for exactly two phases.
+    metric_results: dict[str, dict] = {}
+    surv_result: dict[str, float | int] = {}
+    if len(pairwise_metric_tests) == 1:
+        metric_results = cast(dict[str, dict], pairwise_metric_tests[0]["metric_tests"])
+    if len(phase_values) == 2:
+        surv_result = survival_rate_test(runs_table)
 
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "data_dir": str(data_dir),
         "metric_tests": metric_results,
         "survival_test": surv_result,
+        "pairwise_metric_tests": pairwise_metric_tests,
+        "pairwise_survival_tests": pairwise_survival,
     }
 
 

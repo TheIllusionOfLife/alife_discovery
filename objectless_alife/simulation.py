@@ -34,6 +34,7 @@ from objectless_alife.metrics import (
     neighbor_mutual_information,
     normalized_hamming_distance,
     quasi_periodicity_peak_count,
+    same_state_adjacency_fraction,
     serialize_snapshot,
     shuffle_null_mi,
     state_entropy,
@@ -96,6 +97,9 @@ def _compute_step_metrics(
         "cluster_count": cluster_count_by_state(
             snapshot, grid_width=grid_width, grid_height=grid_height
         ),
+        "same_state_adjacency_fraction": same_state_adjacency_fraction(
+            snapshot, grid_width=grid_width, grid_height=grid_height
+        ),
         "phase_transition_max_delta": running_phase_transition_delta,
         "neighbor_mutual_information": neighbor_mutual_information(
             snapshot, grid_width=grid_width, grid_height=grid_height
@@ -135,8 +139,8 @@ def run_batch_search(
         raise ValueError("n_rules must be >= 1")
 
     # Resolve sentinel defaults
-    _steps: int = 200 if steps is _UNSET else int(steps)  # type: ignore[arg-type]
-    _halt_window: int = 10 if halt_window is _UNSET else int(halt_window)  # type: ignore[arg-type]
+    _steps: int = 200 if steps is _UNSET else int(steps)  # type: ignore[call-overload]
+    _halt_window: int = 10 if halt_window is _UNSET else int(halt_window)  # type: ignore[call-overload]
 
     search_config = config or SearchConfig(steps=_steps, halt_window=_halt_window)
     if search_config.steps < 1:
@@ -225,6 +229,7 @@ def run_batch_search(
                 "cluster_count": [],
                 "quasi_periodicity_peaks": [],
                 "phase_transition_max_delta": [],
+                "same_state_adjacency_fraction": [],
                 "neighbor_mutual_information": [],
                 "action_entropy_mean": [],
                 "action_entropy_variance": [],
