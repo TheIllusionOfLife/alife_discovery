@@ -128,6 +128,14 @@ uv run python scripts/run_pr26_followups.py \
   --out-dir data/post_hoc/pr26_followups
 ```
 
+Render supplementary-ready TeX macros from follow-up outputs:
+
+```bash
+uv run python scripts/render_pr26_followups_tex.py \
+  --followup-dir data/post_hoc/pr26_followups \
+  --output paper/generated/pr26_followups.tex
+```
+
 Quick sanity mode for all follow-ups:
 
 ```bash

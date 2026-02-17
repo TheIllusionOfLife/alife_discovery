@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -70,10 +71,46 @@ def main(argv: list[str] | None = None) -> None:
         taxonomy_args.append("--quick")
     run_taxonomy(taxonomy_args)
 
+    try:
+        git_commit = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+    except Exception:
+        git_commit = "unknown"
+
     manifest = {
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "data_dir": str(args.data_dir),
         "quick": args.quick,
+        "git_commit": git_commit,
+        "commands": {
+            "no_filter": ["uv", "run", "python", "scripts/no_filter_analysis.py", *no_filter_args],
+            "synchronous_ablation": [
+                "uv",
+                "run",
+                "python",
+                "scripts/synchronous_ablation.py",
+                *sync_args,
+            ],
+            "ranking_stability": [
+                "uv",
+                "run",
+                "python",
+                "scripts/ranking_stability.py",
+                *ranking_args,
+            ],
+            "te_null": ["uv", "run", "python", "scripts/te_null_analysis.py", *te_args],
+            "phenotype_taxonomy": [
+                "uv",
+                "run",
+                "python",
+                "scripts/phenotype_taxonomy.py",
+                *taxonomy_args,
+            ],
+        },
         "outputs": {
             "no_filter": {
                 "json": str(no_filter_dir / "summary.json"),

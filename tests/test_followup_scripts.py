@@ -7,6 +7,7 @@ from objectless_alife.run_search import run_experiment
 from scripts.no_filter_analysis import main as no_filter_main
 from scripts.phenotype_taxonomy import main as taxonomy_main
 from scripts.ranking_stability import main as ranking_main
+from scripts.render_pr26_followups_tex import main as render_tex_main
 from scripts.run_pr26_followups import main as run_all_followups_main
 from scripts.synchronous_ablation import main as sync_main
 from scripts.te_null_analysis import main as te_main
@@ -162,8 +163,37 @@ def test_run_pr26_followups_orchestrator_smoke(tmp_path: Path) -> None:
     )
     manifest = json.loads((out_dir / "manifest.json").read_text())
     assert "outputs" in manifest
+    assert "git_commit" in manifest
+    assert "commands" in manifest
     assert (out_dir / "no_filter" / "summary.json").exists()
     assert (out_dir / "synchronous_ablation" / "summary.json").exists()
     assert (out_dir / "ranking_stability" / "summary.json").exists()
     assert (out_dir / "te_null" / "summary.json").exists()
     assert (out_dir / "phenotypes" / "taxonomy.json").exists()
+
+
+def test_render_pr26_followups_tex_smoke(tmp_path: Path) -> None:
+    data_dir = tmp_path / "tex_data"
+    _make_small_dataset(data_dir)
+    out_dir = tmp_path / "tex_out"
+    run_all_followups_main(
+        [
+            "--data-dir",
+            str(data_dir),
+            "--out-dir",
+            str(out_dir),
+            "--quick",
+        ]
+    )
+    tex_path = tmp_path / "generated" / "pr26_followups.tex"
+    render_tex_main(
+        [
+            "--followup-dir",
+            str(out_dir),
+            "--output",
+            str(tex_path),
+        ]
+    )
+    contents = tex_path.read_text()
+    assert "\\newcommand{\\PrTwentySixManifestCommit}" in contents
+    assert "\\newcommand{\\PrTwentySixPhaseTwoTeExcessMedian}" in contents
