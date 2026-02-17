@@ -114,7 +114,25 @@ def load_final_step_metrics(parquet_path: Path) -> pa.Table:
         right_keys=["rule_id", "step_max"],
         join_type="inner",
     )
-    return final_rows.select(table.column_names)
+    table = final_rows.select(table.column_names)
+
+    if (
+        "mi_excess" not in table.column_names
+        and "neighbor_mutual_information" in table.column_names
+        and "mi_shuffle_null" in table.column_names
+    ):
+        mi = pc.cast(table.column("neighbor_mutual_information"), pa.float64(), safe=False)
+        mi_null = pc.cast(table.column("mi_shuffle_null"), pa.float64(), safe=False)
+        diff = pc.subtract(mi, mi_null)
+        finite_diff = pc.if_else(
+            pc.is_finite(diff),
+            diff,
+            pa.scalar(None, type=pa.float64()),
+        )
+        mi_excess = pc.max_element_wise(finite_diff, pa.scalar(0.0))
+        table = table.append_column("mi_excess", mi_excess)
+
+    return table
 
 
 def phase_comparison_tests(
@@ -129,15 +147,20 @@ def phase_comparison_tests(
     """
     results: dict[str, dict] = {}
 
+    def _finite_values(col: pa.ChunkedArray) -> list[float]:
+        col_f64 = pc.cast(col, pa.float64(), safe=False)
+        finite_mask = pc.and_(pc.is_valid(col_f64), pc.is_finite(col_f64))
+        return pc.filter(col_f64, finite_mask).to_pylist()
+
     for metric in metrics_to_test:
         if metric not in phase1_metrics.column_names or metric not in phase2_metrics.column_names:
             continue
         col1 = phase1_metrics.column(metric)
         col2 = phase2_metrics.column(metric)
 
-        # Drop nulls and NaNs
-        vals1 = [v for v in col1.to_pylist() if v is not None and v == v]
-        vals2 = [v for v in col2.to_pylist() if v is not None and v == v]
+        # Drop nulls and NaNs in Arrow before conversion.
+        vals1 = _finite_values(col1)
+        vals2 = _finite_values(col2)
 
         if len(vals1) < 2 or len(vals2) < 2:
             continue

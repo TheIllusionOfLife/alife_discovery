@@ -73,6 +73,7 @@ class TestLoadFinalStepMetrics:
 
         result = load_final_step_metrics(path)
         assert result.num_rows == 2
+        assert "mi_excess" in result.column_names
 
     def test_selects_max_step_per_rule(self, tmp_path: Path) -> None:
         rows = [
@@ -87,6 +88,8 @@ class TestLoadFinalStepMetrics:
         assert result.num_rows == 1
         nmi_values = result.column("neighbor_mutual_information").to_pylist()
         assert nmi_values[0] == pytest.approx(0.9)
+        mi_excess_values = result.column("mi_excess").to_pylist()
+        assert mi_excess_values[0] == pytest.approx(0.85)
 
 
 class TestPhaseComparisonTests:
@@ -314,6 +317,7 @@ class TestRunStatisticalAnalysis:
         assert "metric_tests" in result
         assert "survival_test" in result
         assert "neighbor_mutual_information" in result["metric_tests"]
+        assert "mi_excess" in result["metric_tests"]
 
         nmi = result["metric_tests"]["neighbor_mutual_information"]
         assert nmi["p_value"] < 0.05

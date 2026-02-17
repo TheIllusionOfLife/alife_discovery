@@ -120,10 +120,11 @@ def _build_phase_summary(
         new_row = row.copy()
         mi = new_row.get("neighbor_mutual_information")
         null = new_row.get("mi_shuffle_null")
-        if mi is not None and null is not None and mi == mi and null == null:
-            new_row["mi_excess"] = max(float(mi) - float(null), 0.0)
-        else:
-            new_row["mi_excess"] = None
+        new_row["mi_excess"] = (
+            max(float(mi) - float(null), 0.0)
+            if mi is not None and null is not None and mi == mi and null == null
+            else None
+        )
         enriched_rows.append(new_row)
 
     for metric_name in PHASE_SUMMARY_METRIC_NAMES:

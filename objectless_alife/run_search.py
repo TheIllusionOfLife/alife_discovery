@@ -17,7 +17,6 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
-from typing import cast
 
 # ---------------------------------------------------------------------------
 # Re-exports for backward compatibility
@@ -209,27 +208,25 @@ def main(argv: list[str] | None = None) -> None:
             raise ValueError(f"{key} must be an integer value")
         if isinstance(raw, (int, float, str, bytes, bytearray)):
             return int(raw)
-        try:
-            return int(cast(int, raw))
-        except (TypeError, ValueError) as exc:
-            raise ValueError(f"{key} must be an integer value") from exc
+        if hasattr(raw, "__int__"):
+            return int(raw)
+        raise ValueError(f"{key} must be an integer value")
 
     def _coerce_float(raw: object, key: str) -> float:
         if isinstance(raw, bool):
             raise ValueError(f"{key} must be a float value")
         if isinstance(raw, (int, float, str, bytes, bytearray)):
             return float(raw)
-        try:
-            return float(cast(float, raw))
-        except (TypeError, ValueError) as exc:
-            raise ValueError(f"{key} must be a float value") from exc
+        if hasattr(raw, "__float__"):
+            return float(raw)
+        raise ValueError(f"{key} must be a float value")
 
     def _coerce_str(raw: object, key: str) -> str:
-        if isinstance(raw, str):
-            return raw
-        if isinstance(raw, Path):
+        if isinstance(raw, bool):
+            raise ValueError(f"{key} must be a string-coercible value")
+        if isinstance(raw, (str, Path, int, float)):
             return str(raw)
-        raise ValueError(f"{key} must be a string value")
+        raise ValueError(f"{key} must be a string-coercible value")
 
     def _get(cli_val: object, key: str, default: object) -> object:
         if cli_val is not None:
