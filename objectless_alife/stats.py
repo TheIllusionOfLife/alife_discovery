@@ -21,6 +21,7 @@ import pyarrow.parquet as pq
 from scipy.stats import chi2_contingency, mannwhitneyu, pointbiserialr
 
 from objectless_alife.run_search import PHASE_SUMMARY_METRIC_NAMES
+from objectless_alife.schemas import METRICS_SCHEMA
 
 
 def wilson_score_ci(
@@ -88,27 +89,32 @@ def bootstrap_median_ci(
 def load_final_step_metrics(parquet_path: Path) -> pa.Table:
     """Load metrics_summary.parquet and return one row per rule at its final step."""
     table = pq.read_table(parquet_path)
-    # Compute max step per rule_id using Arrow group-by
-    grouped = table.group_by("rule_id").aggregate([("step", "max")])
-    # Join back to get only the final-step rows
-    max_step_map = {
-        rid: s
-        for rid, s in zip(
-            grouped.column("rule_id").to_pylist(),
-            grouped.column("step_max").to_pylist(),
-            strict=True,
+    if any(pa.types.is_null(field.type) for field in table.schema):
+        expected_types = {field.name: field.type for field in METRICS_SCHEMA}
+        cast_schema = pa.schema(
+            [
+                pa.field(
+                    field.name,
+                    expected_types[field.name]
+                    if pa.types.is_null(field.type) and field.name in expected_types
+                    else field.type,
+                    nullable=True,
+                )
+                for field in table.schema
+            ]
         )
-    }
-    rule_ids = table.column("rule_id")
-    steps = table.column("step")
-    mask = pc.and_(
-        pc.is_in(rule_ids, pa.array(list(max_step_map.keys()))),
-        pc.equal(
-            steps,
-            pa.array([max_step_map.get(r, -1) for r in rule_ids.to_pylist()]),
-        ),
+        table = table.cast(cast_schema, safe=False)
+
+    # Compute max step per rule_id and join in Arrow space to avoid
+    # large Python materialization for wide experiment outputs.
+    grouped = table.group_by("rule_id").aggregate([("step", "max")])
+    final_rows = table.join(
+        grouped,
+        keys=["rule_id", "step"],
+        right_keys=["rule_id", "step_max"],
+        join_type="inner",
     )
-    return table.filter(mask)
+    return final_rows.select(table.column_names)
 
 
 def phase_comparison_tests(

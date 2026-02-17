@@ -127,6 +127,34 @@ class SearchConfig:
         )
 
 
+def _search_config_from_legacy_fields(
+    *,
+    steps: int,
+    halt_window: int,
+    filter_short_period: bool,
+    short_period_max_period: int,
+    short_period_history_size: int,
+    filter_low_activity: bool,
+    low_activity_window: int,
+    low_activity_min_unique_ratio: float,
+    block_ncd_window: int,
+    skip_null_models: bool,
+) -> SearchConfig:
+    """Build SearchConfig from legacy flattened dataclass fields."""
+    return SearchConfig(
+        steps=steps,
+        halt_window=halt_window,
+        filter_short_period=filter_short_period,
+        short_period_max_period=short_period_max_period,
+        short_period_history_size=short_period_history_size,
+        filter_low_activity=filter_low_activity,
+        low_activity_window=low_activity_window,
+        low_activity_min_unique_ratio=low_activity_min_unique_ratio,
+        block_ncd_window=block_ncd_window,
+        skip_null_models=skip_null_models,
+    )
+
+
 @dataclass(frozen=True)
 class ExperimentConfig:
     """Experiment-scale runtime settings for multi-phase, multi-seed evaluation."""
@@ -152,6 +180,35 @@ class ExperimentConfig:
     skip_null_models: bool = False
     search_config: SearchConfig | None = None
 
+    def __post_init__(self) -> None:
+        if self.search_config is None:
+            return
+        legacy = self._legacy_search_config()
+        if legacy != self.search_config:
+            raise ValueError(
+                "search_config conflicts with ExperimentConfig legacy fields; "
+                "use search_config only or keep fields consistent"
+            )
+
+    def _legacy_search_config(self) -> SearchConfig:
+        return _search_config_from_legacy_fields(
+            steps=self.steps,
+            halt_window=self.halt_window,
+            filter_short_period=self.filter_short_period,
+            short_period_max_period=self.short_period_max_period,
+            short_period_history_size=self.short_period_history_size,
+            filter_low_activity=self.filter_low_activity,
+            low_activity_window=self.low_activity_window,
+            low_activity_min_unique_ratio=self.low_activity_min_unique_ratio,
+            block_ncd_window=self.block_ncd_window,
+            skip_null_models=self.skip_null_models,
+        )
+
+    def resolved_search_config(self) -> SearchConfig:
+        if self.search_config is not None:
+            return self.search_config
+        return self._legacy_search_config()
+
 
 @dataclass(frozen=True)
 class DensitySweepConfig:
@@ -175,6 +232,35 @@ class DensitySweepConfig:
     block_ncd_window: int = 10
     skip_null_models: bool = False
     search_config: SearchConfig | None = None
+
+    def __post_init__(self) -> None:
+        if self.search_config is None:
+            return
+        legacy = self._legacy_search_config()
+        if legacy != self.search_config:
+            raise ValueError(
+                "search_config conflicts with DensitySweepConfig legacy fields; "
+                "use search_config only or keep fields consistent"
+            )
+
+    def _legacy_search_config(self) -> SearchConfig:
+        return _search_config_from_legacy_fields(
+            steps=self.steps,
+            halt_window=self.halt_window,
+            filter_short_period=self.filter_short_period,
+            short_period_max_period=self.short_period_max_period,
+            short_period_history_size=self.short_period_history_size,
+            filter_low_activity=self.filter_low_activity,
+            low_activity_window=self.low_activity_window,
+            low_activity_min_unique_ratio=self.low_activity_min_unique_ratio,
+            block_ncd_window=self.block_ncd_window,
+            skip_null_models=self.skip_null_models,
+        )
+
+    def resolved_search_config(self) -> SearchConfig:
+        if self.search_config is not None:
+            return self.search_config
+        return self._legacy_search_config()
 
 
 @dataclass(frozen=True)

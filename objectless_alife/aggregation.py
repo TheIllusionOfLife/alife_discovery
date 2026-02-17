@@ -137,11 +137,19 @@ def _build_phase_summary(
 
 
 def _build_phase_comparison(phase_summaries: list[dict[str, int | float | None]]) -> dict[str, Any]:
-    sorted_rows = sorted(phase_summaries, key=lambda row: int(row["phase"]))
+    def _phase_value(row: dict[str, int | float | None]) -> int:
+        phase_value = row.get("phase")
+        if not isinstance(phase_value, int):
+            raise ValueError("phase summary row missing integer 'phase'")
+        return phase_value
+
+    sorted_rows = sorted(phase_summaries, key=_phase_value)
     payload: dict[str, Any] = {
         "schema_version": AGGREGATE_SCHEMA_VERSION,
-        "phases": [int(row["phase"]) for row in sorted_rows],
+        "phases": [_phase_value(row) for row in sorted_rows],
         "deltas": {},
+        "deltas_base_phase": None,
+        "deltas_target_phase": None,
         "pairwise_deltas": [],
     }
     if len(sorted_rows) < 2:
@@ -171,14 +179,17 @@ def _build_phase_comparison(phase_summaries: list[dict[str, int | float | None]]
             target = sorted_rows[j]
             payload["pairwise_deltas"].append(
                 {
-                    "base_phase": int(base["phase"]),
-                    "target_phase": int(target["phase"]),
+                    "base_phase": _phase_value(base),
+                    "target_phase": _phase_value(target),
                     "deltas": _row_delta(base, target),
                 }
             )
 
-    # Backward-compatible primary delta payload for two-phase workflows.
-    if len(sorted_rows) == 2:
+    # Backward-compatible primary delta payload.
+    # For N>2 phases, expose the first pair (lowest two phases) explicitly.
+    if len(sorted_rows) >= 2:
+        payload["deltas_base_phase"] = payload["pairwise_deltas"][0]["base_phase"]
+        payload["deltas_target_phase"] = payload["pairwise_deltas"][0]["target_phase"]
         payload["deltas"] = payload["pairwise_deltas"][0]["deltas"]
 
     return payload
@@ -257,20 +268,7 @@ def _validate_density_sweep_config(config: DensitySweepConfig) -> None:
 
 def _density_search_config(config: DensitySweepConfig) -> SearchConfig:
     """Convert shared density sweep options into SearchConfig."""
-    if config.search_config is not None:
-        return config.search_config
-    return SearchConfig(
-        steps=config.steps,
-        halt_window=config.halt_window,
-        filter_short_period=config.filter_short_period,
-        short_period_max_period=config.short_period_max_period,
-        short_period_history_size=config.short_period_history_size,
-        filter_low_activity=config.filter_low_activity,
-        low_activity_window=config.low_activity_window,
-        low_activity_min_unique_ratio=config.low_activity_min_unique_ratio,
-        block_ncd_window=config.block_ncd_window,
-        skip_null_models=config.skip_null_models,
-    )
+    return config.resolved_search_config()
 
 
 def _density_metric_columns() -> list[str]:
@@ -513,21 +511,7 @@ def run_experiment(config: ExperimentConfig) -> list[SimulationResult]:
     for phase in config.phases:
         phase_out_dir = out_dir / f"phase_{phase.value}"
         phase_out_dir.mkdir(parents=True, exist_ok=True)
-        if config.search_config is not None:
-            phase_search_config = config.search_config
-        else:
-            phase_search_config = SearchConfig(
-                steps=config.steps,
-                halt_window=config.halt_window,
-                filter_short_period=config.filter_short_period,
-                short_period_max_period=config.short_period_max_period,
-                short_period_history_size=config.short_period_history_size,
-                filter_low_activity=config.filter_low_activity,
-                low_activity_window=config.low_activity_window,
-                low_activity_min_unique_ratio=config.low_activity_min_unique_ratio,
-                block_ncd_window=config.block_ncd_window,
-                skip_null_models=config.skip_null_models,
-            )
+        phase_search_config = config.resolved_search_config()
         phase_results = run_batch_search(
             n_rules=total_rules_per_phase,
             phase=phase,

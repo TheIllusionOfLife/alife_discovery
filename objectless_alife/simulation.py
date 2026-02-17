@@ -139,8 +139,8 @@ def run_batch_search(
         raise ValueError("n_rules must be >= 1")
 
     # Resolve sentinel defaults
-    _steps: int = 200 if steps is _UNSET else int(steps)  # type: ignore[arg-type]
-    _halt_window: int = 10 if halt_window is _UNSET else int(halt_window)  # type: ignore[arg-type]
+    _steps: int = 200 if steps is _UNSET else int(steps)  # type: ignore[call-overload]
+    _halt_window: int = 10 if halt_window is _UNSET else int(halt_window)  # type: ignore[call-overload]
 
     search_config = config or SearchConfig(steps=_steps, halt_window=_halt_window)
     if search_config.steps < 1:

@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+from typing import cast
 
 # ---------------------------------------------------------------------------
 # Re-exports for backward compatibility
@@ -192,6 +193,44 @@ def main(argv: list[str] | None = None) -> None:
     if args.config is not None:
         file_cfg = json.loads(Path(args.config).read_text())
 
+    def _coerce_bool(raw: object, key: str) -> bool:
+        if isinstance(raw, bool):
+            return raw
+        if isinstance(raw, str):
+            normalized = raw.strip().lower()
+            if normalized in {"1", "true", "yes", "on"}:
+                return True
+            if normalized in {"0", "false", "no", "off"}:
+                return False
+        raise ValueError(f"{key} must be a boolean value")
+
+    def _coerce_int(raw: object, key: str) -> int:
+        if isinstance(raw, bool):
+            raise ValueError(f"{key} must be an integer value")
+        if isinstance(raw, (int, float, str, bytes, bytearray)):
+            return int(raw)
+        try:
+            return int(cast(int, raw))
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"{key} must be an integer value") from exc
+
+    def _coerce_float(raw: object, key: str) -> float:
+        if isinstance(raw, bool):
+            raise ValueError(f"{key} must be a float value")
+        if isinstance(raw, (int, float, str, bytes, bytearray)):
+            return float(raw)
+        try:
+            return float(cast(float, raw))
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"{key} must be a float value") from exc
+
+    def _coerce_str(raw: object, key: str) -> str:
+        if isinstance(raw, str):
+            return raw
+        if isinstance(raw, Path):
+            return str(raw)
+        raise ValueError(f"{key} must be a string value")
+
     def _get(cli_val: object, key: str, default: object) -> object:
         if cli_val is not None:
             return cli_val
@@ -201,30 +240,39 @@ def main(argv: list[str] | None = None) -> None:
         """CLI > file > default for boolean flags."""
         if cli_val is not None:
             return cli_val
-        return bool(file_cfg.get(key, default))
+        raw = file_cfg.get(key, default)
+        return _coerce_bool(raw, key)
 
-    phase_raw = int(_get(args.phase, "phase", 1))
-    n_rules = int(_get(args.n_rules, "n_rules", 100))
-    steps = int(_get(args.steps, "steps", 200))
-    halt_window = int(_get(args.halt_window, "halt_window", 10))
-    rule_seed = int(_get(args.rule_seed, "rule_seed", 0))
-    sim_seed = int(_get(args.sim_seed, "sim_seed", 0))
-    out_dir = Path(str(_get(args.out_dir, "out_dir", "data")))
-    grid_sizes_raw = str(_get(args.grid_sizes, "grid_sizes", "20x20"))
-    agent_counts_raw = str(_get(args.agent_counts, "agent_counts", "30"))
-    seed_batches = int(_get(args.seed_batches, "seed_batches", 1))
-    phases_raw = str(_get(args.phases, "phases", "1,2"))
+    phase_raw = _coerce_int(_get(args.phase, "phase", 1), "phase")
+    n_rules = _coerce_int(_get(args.n_rules, "n_rules", 100), "n_rules")
+    steps = _coerce_int(_get(args.steps, "steps", 200), "steps")
+    halt_window = _coerce_int(_get(args.halt_window, "halt_window", 10), "halt_window")
+    rule_seed = _coerce_int(_get(args.rule_seed, "rule_seed", 0), "rule_seed")
+    sim_seed = _coerce_int(_get(args.sim_seed, "sim_seed", 0), "sim_seed")
+    out_dir = Path(_coerce_str(_get(args.out_dir, "out_dir", "data"), "out_dir"))
+    grid_sizes_raw = _coerce_str(_get(args.grid_sizes, "grid_sizes", "20x20"), "grid_sizes")
+    agent_counts_raw = _coerce_str(_get(args.agent_counts, "agent_counts", "30"), "agent_counts")
+    seed_batches = _coerce_int(_get(args.seed_batches, "seed_batches", 1), "seed_batches")
+    phases_raw = _coerce_str(_get(args.phases, "phases", "1,2"), "phases")
     filter_short_period = _get_bool(args.filter_short_period, "filter_short_period", False)
-    short_period_max_period = int(_get(args.short_period_max_period, "short_period_max_period", 2))
-    short_period_history_size = int(
-        _get(args.short_period_history_size, "short_period_history_size", 8)
+    short_period_max_period = _coerce_int(
+        _get(args.short_period_max_period, "short_period_max_period", 2), "short_period_max_period"
+    )
+    short_period_history_size = _coerce_int(
+        _get(args.short_period_history_size, "short_period_history_size", 8),
+        "short_period_history_size",
     )
     filter_low_activity = _get_bool(args.filter_low_activity, "filter_low_activity", False)
-    low_activity_window = int(_get(args.low_activity_window, "low_activity_window", 5))
-    low_activity_min_unique_ratio = float(
-        _get(args.low_activity_min_unique_ratio, "low_activity_min_unique_ratio", 0.2)
+    low_activity_window = _coerce_int(
+        _get(args.low_activity_window, "low_activity_window", 5), "low_activity_window"
     )
-    block_ncd_window = int(_get(args.block_ncd_window, "block_ncd_window", 10))
+    low_activity_min_unique_ratio = _coerce_float(
+        _get(args.low_activity_min_unique_ratio, "low_activity_min_unique_ratio", 0.2),
+        "low_activity_min_unique_ratio",
+    )
+    block_ncd_window = _coerce_int(
+        _get(args.block_ncd_window, "block_ncd_window", 10), "block_ncd_window"
+    )
     fast_metrics = _get_bool(args.fast_metrics, "fast_metrics", False)
     is_density_sweep = _get_bool(args.density_sweep, "density_sweep", False)
     is_experiment = _get_bool(args.experiment, "experiment", False)
