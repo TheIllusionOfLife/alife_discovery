@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import re
 from pathlib import Path
 
 import pyarrow.parquet as pq
@@ -19,9 +20,13 @@ import pyarrow.parquet as pq
 DEFAULT_GRID_WIDTH = 20
 DEFAULT_GRID_HEIGHT = 20
 
+_SAFE_NAME_RE = re.compile(r"^[A-Za-z0-9_\-]+$")
+
 
 def _load_rule_json(data_dir: Path, rule_id: str) -> dict:
     """Load a rule JSON file and return its metadata."""
+    if not _SAFE_NAME_RE.match(rule_id):
+        raise ValueError(f"Unsafe rule_id: {rule_id!r}")
     rule_path = data_dir / "rules" / f"{rule_id}.json"
     if not rule_path.exists():
         raise ValueError(f"Rule JSON not found: {rule_path}")
