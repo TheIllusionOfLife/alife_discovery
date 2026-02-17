@@ -4,6 +4,7 @@
 > **Spec reference**: `spec.md` (section 8.3)
 > **Data locations**: `data/stage_c/control/`, `data/stage_c/logs/`
 > **Depends on**: Stage B data (`data/stage_b/phase_1/`, `data/stage_b/phase_2/`)
+> **Status**: Historical control-focused analysis. Manuscript-final 4-condition summaries are consolidated in Stage D (`data/stage_d/`); see `docs/reproducibility.md`.
 
 ---
 

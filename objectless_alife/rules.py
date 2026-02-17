@@ -91,20 +91,14 @@ def compute_control_index(self_state: int, neighbor_count: int, step_mod: int) -
 def compute_capacity_matched_index(
     self_state: int, neighbor_count: int, dominant_state: int
 ) -> int:
-    """Compute capacity-matched Phase-1 index (100-entry table, Phase-1 observations).
+    """Compute index for capacity-matched Phase-1 control.
 
-    Uses Phase-2-style slots (100 entries) but aliases indices so that
-    all ``dominant_state`` values for the same ``(self_state, neighbor_count)``
-    map to the same action.  This tests whether table capacity alone
-    explains the Phase-2 advantage.
+    The index math intentionally matches ``compute_phase2_index``.
+    Capacity-matching aliasing (20 effective observation bins tiled into
+    100 table entries) is implemented at rule-table generation time in
+    ``generate_rule_table(ObservationPhase.PHASE1_CAPACITY_MATCHED, ...)``.
     """
-    if not 0 <= self_state <= 3:
-        raise ValueError("self_state must be in [0, 3]")
-    if not 0 <= neighbor_count <= 4:
-        raise ValueError("neighbor_count must be in [0, 4]")
-    if not 0 <= dominant_state <= 4:
-        raise ValueError("dominant_state must be in [0, 4]")
-    return self_state * 25 + neighbor_count * 5 + dominant_state
+    return compute_phase2_index(self_state, neighbor_count, dominant_state)
 
 
 def generate_rule_table(phase: ObservationPhase, seed: int) -> list[int]:

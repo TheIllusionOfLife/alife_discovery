@@ -34,6 +34,7 @@ from objectless_alife.metrics import (
     neighbor_mutual_information,
     normalized_hamming_distance,
     quasi_periodicity_peak_count,
+    same_state_adjacency_fraction,
     serialize_snapshot,
     shuffle_null_mi,
     state_entropy,
@@ -94,6 +95,9 @@ def _compute_step_metrics(
         "predictability_hamming": predictability,
         "morans_i": morans_i_occupied(snapshot, grid_width=grid_width, grid_height=grid_height),
         "cluster_count": cluster_count_by_state(
+            snapshot, grid_width=grid_width, grid_height=grid_height
+        ),
+        "same_state_adjacency_fraction": same_state_adjacency_fraction(
             snapshot, grid_width=grid_width, grid_height=grid_height
         ),
         "phase_transition_max_delta": running_phase_transition_delta,
@@ -225,6 +229,7 @@ def run_batch_search(
                 "cluster_count": [],
                 "quasi_periodicity_peaks": [],
                 "phase_transition_max_delta": [],
+                "same_state_adjacency_fraction": [],
                 "neighbor_mutual_information": [],
                 "action_entropy_mean": [],
                 "action_entropy_variance": [],

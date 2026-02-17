@@ -13,6 +13,7 @@ import statistics
 import zlib
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import cast
 
 import pyarrow as pa
 import pyarrow.compute as pc
@@ -232,6 +233,57 @@ def survival_rate_test(runs_table: pa.Table) -> dict:
     }
 
 
+def _survival_counts_by_phase(runs_table: pa.Table) -> dict[int, dict[str, int]]:
+    """Return survived/terminated counts keyed by phase."""
+    phases = runs_table.column("phase").to_pylist()
+    survived = runs_table.column("survived").to_pylist()
+    counts: dict[int, dict[str, int]] = {}
+    for phase, surv in zip(phases, survived, strict=True):
+        p = int(phase)
+        if p not in counts:
+            counts[p] = {"survived": 0, "terminated": 0}
+        if surv:
+            counts[p]["survived"] += 1
+        else:
+            counts[p]["terminated"] += 1
+    return counts
+
+
+def pairwise_survival_tests(runs_table: pa.Table) -> list[dict[str, float | int]]:
+    """Return chi-squared survival tests for every phase pair in runs_table."""
+    counts = _survival_counts_by_phase(runs_table)
+    sorted_phases = sorted(counts.keys())
+    results: list[dict[str, float | int]] = []
+    for i in range(len(sorted_phases)):
+        for j in range(i + 1, len(sorted_phases)):
+            p1 = sorted_phases[i]
+            p2 = sorted_phases[j]
+            contingency = [
+                [counts[p1]["survived"], counts[p1]["terminated"]],
+                [counts[p2]["survived"], counts[p2]["terminated"]],
+            ]
+            total_survived = counts[p1]["survived"] + counts[p2]["survived"]
+            total_terminated = counts[p1]["terminated"] + counts[p2]["terminated"]
+            if total_survived == 0 or total_terminated == 0:
+                chi2_val = float("nan")
+                p_value_val = float("nan")
+            else:
+                chi2_val, p_value_val, _, _ = chi2_contingency(contingency)
+            results.append(
+                {
+                    "phase_a": p1,
+                    "phase_b": p2,
+                    "chi2": float(chi2_val),
+                    "p_value": float(p_value_val),
+                    "phase_a_survived": counts[p1]["survived"],
+                    "phase_a_total": counts[p1]["survived"] + counts[p1]["terminated"],
+                    "phase_b_survived": counts[p2]["survived"],
+                    "phase_b_total": counts[p2]["survived"] + counts[p2]["terminated"],
+                }
+            )
+    return results
+
+
 def pairwise_metric_comparison(
     metrics_path_a: Path,
     metrics_path_b: Path,
@@ -380,21 +432,49 @@ def run_statistical_analysis(data_dir: Path) -> dict:
     runs_path = data_dir / "logs" / "experiment_runs.parquet"
     runs_table = pq.read_table(runs_path)
 
-    # Load per-phase final-step metrics
-    p1_metrics = load_final_step_metrics(data_dir / "phase_1" / "logs" / "metrics_summary.parquet")
-    p2_metrics = load_final_step_metrics(data_dir / "phase_2" / "logs" / "metrics_summary.parquet")
+    phase_values = sorted({int(v) for v in runs_table.column("phase").to_pylist()})
+    phase_metrics: dict[int, pa.Table] = {}
+    for phase in phase_values:
+        metrics_path = data_dir / f"phase_{phase}" / "logs" / "metrics_summary.parquet"
+        if metrics_path.exists():
+            phase_metrics[phase] = load_final_step_metrics(metrics_path)
 
-    # Metric tests
-    metric_results = phase_comparison_tests(p1_metrics, p2_metrics, PHASE_SUMMARY_METRIC_NAMES)
+    pairwise_metric_tests: list[dict[str, object]] = []
+    for i in range(len(phase_values)):
+        for j in range(i + 1, len(phase_values)):
+            p1 = phase_values[i]
+            p2 = phase_values[j]
+            table1 = phase_metrics.get(p1)
+            table2 = phase_metrics.get(p2)
+            if table1 is None or table2 is None:
+                continue
+            pairwise_metric_tests.append(
+                {
+                    "phase_a": p1,
+                    "phase_b": p2,
+                    "metric_tests": phase_comparison_tests(
+                        table1, table2, PHASE_SUMMARY_METRIC_NAMES
+                    ),
+                }
+            )
 
-    # Survival test
-    surv_result = survival_rate_test(runs_table)
+    pairwise_survival = pairwise_survival_tests(runs_table)
+
+    # Backward-compatible top-level fields for exactly two phases.
+    metric_results: dict[str, dict] = {}
+    surv_result: dict[str, float | int] = {}
+    if len(pairwise_metric_tests) == 1:
+        metric_results = cast(dict[str, dict], pairwise_metric_tests[0]["metric_tests"])
+    if len(phase_values) == 2:
+        surv_result = survival_rate_test(runs_table)
 
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "data_dir": str(data_dir),
         "metric_tests": metric_results,
         "survival_test": surv_result,
+        "pairwise_metric_tests": pairwise_metric_tests,
+        "pairwise_survival_tests": pairwise_survival,
     }
 
 

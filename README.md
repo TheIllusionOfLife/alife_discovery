@@ -46,13 +46,13 @@ tectonic paper/supplementary.tex
 Run a single-phase batch search:
 
 ```bash
-uv run python -m src.run_search --phase 1 --n-rules 100 --out-dir data
+uv run python -m objectless_alife.run_search --phase 1 --n-rules 100 --out-dir data
 ```
 
 Run a two-phase experiment comparison:
 
 ```bash
-uv run python -m src.run_search \
+uv run python -m objectless_alife.run_search \
   --experiment \
   --phases 1,2 \
   --seed-batches 3 \
@@ -64,7 +64,7 @@ uv run python -m src.run_search \
 Run a density sweep across explicit grid/agent points (both phases):
 
 ```bash
-uv run python -m src.run_search \
+uv run python -m objectless_alife.run_search \
   --density-sweep \
   --grid-sizes 20x20,30x30 \
   --agent-counts 30,60 \
@@ -77,23 +77,37 @@ uv run python -m src.run_search \
 Render visualizations (subcommands: `single`, `batch`, `figure`, `filmstrip`):
 
 ```bash
-uv run python -m src.visualize single \
+uv run python -m objectless_alife.visualize single \
   --simulation-log data/logs/simulation_log.parquet \
   --metrics-summary data/logs/metrics_summary.parquet \
   --rule-json data/rules/<rule_id>.json \
   --output output/preview.gif \
   --fps 8
 
-uv run python -m src.visualize batch --data-dir data/stage_b --top-n 5 --output-dir output/batch
-uv run python -m src.visualize figure --data-dir data/stage_b --output-dir output/figures
-uv run python -m src.visualize filmstrip --simulation-log data/logs/simulation_log.parquet --output output/filmstrip.png --n-frames 8
+uv run python -m objectless_alife.visualize batch \
+  --phase-dir P1=data/stage_b/phase_1 \
+  --phase-dir P2=data/stage_b/phase_2 \
+  --top-n 5 \
+  --output-dir output/batch
+
+uv run python -m objectless_alife.visualize figure \
+  --p1-dir data/stage_b/phase_1 \
+  --p2-dir data/stage_b/phase_2 \
+  --control-dir data/stage_c/control \
+  --output-dir output/figures
+
+uv run python -m objectless_alife.visualize filmstrip \
+  --simulation-log data/logs/simulation_log.parquet \
+  --rule-json data/rules/<rule_id>.json \
+  --output output/filmstrip.png \
+  --n-frames 8
 ```
 
 Run statistical significance tests:
 
 ```bash
-uv run python -m src.stats --data-dir data/stage_b
-uv run python -m src.stats --pairwise --dir-a data/stage_b --dir-b data/stage_c
+uv run python -m objectless_alife.stats --data-dir data/stage_b
+uv run python -m objectless_alife.stats --pairwise --dir-a data/stage_b --dir-b data/stage_c
 ```
 
 ## Documentation Map
@@ -110,13 +124,16 @@ uv run python -m src.stats --pairwise --dir-a data/stage_b --dir-b data/stage_c
 
 ## High-Level Architecture
 
-- `src/world.py`: toroidal world model, agent state, collision/movement semantics
-- `src/rules.py`: observation phases, indexing logic, seeded rule-table generation
-- `src/filters.py`: termination and optional dynamic filter detectors
-- `src/metrics.py`: post-step analysis metrics
-- `src/run_search.py`: batch/experiment runner + artifact persistence
-- `src/stats.py`: statistical significance testing (Mann-Whitney U, chi-squared, effect sizes)
-- `src/visualize.py`: animation renderer from stored artifacts
+- `objectless_alife/world.py`: toroidal world model, agent state, collision/movement semantics
+- `objectless_alife/rules.py`: observation phases, indexing logic, seeded rule-table generation
+- `objectless_alife/filters.py`: termination and optional dynamic filter detectors
+- `objectless_alife/metrics.py`: post-step analysis metrics
+- `objectless_alife/run_search.py`: batch/experiment runner + artifact persistence
+- `objectless_alife/stats.py`: statistical significance testing (Mann-Whitney U, chi-squared, effect sizes)
+- `objectless_alife/visualize.py`: visualization compatibility entrypoint (`python -m objectless_alife.visualize`)
+- `objectless_alife/viz_cli.py`: visualization CLI parsing and subcommand dispatch
+- `objectless_alife/viz_render.py`: visualization rendering and figure generation logic
+- `objectless_alife/export_web.py`: web export utility for paired/single visualization payloads
 
 ## Data Outputs
 

@@ -56,6 +56,7 @@ in objective-free systems.
 Submission type: \textbf{Full Paper}\\
 
 Data/Code available at: \url{https://anonymous.4open.science/r/objectless-alife}
+\newline Reproducibility map (artifact lineage): \texttt{docs/reproducibility.md}
 \blfootnote{\textcopyright 2026 Anonymous.
   Published under a Creative Commons Attribution 4.0
   International (CC BY 4.0) license.}
@@ -351,22 +352,23 @@ rule-based conditions, a clear monotonic ordering emerges:
 
 \begin{table*}[htbp]
 \centering
-\caption{Neighbor mutual information and spatial clustering by condition.
-MI values use the Miller-Madow bias-corrected estimator;
+\caption{Calibrated neighbor mutual information and spatial clustering by condition.
 MI\textsubscript{excess} = MI\textsubscript{observed} $-$ MI\textsubscript{shuffle null}
-controls for pair-count bias (5{,}000 rules per condition, $N=200$ shuffles).
+is the primary calibrated metric controlling for pair-count bias
+(5{,}000 rules per condition, $N=200$ shuffles).
+Raw MI values use the Miller-Madow bias-corrected estimator and are reported secondarily.
 The random walk's high raw MI is entirely attributable to pair-count bias
 (MI\textsubscript{excess} near zero at 0.050~bits, within the shuffle-null
 noise floor).}
 \label{tab:mi_summary}
 \begin{tabular}{lccccc}
 \toprule
-Condition & Table Size & Median MI & Median MI\textsubscript{excess} & Median Adj.\ Frac.\footnotemark & Survival \\
+Condition & Table Size & Median MI\textsubscript{excess} & Median MI & Median Adj.\ Frac.\footnotemark & Survival \\
 \midrule
-Random Walk & 1 (unused) & 0.910 & 0.050  & 0.364 & 100.0\% \\
+Random Walk & 1 (unused) & 0.050 & 0.910  & 0.364 & 100.0\% \\
 Control     & 100        & 0.000 & 0.000  & 0.329 & 44.5\% \\
-Phase 1     & 20         & 0.019 & 0.000  & 0.291 & 71.4\% \\
-Phase 2     & 100        & 0.298 & 0.096  & 0.350 & 74.7\% \\
+Phase 1     & 20         & 0.000 & 0.019  & 0.291 & 71.4\% \\
+Phase 2     & 100        & 0.096 & 0.298  & 0.350 & 74.7\% \\
 \bottomrule
 \end{tabular}
 \footnotetext{Same-state adjacency fraction (join count statistic for

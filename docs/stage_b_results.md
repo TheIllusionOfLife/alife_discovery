@@ -3,6 +3,7 @@
 > **Date**: 2026-02-12
 > **Spec reference**: `spec.md` (sections 3, 6, 7, 8)
 > **Data locations**: `data/stage_a/`, `data/stage_b/`, `data/stage_b_density/`
+> **Status**: Historical intermediate analysis. Manuscript-final 4-condition tables/figures use Stage D lineage (`data/stage_d/`); see `docs/reproducibility.md`.
 
 ---
 

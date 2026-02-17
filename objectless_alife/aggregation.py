@@ -142,21 +142,45 @@ def _build_phase_comparison(phase_summaries: list[dict[str, int | float | None]]
         "schema_version": AGGREGATE_SCHEMA_VERSION,
         "phases": [int(row["phase"]) for row in sorted_rows],
         "deltas": {},
+        "pairwise_deltas": [],
     }
     if len(sorted_rows) < 2:
         return payload
 
-    base = sorted_rows[0]
-    target = sorted_rows[1]
-    for key, target_value in target.items():
-        if key in {"phase", "schema_version"}:
-            continue
-        base_value = base.get(key)
-        if not isinstance(base_value, (int, float)) or not isinstance(target_value, (int, float)):
-            continue
-        delta_abs = float(target_value) - float(base_value)
-        delta_rel = None if float(base_value) == 0.0 else delta_abs / float(base_value)
-        payload["deltas"][key] = {"absolute": delta_abs, "relative": delta_rel}
+    def _row_delta(
+        base: dict[str, int | float | None],
+        target: dict[str, int | float | None],
+    ) -> dict[str, dict[str, float | None]]:
+        deltas: dict[str, dict[str, float | None]] = {}
+        for key, target_value in target.items():
+            if key in {"phase", "schema_version"}:
+                continue
+            base_value = base.get(key)
+            if not isinstance(base_value, (int, float)) or not isinstance(
+                target_value, (int, float)
+            ):
+                continue
+            delta_abs = float(target_value) - float(base_value)
+            delta_rel = None if float(base_value) == 0.0 else delta_abs / float(base_value)
+            deltas[key] = {"absolute": delta_abs, "relative": delta_rel}
+        return deltas
+
+    for i in range(len(sorted_rows)):
+        for j in range(i + 1, len(sorted_rows)):
+            base = sorted_rows[i]
+            target = sorted_rows[j]
+            payload["pairwise_deltas"].append(
+                {
+                    "base_phase": int(base["phase"]),
+                    "target_phase": int(target["phase"]),
+                    "deltas": _row_delta(base, target),
+                }
+            )
+
+    # Backward-compatible primary delta payload for two-phase workflows.
+    if len(sorted_rows) == 2:
+        payload["deltas"] = payload["pairwise_deltas"][0]["deltas"]
+
     return payload
 
 
@@ -175,8 +199,10 @@ def _collect_final_metric_rows(
     }
     final_rows: list[dict[str, Any]] = []
     metrics_file = pq.ParquetFile(metrics_path)
+    available_columns = set(metrics_file.schema_arrow.names)
+    present_columns = [col for col in metric_columns if col in available_columns]
 
-    for batch in metrics_file.iter_batches(columns=metric_columns, batch_size=8192):
+    for batch in metrics_file.iter_batches(columns=present_columns, batch_size=8192):
         batch_dict = batch.to_pydict()
         rule_ids = batch_dict["rule_id"]
         steps = batch_dict["step"]
@@ -184,7 +210,13 @@ def _collect_final_metric_rows(
             expected_step = final_steps.get(str(rule_id))
             if expected_step is None or int(steps[idx]) != expected_step:
                 continue
-            final_rows.append({name: batch_dict[name][idx] for name in metric_columns})
+            row: dict[str, Any] = {}
+            for name in metric_columns:
+                if name in batch_dict:
+                    row[name] = batch_dict[name][idx]
+                else:
+                    row[name] = None
+            final_rows.append(row)
     return final_rows
 
 
@@ -222,6 +254,8 @@ def _validate_density_sweep_config(config: DensitySweepConfig) -> None:
 
 def _density_search_config(config: DensitySweepConfig) -> SearchConfig:
     """Convert shared density sweep options into SearchConfig."""
+    if config.search_config is not None:
+        return config.search_config
     return SearchConfig(
         steps=config.steps,
         halt_window=config.halt_window,
@@ -246,6 +280,7 @@ def _density_metric_columns() -> list[str]:
         "predictability_hamming",
         "morans_i",
         "cluster_count",
+        "same_state_adjacency_fraction",
         "neighbor_mutual_information",
         "quasi_periodicity_peaks",
         "phase_transition_max_delta",
@@ -455,9 +490,6 @@ def run_experiment(config: ExperimentConfig) -> list[SimulationResult]:
         raise ValueError("n_seed_batches must be >= 1")
     if not config.phases:
         raise ValueError("phases must not be empty")
-    if len(config.phases) != 2:
-        raise ValueError("run_experiment currently supports exactly two phases")
-
     out_dir = Path(config.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     root_logs_dir = out_dir / "logs"
@@ -478,18 +510,21 @@ def run_experiment(config: ExperimentConfig) -> list[SimulationResult]:
     for phase in config.phases:
         phase_out_dir = out_dir / f"phase_{phase.value}"
         phase_out_dir.mkdir(parents=True, exist_ok=True)
-        phase_search_config = SearchConfig(
-            steps=config.steps,
-            halt_window=config.halt_window,
-            filter_short_period=config.filter_short_period,
-            short_period_max_period=config.short_period_max_period,
-            short_period_history_size=config.short_period_history_size,
-            filter_low_activity=config.filter_low_activity,
-            low_activity_window=config.low_activity_window,
-            low_activity_min_unique_ratio=config.low_activity_min_unique_ratio,
-            block_ncd_window=config.block_ncd_window,
-            skip_null_models=config.skip_null_models,
-        )
+        if config.search_config is not None:
+            phase_search_config = config.search_config
+        else:
+            phase_search_config = SearchConfig(
+                steps=config.steps,
+                halt_window=config.halt_window,
+                filter_short_period=config.filter_short_period,
+                short_period_max_period=config.short_period_max_period,
+                short_period_history_size=config.short_period_history_size,
+                filter_low_activity=config.filter_low_activity,
+                low_activity_window=config.low_activity_window,
+                low_activity_min_unique_ratio=config.low_activity_min_unique_ratio,
+                block_ncd_window=config.block_ncd_window,
+                skip_null_models=config.skip_null_models,
+            )
         phase_results = run_batch_search(
             n_rules=total_rules_per_phase,
             phase=phase,
@@ -529,6 +564,7 @@ def run_experiment(config: ExperimentConfig) -> list[SimulationResult]:
             "predictability_hamming",
             "morans_i",
             "cluster_count",
+            "same_state_adjacency_fraction",
             "neighbor_mutual_information",
             "quasi_periodicity_peaks",
             "phase_transition_max_delta",

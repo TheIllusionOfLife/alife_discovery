@@ -35,8 +35,11 @@ from objectless_alife.config import (  # noqa: F401
     MAX_EXPERIMENT_WORK_UNITS,
     DensitySweepConfig,
     ExperimentConfig,
+    FilterConfig,
     HaltWindowSweepConfig,
+    MetricComputeConfig,
     MultiSeedConfig,
+    RuntimeConfig,
     SearchConfig,
     SimulationResult,
 )
@@ -70,10 +73,10 @@ def _parse_phase(raw_phase: int) -> ObservationPhase:
 
 
 def _parse_phase_list(raw_phases: str) -> tuple[ObservationPhase, ...]:
-    """Parse comma-delimited phase list and require exactly two entries."""
+    """Parse comma-delimited phase list and require at least two entries."""
     parts = [part.strip() for part in raw_phases.split(",") if part.strip()]
-    if len(parts) != 2:
-        raise ValueError("phases must contain exactly two values")
+    if len(parts) < 2:
+        raise ValueError("phases must contain at least two values")
 
     phases: list[ObservationPhase] = []
     for part in parts:
@@ -85,8 +88,8 @@ def _parse_phase_list(raw_phases: str) -> tuple[ObservationPhase, ...]:
         phase = _parse_phase(phase_raw)
         phases.append(phase)
 
-    if phases[0] == phases[1]:
-        raise ValueError("phases must include two distinct values")
+    if len(set(phases)) != len(phases):
+        raise ValueError("phases must include distinct values")
 
     return tuple(phases)
 

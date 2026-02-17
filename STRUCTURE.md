@@ -28,8 +28,11 @@
 - `objectless_alife/aggregation.py`: experiment orchestration (`run_experiment`, `run_density_sweep`, `run_multi_seed_robustness`, `run_halt_window_sweep`) and aggregation helpers
 - `objectless_alife/run_search.py`: thin CLI entrypoint with `--config` JSON file support; re-exports all public symbols for backward compatibility
 - `objectless_alife/stats.py`: statistical significance testing, pairwise comparisons, effect sizes
-- `objectless_alife/visualize.py`: animation rendering from stored artifacts; supports `--theme` preset selection
+- `objectless_alife/visualize.py`: compatibility shim for visualization APIs/CLI entrypoint
+- `objectless_alife/viz_cli.py`: visualization CLI argument parsing and subcommand dispatch
+- `objectless_alife/viz_render.py`: visualization rendering/data-loading logic
 - `objectless_alife/viz_theme.py`: visualization theme presets (`Theme` dataclass, `default` and `paper` themes)
+- `objectless_alife/export_web.py`: export helpers for paired/single web payload generation
 
 ## Test Organization
 
