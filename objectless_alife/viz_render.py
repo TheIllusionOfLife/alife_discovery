@@ -14,7 +14,7 @@ from matplotlib.gridspec import GridSpec
 from matplotlib.patches import Patch
 
 from objectless_alife.stats import load_final_step_metrics
-from objectless_alife.viz_theme import DEFAULT_THEME, Theme
+from objectless_alife.viz_theme import DEFAULT_THEME, Theme, get_theme
 
 # Single source of truth for the active theme. Functions read from this
 # instead of separate globals.  CLI ``main()`` reassigns it when the
@@ -33,6 +33,12 @@ GRID_LINE_COLOR: str = DEFAULT_THEME.grid_line_color
 GRID_LINE_COLOR_DARK: str = DEFAULT_THEME.grid_line_color_dark
 
 _SAFE_NAME_RE = re.compile(r"^[A-Za-z0-9_\-]+$")
+
+
+def set_active_theme(theme_name: str) -> None:
+    """Set active visualization theme by registered theme name."""
+    global _active_theme
+    _active_theme = get_theme(theme_name)
 
 
 def _resolve_within_base(path: Path, base_dir: Path) -> Path:

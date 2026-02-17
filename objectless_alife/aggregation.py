@@ -200,6 +200,9 @@ def _collect_final_metric_rows(
     final_rows: list[dict[str, Any]] = []
     metrics_file = pq.ParquetFile(metrics_path)
     available_columns = set(metrics_file.schema_arrow.names)
+    for required_col in ("rule_id", "step"):
+        if required_col not in available_columns:
+            raise ValueError(f"metrics parquet missing required column: {required_col}")
     present_columns = [col for col in metric_columns if col in available_columns]
 
     for batch in metrics_file.iter_batches(columns=present_columns, batch_size=8192):

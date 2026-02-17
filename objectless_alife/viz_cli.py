@@ -14,7 +14,6 @@ from objectless_alife.viz_render import (
     render_snapshot_grid,
     select_top_rules,
 )
-from objectless_alife.viz_theme import get_theme
 
 
 def _build_single_parser(sub: argparse._SubParsersAction) -> None:
@@ -94,7 +93,7 @@ def main() -> None:
     args = parser.parse_args()
 
     # Apply theme
-    viz_render._active_theme = get_theme(args.theme)
+    viz_render.set_active_theme(args.theme)
 
     if args.command == "single":
         render_rule_animation(

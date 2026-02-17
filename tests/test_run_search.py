@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
 
@@ -18,6 +19,7 @@ from objectless_alife.run_search import (
     MultiSeedConfig,
     RuntimeConfig,
     SearchConfig,
+    _collect_final_metric_rows,
     _entropy_from_action_counts,
     _parse_grid_sizes,
     _parse_phase,
@@ -101,6 +103,19 @@ def test_search_config_components_round_trip() -> None:
     assert filters.low_activity_window == 4
     assert metrics.block_ncd_window == 12
     assert metrics.skip_null_models is True
+
+
+def test_collect_final_metric_rows_requires_rule_id_and_step(tmp_path: Path) -> None:
+    metrics_path = tmp_path / "metrics.parquet"
+    table = pa.table({"state_entropy": [0.1, 0.2]})
+    pq.write_table(table, metrics_path)
+    with pytest.raises(ValueError, match="required column"):
+        _collect_final_metric_rows(
+            metrics_path=metrics_path,
+            metric_columns=["rule_id", "step", "state_entropy"],
+            phase_results=[],
+            default_final_step=0,
+        )
 
 
 def test_run_batch_search_deterministic_rule_ids(tmp_path: Path) -> None:
