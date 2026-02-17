@@ -60,6 +60,11 @@ def _resolve_grid_dimension(
     if isinstance(from_metadata, int):
         return from_metadata
 
+    if not rows:
+        raise ValueError(
+            f"Cannot infer {metadata_key}: rows are empty and no explicit value provided"
+        )
+
     return max(int(row[axis_key]) for row in rows) + 1
 
 

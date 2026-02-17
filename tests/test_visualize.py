@@ -21,6 +21,7 @@ from objectless_alife.visualize import (
     render_snapshot_grid,
     select_top_rules,
 )
+from objectless_alife.viz_render import _resolve_grid_dimension
 
 
 class _DummyAnimation:
@@ -263,6 +264,131 @@ def test_visualize_cli_accepts_absolute_paths_with_explicit_base_dir(
     )
     visualize.main()
     assert output_path.exists()
+
+
+def test_visualize_cli_batch_resolves_paths_against_base_dir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    base = tmp_path / "base"
+    base.mkdir(parents=True, exist_ok=True)
+
+    captured: dict[str, object] = {}
+
+    import objectless_alife.visualize as visualize
+    import objectless_alife.viz_cli as viz_cli
+
+    def _fake_render_batch(
+        phase_dirs: list[tuple[str, Path]],
+        output_dir: Path,
+        metric_name: str = "neighbor_mutual_information",
+        top_n: int = 3,
+        fps: int = 8,
+        metric_names: list[str] | None = None,
+    ) -> list[Path]:
+        captured["phase_dirs"] = phase_dirs
+        captured["output_dir"] = output_dir
+        return []
+
+    monkeypatch.setattr(viz_cli, "render_batch", _fake_render_batch)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "visualize",
+            "batch",
+            "--phase-dir",
+            "P1=phase_1",
+            "--output-dir",
+            "output",
+            "--base-dir",
+            str(base),
+        ],
+    )
+    visualize.main()
+
+    assert captured["phase_dirs"] == [("P1", base / "phase_1")]
+    assert captured["output_dir"] == base / "output"
+
+
+def test_visualize_cli_figure_resolves_paths_against_base_dir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    base = tmp_path / "base"
+    base.mkdir(parents=True, exist_ok=True)
+
+    select_calls: list[Path] = []
+    snapshot_capture: dict[str, object] = {}
+    dist_capture: dict[str, object] = {}
+    series_capture: dict[str, object] = {}
+
+    import objectless_alife.visualize as visualize
+    import objectless_alife.viz_cli as viz_cli
+
+    def _fake_select_top_rules(
+        metrics_path: Path,
+        metric_name: str = "neighbor_mutual_information",
+        top_n: int = 3,
+    ) -> list[str]:
+        select_calls.append(metrics_path)
+        return []
+
+    def _fake_render_snapshot_grid(
+        phase_configs: list[tuple[str, Path, Path, str]],
+        snapshot_steps: list[int],
+        output_path: Path,
+        grid_width: int = 20,
+        grid_height: int = 20,
+    ) -> None:
+        snapshot_capture["output_path"] = output_path
+
+    def _fake_render_metric_distribution(
+        phase_data: list[tuple[str, Path]],
+        metric_names: list[str],
+        output_path: Path,
+        stats_path: Path | None = None,
+    ) -> None:
+        dist_capture["phase_data"] = phase_data
+        dist_capture["output_path"] = output_path
+
+    def _fake_render_metric_timeseries(
+        phase_configs: list[tuple[str, Path, list[str]]],
+        metric_name: str,
+        output_path: Path,
+        shared_ylim: bool = True,
+    ) -> None:
+        series_capture["phase_configs"] = phase_configs
+        series_capture["output_path"] = output_path
+
+    monkeypatch.setattr(viz_cli, "select_top_rules", _fake_select_top_rules)
+    monkeypatch.setattr(viz_cli, "render_snapshot_grid", _fake_render_snapshot_grid)
+    monkeypatch.setattr(viz_cli, "render_metric_distribution", _fake_render_metric_distribution)
+    monkeypatch.setattr(viz_cli, "render_metric_timeseries", _fake_render_metric_timeseries)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "visualize",
+            "figure",
+            "--p1-dir",
+            "phase_1",
+            "--p2-dir",
+            "phase_2",
+            "--control-dir",
+            "control",
+            "--random-walk-dir",
+            "random_walk",
+            "--output-dir",
+            "figs",
+            "--base-dir",
+            str(base),
+        ],
+    )
+    visualize.main()
+
+    assert all(path.is_absolute() for path in select_calls)
+    assert snapshot_capture["output_path"] == base / "figs" / "fig1_snapshot_grid.pdf"
+    assert dist_capture["output_path"] == base / "figs" / "fig2_mi_distribution.pdf"
+    assert series_capture["output_path"] == base / "figs" / "fig3_mi_timeseries.pdf"
 
 
 # ---------------------------------------------------------------------------
@@ -576,6 +702,17 @@ def test_state_cmap_dark_mode_differs() -> None:
     cmap_dark, norm_dark = _state_cmap(dark=True)
     # Empty cell color (state 4) should differ between light and dark
     assert cmap_light(norm_light(4)) != cmap_dark(norm_dark(4))
+
+
+def test_resolve_grid_dimension_raises_on_empty_rows_without_metadata() -> None:
+    with pytest.raises(ValueError, match="Cannot infer"):
+        _resolve_grid_dimension(
+            explicit=None,
+            metadata={},
+            metadata_key="grid_width",
+            rows=[],
+            axis_key="x",
+        )
 
 
 # ---------------------------------------------------------------------------

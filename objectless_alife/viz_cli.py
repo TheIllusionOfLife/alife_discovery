@@ -110,30 +110,32 @@ def main() -> None:
     elif args.command == "batch":
         base_dir = Path(args.base_dir).resolve()
         phase_dirs = _parse_phase_dirs(args.phase_dir)
-        for _label, pdir in phase_dirs:
-            _resolve_within_base(pdir, base_dir)
-        _resolve_within_base(args.output_dir, base_dir)
+        phase_dirs = [(label, _resolve_within_base(pdir, base_dir)) for label, pdir in phase_dirs]
+        output_dir = _resolve_within_base(args.output_dir, base_dir)
         render_batch(
             phase_dirs=phase_dirs,
-            output_dir=args.output_dir,
+            output_dir=output_dir,
             top_n=args.top_n,
             fps=args.fps,
         )
     elif args.command == "figure":
         base_dir = Path(args.base_dir).resolve()
-        dirs_to_validate = [args.p1_dir, args.p2_dir, args.control_dir, args.output_dir]
-        if args.random_walk_dir is not None:
-            dirs_to_validate.append(args.random_walk_dir)
-        for pdir in dirs_to_validate:
-            _resolve_within_base(pdir, base_dir)
-        output_dir = Path(args.output_dir)
+        p1_dir = _resolve_within_base(args.p1_dir, base_dir)
+        p2_dir = _resolve_within_base(args.p2_dir, base_dir)
+        control_dir = _resolve_within_base(args.control_dir, base_dir)
+        output_dir = _resolve_within_base(args.output_dir, base_dir)
+        random_walk_dir = (
+            _resolve_within_base(args.random_walk_dir, base_dir)
+            if args.random_walk_dir is not None
+            else None
+        )
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        phases = [("RW", args.random_walk_dir)] if args.random_walk_dir is not None else []
+        phases = [("RW", random_walk_dir)] if random_walk_dir is not None else []
         phases += [
-            ("Control", args.control_dir),
-            ("P1", args.p1_dir),
-            ("P2", args.p2_dir),
+            ("Control", control_dir),
+            ("P1", p1_dir),
+            ("P2", p2_dir),
         ]
 
         top_rules: dict[str, list[str]] = {}
