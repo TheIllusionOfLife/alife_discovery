@@ -14,6 +14,12 @@ from objectless_alife.rules import (
     dominant_neighbor_state,
 )
 
+NUM_ACTIONS = 9
+"""Total action count: 4 movement + 4 state-change + 1 no-op."""
+
+NOOP_ACTION = NUM_ACTIONS - 1
+"""Explicit no-op action ID."""
+
 
 @dataclass
 class Agent:
@@ -116,7 +122,7 @@ class World:
 
         Action 8 is an explicit no-op. Values outside [0, 8] are invalid.
         """
-        if not 0 <= action <= 8:
+        if not 0 <= action <= NOOP_ACTION:
             raise ValueError("action must be in [0, 8]")
 
         agent = self.agents[agent_id]
@@ -158,7 +164,8 @@ class World:
         """Advance one random-sequential simulation step."""
         order = list(range(len(self.agents)))
         self.rng.shuffle(order)
-        actions = [8] * len(self.agents)
+        actions = [NOOP_ACTION] * len(self.agents)
+        state_by_agent_id = {a.agent_id: a.state for a in self.agents}
 
         for agent_id in order:
             agent = self.agents[agent_id]
@@ -168,10 +175,11 @@ class World:
                 step_number=step_number,
                 rule_table=rule_table,
                 occupancy=self._occupancy,
-                state_by_agent_id={a.agent_id: a.state for a in self.agents},
+                state_by_agent_id=state_by_agent_id,
             )
             actions[agent_id] = action
             self.apply_action(agent_id=agent_id, action=action)
+            state_by_agent_id[agent_id] = self.agents[agent_id].state
 
         return actions
 
@@ -189,7 +197,7 @@ class World:
         self.rng.shuffle(order)
         frozen_occupancy = dict(self._occupancy)
         frozen_states = {a.agent_id: a.state for a in self.agents}
-        actions = [8] * len(self.agents)
+        actions = [NOOP_ACTION] * len(self.agents)
 
         for agent_id in order:
             agent = self.agents[agent_id]
@@ -218,7 +226,7 @@ class World:
     ) -> int:
         """Select an action for one agent from the provided observation snapshot."""
         if phase == ObservationPhase.RANDOM_WALK:
-            return self.rng.randint(0, 8)
+            return self.rng.randrange(NUM_ACTIONS)
 
         neighbor_states = self._neighbor_states_from_observation(
             x=agent.x,
@@ -227,21 +235,22 @@ class World:
             state_by_agent_id=state_by_agent_id,
         )
         neighbor_count = len(neighbor_states)
+        self_state = state_by_agent_id[agent.agent_id]
 
         if phase == ObservationPhase.PHASE1_DENSITY:
-            index = compute_phase1_index(agent.state, neighbor_count)
+            index = compute_phase1_index(self_state, neighbor_count)
         elif phase == ObservationPhase.CONTROL_DENSITY_CLOCK:
             step_mod = step_number % CLOCK_PERIOD
-            index = compute_control_index(agent.state, neighbor_count, step_mod)
+            index = compute_control_index(self_state, neighbor_count, step_mod)
         elif phase == ObservationPhase.PHASE2_PROFILE:
             dom = dominant_neighbor_state(neighbor_states)
-            index = compute_phase2_index(agent.state, neighbor_count, dom)
+            index = compute_phase2_index(self_state, neighbor_count, dom)
         elif phase == ObservationPhase.PHASE1_CAPACITY_MATCHED:
             dom = dominant_neighbor_state(neighbor_states)
-            index = compute_capacity_matched_index(agent.state, neighbor_count, dom)
+            index = compute_capacity_matched_index(self_state, neighbor_count, dom)
         elif phase == ObservationPhase.PHASE2_RANDOM_ENCODING:
             dom = dominant_neighbor_state(neighbor_states)
-            index = compute_phase2_index(agent.state, neighbor_count, dom)
+            index = compute_phase2_index(self_state, neighbor_count, dom)
         else:
             raise ValueError(f"Unhandled observation phase: {phase}")
         return rule_table[index]

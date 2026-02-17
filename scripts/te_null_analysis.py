@@ -19,17 +19,22 @@ import pyarrow.parquet as pq
 
 from objectless_alife.metrics import neighbor_transfer_entropy, transfer_entropy_shuffle_null
 from objectless_alife.run_search import select_top_rules_by_excess_mi
+from objectless_alife.world import WorldConfig
 
-GRID_WIDTH = 20
-GRID_HEIGHT = 20
+_DEFAULT_WORLD = WorldConfig()
+DEFAULT_GRID_WIDTH = _DEFAULT_WORLD.grid_width
+DEFAULT_GRID_HEIGHT = _DEFAULT_WORLD.grid_height
 
 
 def _sim_log_for_rule_ids(
     sim_log_path: Path, rule_ids: set[str]
 ) -> dict[str, list[tuple[int, int, int, int, int]]]:
+    if not rule_ids:
+        return {}
     table = pq.read_table(
         sim_log_path,
         columns=["rule_id", "step", "agent_id", "x", "y", "state"],
+        filters=[("rule_id", "in", sorted(rule_ids))],
     )
     rows = table.to_pylist()
     out: dict[str, list[tuple[int, int, int, int, int]]] = {rid: [] for rid in rule_ids}
@@ -63,6 +68,29 @@ def _rule_ids_for_phase_from_runs(data_dir: Path, phase: int, seeds: set[int]) -
 
 def _rule_ids_for_phase_fallback(phase: int, seeds: set[int]) -> set[str]:
     return {f"phase{phase}_rs{seed}_ss{seed}" for seed in seeds}
+
+
+def _phase_rules_dir(data_dir: Path, phase: int) -> Path:
+    if phase == 3:
+        control_rules = data_dir / "control" / "rules"
+        if control_rules.exists():
+            return control_rules
+    return data_dir / f"phase_{phase}" / "rules"
+
+
+def _grid_dims_for_phase(data_dir: Path, phase: int, rule_ids: set[str]) -> tuple[int, int]:
+    rules_dir = _phase_rules_dir(data_dir, phase)
+    for rule_id in sorted(rule_ids):
+        path = rules_dir / f"{rule_id}.json"
+        if not path.exists():
+            continue
+        payload = json.loads(path.read_text())
+        metadata = payload.get("metadata", {})
+        grid_w = metadata.get("grid_width")
+        grid_h = metadata.get("grid_height")
+        if isinstance(grid_w, int) and isinstance(grid_h, int):
+            return grid_w, grid_h
+    return DEFAULT_GRID_WIDTH, DEFAULT_GRID_HEIGHT
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -100,18 +128,20 @@ def main(argv: list[str] | None = None) -> None:
         rule_ids = _rule_ids_for_phase_from_runs(data_dir, phase, top_seed_set)
         if not rule_ids:
             rule_ids = _rule_ids_for_phase_fallback(phase, top_seed_set)
+        grid_width, grid_height = _grid_dims_for_phase(data_dir, phase, rule_ids)
         logs_by_rule = _sim_log_for_rule_ids(sim_log_path, rule_ids)
         te_vals: list[float] = []
         te_null_vals: list[float] = []
         te_excess_vals: list[float] = []
-        for idx, tuples in enumerate(logs_by_rule.values()):
+        for idx, rule_id in enumerate(sorted(logs_by_rule)):
+            tuples = logs_by_rule[rule_id]
             if not tuples:
                 continue
-            te = neighbor_transfer_entropy(tuples, GRID_WIDTH, GRID_HEIGHT)
+            te = neighbor_transfer_entropy(tuples, grid_width, grid_height)
             te_null = transfer_entropy_shuffle_null(
                 tuples,
-                GRID_WIDTH,
-                GRID_HEIGHT,
+                grid_width,
+                grid_height,
                 n_shuffles=args.n_shuffles,
                 rng=random.Random(idx),
             )

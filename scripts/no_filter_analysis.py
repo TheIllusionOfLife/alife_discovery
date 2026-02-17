@@ -7,7 +7,6 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import csv
 import json
 from pathlib import Path
 
@@ -16,7 +15,10 @@ import pyarrow.parquet as pq
 from objectless_alife.config import ExperimentConfig
 from objectless_alife.rules import ObservationPhase
 from objectless_alife.run_search import run_experiment
-from objectless_alife.stats import run_pairwise_analysis
+from scripts._analysis_common import (
+    collect_phase_pairwise_comparisons,
+    write_metric_summary_outputs,
+)
 
 
 def _survival_rate(runs_path: Path) -> float:
@@ -93,16 +95,12 @@ def main(argv: list[str] | None = None) -> None:
         sim_seed_start=args.sim_seed_start,
     )
 
-    comparisons: dict[str, dict] = {}
-    for phase in ("phase_1", "phase_2", "phase_3"):
-        comparisons[phase] = run_pairwise_analysis(
-            metrics_a=filtered_dir / phase / "logs" / "metrics_summary.parquet",
-            metrics_b=no_filter_dir / phase / "logs" / "metrics_summary.parquet",
-            rules_a=filtered_dir / phase / "rules",
-            rules_b=no_filter_dir / phase / "rules",
-            label_a=f"{phase}_filtered",
-            label_b=f"{phase}_no_filter",
-        )
+    comparisons = collect_phase_pairwise_comparisons(
+        dir_a=filtered_dir,
+        dir_b=no_filter_dir,
+        label_a_suffix="filtered",
+        label_b_suffix="no_filter",
+    )
 
     summary = {
         "n_rules": args.n_rules,
@@ -114,29 +112,7 @@ def main(argv: list[str] | None = None) -> None:
         ),
         "phase_pairwise": comparisons,
     }
-    (out_dir / "summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2))
-    csv_rows: list[dict[str, str | float | int]] = []
-    for phase, phase_result in comparisons.items():
-        metric_tests = phase_result.get("metric_tests", {})
-        for metric_name, metric_payload in metric_tests.items():
-            csv_rows.append(
-                {
-                    "phase": phase,
-                    "metric": metric_name,
-                    "p_value": float(metric_payload.get("p_value", float("nan"))),
-                    "p_value_corrected": float(
-                        metric_payload.get("p_value_corrected", float("nan"))
-                    ),
-                    "effect_size_r": float(metric_payload.get("effect_size_r", float("nan"))),
-                }
-            )
-    with (out_dir / "summary.csv").open("w", newline="") as f:
-        writer = csv.DictWriter(
-            f,
-            fieldnames=["phase", "metric", "p_value", "p_value_corrected", "effect_size_r"],
-        )
-        writer.writeheader()
-        writer.writerows(csv_rows)
+    write_metric_summary_outputs(out_dir=out_dir, summary=summary, comparisons=comparisons)
     print(json.dumps(summary, ensure_ascii=False, indent=2))
 
 

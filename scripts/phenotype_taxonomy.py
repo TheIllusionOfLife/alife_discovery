@@ -18,17 +18,30 @@ import pyarrow.compute as pc
 
 from objectless_alife.stats import load_final_step_metrics
 
+# Thresholds for deterministic phenotype taxonomy.
+MI_EXCESS_POLARIZED = 0.12
+ADJACENCY_POLARIZED = 0.60
+ENTROPY_FROZEN = 0.30
+PREDICTABILITY_FROZEN = 0.20
+MI_EXCESS_MIXED = 0.05
+ENTROPY_MIXED = 0.60
+PREDICTABILITY_MIXED = 0.40
+
 
 def _classify_row(row: dict[str, float | str]) -> str:
     mi_excess = float(row["mi_excess"])
     entropy = float(row["state_entropy"])
     adjacency = float(row["same_state_adjacency_fraction"])
     predictability = float(row["predictability_hamming"])
-    if mi_excess >= 0.12 and adjacency >= 0.60:
+    if mi_excess >= MI_EXCESS_POLARIZED and adjacency >= ADJACENCY_POLARIZED:
         return "polarized_cluster"
-    if entropy <= 0.30 and predictability <= 0.20:
+    if entropy <= ENTROPY_FROZEN and predictability <= PREDICTABILITY_FROZEN:
         return "frozen_patch"
-    if mi_excess >= 0.05 and entropy >= 0.60 and predictability >= 0.40:
+    if (
+        mi_excess >= MI_EXCESS_MIXED
+        and entropy >= ENTROPY_MIXED
+        and predictability >= PREDICTABILITY_MIXED
+    ):
         return "mixed_turbulent"
     return "low_signal"
 
@@ -49,19 +62,13 @@ def main(argv: list[str] | None = None) -> None:
     metrics_path = Path(args.data_dir) / "phase_2" / "logs" / "metrics_summary.parquet"
     table = load_final_step_metrics(metrics_path)
 
-    mi = pc.cast(table.column("neighbor_mutual_information"), pa.float64(), safe=False)
-    null = pc.cast(table.column("mi_shuffle_null"), pa.float64(), safe=False)
-    diff = pc.subtract(mi, null)
-    finite_diff = pc.if_else(pc.is_finite(diff), diff, pa.scalar(0.0))
-    mi_excess = pc.max_element_wise(finite_diff, pa.scalar(0.0))
-    if "mi_excess" in table.column_names:
-        enriched = table.set_column(
-            table.column_names.index("mi_excess"),
-            "mi_excess",
-            mi_excess,
-        )
-    else:
-        enriched = table.append_column("mi_excess", mi_excess)
+    mi_col = pc.cast(table.column("mi_excess"), pa.float64(), safe=False)
+    mi_filled = pc.if_else(pc.is_valid(mi_col), mi_col, pa.scalar(0.0))
+    enriched = table.set_column(
+        table.column_names.index("mi_excess"),
+        "mi_excess",
+        mi_filled,
+    )
 
     rows = enriched.select(
         [

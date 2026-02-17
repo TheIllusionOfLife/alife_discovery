@@ -681,11 +681,11 @@ def _run_simulation_to_completion(
     termination_reason: str | None = None
     for step in range(world.config.steps):
         world.step(rule_table, phase, step_number=step, update_mode=update_mode)
+        if not enable_viability_filters:
+            continue
         snapshot = world.snapshot()
         states = world.state_vector()
 
-        if not enable_viability_filters:
-            continue
         if uniform_detector.observe(states):
             termination_reason = TerminationReason.STATE_UNIFORM.value
             break

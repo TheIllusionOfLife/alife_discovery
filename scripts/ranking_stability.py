@@ -24,8 +24,14 @@ from objectless_alife.stats import load_final_step_metrics
 
 def _rank_map(metrics_path: Path) -> dict[str, int]:
     table = load_final_step_metrics(metrics_path)
-    mi = pc.cast(table.column("neighbor_mutual_information"), pa.float64(), safe=False)
-    null = pc.cast(table.column("mi_shuffle_null"), pa.float64(), safe=False)
+    mi = pc.fill_null(
+        pc.cast(table.column("neighbor_mutual_information"), pa.float64(), safe=False),
+        pa.scalar(0.0),
+    )
+    null = pc.fill_null(
+        pc.cast(table.column("mi_shuffle_null"), pa.float64(), safe=False),
+        pa.scalar(0.0),
+    )
     diff = pc.subtract(mi, null)
     finite = pc.if_else(pc.is_finite(diff), diff, pa.scalar(0.0))
     excess = pc.max_element_wise(finite, pa.scalar(0.0))

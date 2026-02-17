@@ -413,3 +413,16 @@ def test_transfer_entropy_excess_is_non_negative() -> None:
         sim_log.append((step, 1, 1, 0, step % 4))
     excess = transfer_entropy_excess(sim_log, 5, 5, n_shuffles=20, rng=random.Random(3))
     assert excess >= 0.0
+
+
+def test_transfer_entropy_shuffle_null_empty_log() -> None:
+    assert transfer_entropy_shuffle_null([], 5, 5, n_shuffles=10, rng=random.Random(0)) == 0.0
+
+
+def test_transfer_entropy_shuffle_null_single_step_log() -> None:
+    sim_log = [(0, 0, 0, 0, 1), (0, 1, 1, 0, 2)]
+    assert transfer_entropy_shuffle_null(sim_log, 5, 5, n_shuffles=10, rng=random.Random(0)) == 0.0
+
+
+def test_transfer_entropy_excess_empty_log() -> None:
+    assert transfer_entropy_excess([], 5, 5, n_shuffles=10, rng=random.Random(0)) == 0.0
