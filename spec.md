@@ -46,6 +46,8 @@
 - **ランダム逐次更新**: 毎ステップ、エージェントをランダムな順序でシャッフルし、1体ずつ行動を実行する。
 - 逐次更新のため、先に行動したエージェントの結果が後のエージェントの観測に影響する。
 - **再現性**: シミュレーション用の乱数シード（`sim_seed`）をルール生成シード（`rule_seed`）と分離して管理する。`sim_seed`はシャッフル順序・初期配置の生成に使用し、メタデータに記録する。
+- **同期更新（比較条件）**: 観測時点を凍結して全エージェントの意図行動を先に計算し、その後に一括適用する。
+- **報告規約**: 正式な主結果は「逐次更新 + viability filter ON」を基準とし、同期更新はablation比較として併記する。
 
 ---
 
@@ -273,6 +275,8 @@ Phase 2との交絡要因（テーブルサイズ）を排除するための制�
     "rule_seed": 42,
     "sim_seed": 123,
     "steps": 200,
+    "update_mode": "sequential",
+    "enable_viability_filters": true,
     "halt_window": 10,
     "observation_phase": 1,
     "terminated_at": null,
@@ -304,6 +308,23 @@ Phase 2との交絡要因（テーブルサイズ）を排除するための制�
 | morans_i | float | Moran's I |
 | cluster_count | int | クラスタ数 |
 | ... | ... | その他の指標 |
+
+---
+
+### 9.4 PR #26 follow-up再現性マニフェスト
+
+- `scripts/run_pr26_followups.py` は `data/post_hoc/pr26_followups/manifest.json` を生成する。
+- マニフェストの必須項目:
+  - `schema_version`（現行 `1.0`）
+  - `generated_at_utc`
+  - `git_commit`, `git_branch`
+  - `command_line`
+  - `quick`
+  - `python_version`, `uv_version`, `platform`
+  - `commands`, `outputs`, `analysis_status`
+  - `zenodo`（DOI / record URL / uploaded file metadata）
+- `checksums.sha256` を同ディレクトリに生成し、マニフェストとサマリ成果物（JSON/CSV）の整合を検証可能にする。
+- 大容量成果物（生ログや重い中間生成物）はZenodoを正本とし、リポジトリには軽量サマリとマニフェストのみ保持する。
 
 ---
 

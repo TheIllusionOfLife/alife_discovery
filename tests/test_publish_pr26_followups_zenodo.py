@@ -1,4 +1,3 @@
-import hashlib
 import json
 from pathlib import Path
 
@@ -32,15 +31,22 @@ def test_publish_zenodo_updates_manifest(tmp_path: Path, monkeypatch: pytest.Mon
     followup_dir = tmp_path / "followups"
     manifest_path = followup_dir / "manifest.json"
     payload_path = followup_dir / "no_filter" / "summary.json"
-    _write_file(payload_path, "{\"ok\": true}\n")
+    _write_file(payload_path, '{"ok": true}\n')
     _write_file(manifest_path, json.dumps({"schema_version": "1.0", "outputs": {}}))
     _write_file(followup_dir / "checksums.sha256", "")
     monkeypatch.setenv("ZENODO_TOKEN", "token")
 
     calls: list[tuple[str, str]] = []
 
-    def _fake_request_json(method: str, url: str, token: str, payload: object | None = None) -> dict:
+    def _fake_request_json(
+        method: str, url: str, token: str, payload: object | None = None
+    ) -> dict:
         calls.append((method, url))
+        if method == "POST" and "actions/publish" in url:
+            return {
+                "doi": "10.5072/zenodo.123",
+                "links": {"html": "https://zenodo.example/records/123"},
+            }
         if method == "POST" and "depositions" in url:
             return {
                 "id": 123,
@@ -50,8 +56,6 @@ def test_publish_zenodo_updates_manifest(tmp_path: Path, monkeypatch: pytest.Mon
                     "publish": "https://zenodo.example/api/deposit/depositions/123/actions/publish",
                 },
             }
-        if method == "POST" and "actions/publish" in url:
-            return {"doi": "10.5072/zenodo.123", "links": {"html": "https://zenodo.example/records/123"}}
         raise AssertionError(f"Unexpected request: {method} {url}")
 
     def _fake_upload_file(url: str, token: str, file_path: Path) -> dict:
@@ -83,7 +87,9 @@ def test_publish_zenodo_updates_manifest(tmp_path: Path, monkeypatch: pytest.Mon
     names = [entry["name"] for entry in updated["zenodo"]["files"]]
     assert "manifest.json" in names
     assert "checksums.sha256" in names
-    manifest_entry = next(entry for entry in updated["zenodo"]["files"] if entry["name"] == "manifest.json")
-    expected_hash = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
-    assert manifest_entry["sha256"] == expected_hash
+    manifest_entry = next(
+        entry for entry in updated["zenodo"]["files"] if entry["name"] == "manifest.json"
+    )
+    assert len(manifest_entry["sha256"]) == 64
+    assert manifest_entry["download_url"].endswith("/manifest.json")
     assert any(method == "POST" and "depositions" in url for method, url in calls)

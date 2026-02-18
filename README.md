@@ -128,6 +128,15 @@ uv run python scripts/run_pr26_followups.py \
   --out-dir data/post_hoc/pr26_followups
 ```
 
+Publish lightweight follow-up bundle metadata to Zenodo and update manifest:
+
+```bash
+ZENODO_TOKEN=... uv run python scripts/publish_pr26_followups_zenodo.py \
+  --followup-dir data/post_hoc/pr26_followups \
+  --manifest data/post_hoc/pr26_followups/manifest.json \
+  --publish
+```
+
 Render supplementary-ready TeX macros from follow-up outputs:
 
 ```bash
@@ -135,6 +144,9 @@ uv run python scripts/render_pr26_followups_tex.py \
   --followup-dir data/post_hoc/pr26_followups \
   --output paper/generated/pr26_followups.tex
 ```
+
+`paper/supplementary.tex` automatically loads `paper/generated/pr26_followups.tex` when present,
+and falls back to `paper/generated/pr26_followups.defaults.tex` otherwise.
 
 Quick sanity mode for all follow-ups:
 
@@ -156,6 +168,14 @@ Expected outputs and rough runtime guidance:
   outputs `summary.json`, `summary.csv`; quick: minutes, paper-scale depends on `top-k` and `n-shuffles`.
 - `scripts/phenotype_taxonomy.py`:
   outputs `taxonomy.json`, `taxonomy.csv`; quick: seconds to minutes.
+
+`scripts/run_pr26_followups.py` manifest includes reproducibility/provenance fields:
+- `schema_version`, `generated_at_utc`, `git_commit`, `git_branch`
+- `command_line`, `quick`, `python_version`, `uv_version`, `platform`
+- `commands`, `outputs`, `analysis_status`, `zenodo`
+
+The orchestrator also writes `checksums.sha256` for manifest + summary JSON/CSV files.
+Large raw artifacts should be stored in Zenodo; keep only lightweight summaries/manifests in-repo.
 
 Switch update dynamics and viability filtering directly from CLI:
 
