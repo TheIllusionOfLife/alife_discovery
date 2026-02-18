@@ -58,7 +58,10 @@ def test_publish_zenodo_updates_manifest(tmp_path: Path, monkeypatch: pytest.Mon
             }
         raise AssertionError(f"Unexpected request: {method} {url}")
 
+    upload_names: list[str] = []
+
     def _fake_upload_file(url: str, token: str, file_path: Path) -> dict:
+        upload_names.append(file_path.name)
         return {"download": f"https://zenodo.example/files/{file_path.name}"}
 
     monkeypatch.setattr(
@@ -85,11 +88,7 @@ def test_publish_zenodo_updates_manifest(tmp_path: Path, monkeypatch: pytest.Mon
     assert updated["zenodo"]["record_url"] == "https://zenodo.example/records/123"
     assert updated["zenodo"]["deposit_id"] == 123
     names = [entry["name"] for entry in updated["zenodo"]["files"]]
-    assert "manifest.json" in names
     assert "checksums.sha256" in names
-    manifest_entry = next(
-        entry for entry in updated["zenodo"]["files"] if entry["name"] == "manifest.json"
-    )
-    assert len(manifest_entry["sha256"]) == 64
-    assert manifest_entry["download_url"].endswith("/manifest.json")
+    assert "manifest.json" not in names
+    assert "manifest.json" in upload_names
     assert any(method == "POST" and "depositions" in url for method, url in calls)

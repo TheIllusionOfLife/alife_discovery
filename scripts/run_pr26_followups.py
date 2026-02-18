@@ -45,7 +45,7 @@ def main(argv: list[str] | None = None) -> None:
                 capture_output=True,
                 text=True,
             ).stdout.strip()
-        except Exception:
+        except (subprocess.CalledProcessError, FileNotFoundError):
             return "unknown"
 
     branch_name = _run_output(["git", "rev-parse", "--abbrev-ref", "HEAD"])

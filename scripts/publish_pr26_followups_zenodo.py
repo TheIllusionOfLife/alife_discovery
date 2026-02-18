@@ -46,17 +46,24 @@ def _request_json(
 
 
 def _upload_file(url: str, token: str, file_path: Path) -> dict:
-    req = request.Request(
-        url=f"{url}/{parse.quote(file_path.name)}", method="PUT", data=file_path.read_bytes()
-    )
-    req.add_header("Authorization", f"Bearer {token}")
-    req.add_header("Content-Type", "application/octet-stream")
-    try:
-        with request.urlopen(req) as resp:
-            return json.loads(resp.read().decode("utf-8"))
-    except error.HTTPError as exc:  # pragma: no cover - error body asserted via RuntimeError text
-        body = exc.read().decode("utf-8", errors="replace")
-        raise RuntimeError(f"Zenodo upload failed ({exc.code}): {body}") from exc
+    # Stream uploads to avoid loading large files fully into memory.
+    with file_path.open("rb") as handle:
+        req = request.Request(
+            url=f"{url}/{parse.quote(file_path.name)}",
+            method="PUT",
+            data=handle,
+        )
+        req.add_header("Authorization", f"Bearer {token}")
+        req.add_header("Content-Type", "application/octet-stream")
+        req.add_header("Content-Length", str(file_path.stat().st_size))
+        try:
+            with request.urlopen(req) as resp:
+                return json.loads(resp.read().decode("utf-8"))
+        except (
+            error.HTTPError
+        ) as exc:  # pragma: no cover - error body asserted via RuntimeError text
+            body = exc.read().decode("utf-8", errors="replace")
+            raise RuntimeError(f"Zenodo upload failed ({exc.code}): {body}") from exc
 
 
 def _collect_upload_targets(followup_dir: Path, manifest_path: Path) -> list[Path]:
@@ -64,12 +71,12 @@ def _collect_upload_targets(followup_dir: Path, manifest_path: Path) -> list[Pat
     checksums = followup_dir / "checksums.sha256"
     if checksums.exists():
         targets.append(checksums)
-    if manifest_path.exists():
-        targets.append(manifest_path)
     for path in sorted(followup_dir.rglob("*")):
         if not path.is_file():
             continue
         if path.suffix not in {".json", ".csv"}:
+            continue
+        if path == manifest_path:
             continue
         if path in targets:
             continue
@@ -141,6 +148,7 @@ def main(argv: list[str] | None = None) -> None:
         "files": uploaded_files,
     }
     manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2))
+    _upload_file(bucket_url, token, manifest_path)
     print(json.dumps(manifest["zenodo"], ensure_ascii=False, indent=2))
 
 
