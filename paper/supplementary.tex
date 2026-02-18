@@ -15,6 +15,11 @@ Emergent Spatial Coordination from Negative Selection Alone}
 \begin{document}
 
 \maketitle
+\IfFileExists{generated/pr26_followups.tex}{%
+  \input{generated/pr26_followups.tex}
+}{%
+  \input{generated/pr26_followups.defaults.tex}
+}
 
 %% =========================================================================
 %% A. DENSITY SWEEP ROBUSTNESS
@@ -516,6 +521,26 @@ Furthermore, the median $\mathrm{MI}_{\mathrm{excess}}$ among Phase~2
 medium-filter survivors is 0.153~bits, confirming that the MI advantage
 is not an artifact of lax filtering.  Phase~1 and Control
 medium-filter survivors have median $\mathrm{MI}_{\mathrm{excess}} = 0$.
+
+%% =========================================================================
+%% N. PR26 FOLLOW-UP REPRODUCIBILITY SUMMARY
+%% =========================================================================
+\section{PR26 Follow-Up Reproducibility Summary}
+\label{app:pr26_followups}
+
+The post-merge PR26 follow-up bundle is tracked via manifest commit
+\texttt{\PrTwentySixManifestCommit} (Zenodo DOI:
+\texttt{\PrTwentySixManifestDoi}). The generated summaries report:
+filtered survival \PrTwentySixFilteredSurvivalPct\% vs.\ no-filter
+\PrTwentySixNoFilterSurvivalPct\%, phase-2 Kendall median
+\PrTwentySixPhaseTwoKendallTauMedian, TE median
+\PrTwentySixPhaseTwoTeMedian, TE-null median
+\PrTwentySixPhaseTwoTeNullMedian, and TE-excess median
+\PrTwentySixPhaseTwoTeExcessMedian.
+
+The dominant high-MI phenotype is \texttt{\PrTwentySixDominantPhenotype}
+(count \PrTwentySixDominantPhenotypeCount), and synchronous ablation
+reports \PrTwentySixSynchronousPhaseCount\ phase-pair summaries.
 
 %% =========================================================================
 %% BIBLIOGRAPHY

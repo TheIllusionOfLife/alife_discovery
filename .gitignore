@@ -20,8 +20,12 @@ htmlcov/
 .DS_Store
 
 # Generated outputs
-data/
+data/*
 output/
+!data/post_hoc/
+data/post_hoc/*
+!data/post_hoc/pr26_followups/
+!data/post_hoc/pr26_followups/**
 
 # LaTeX artifacts
 *.aux

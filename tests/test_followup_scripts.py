@@ -165,6 +165,18 @@ def test_run_pr26_followups_orchestrator_smoke(tmp_path: Path) -> None:
     assert "outputs" in manifest
     assert "git_commit" in manifest
     assert "commands" in manifest
+    assert manifest["schema_version"] == "1.0"
+    assert "generated_at_utc" in manifest
+    assert "command_line" in manifest
+    assert "python_version" in manifest
+    assert "uv_version" in manifest
+    assert "platform" in manifest
+    assert "git_branch" in manifest
+    assert "zenodo" in manifest
+    checksums_path = out_dir / "checksums.sha256"
+    assert checksums_path.exists()
+    checksum_lines = [line for line in checksums_path.read_text().splitlines() if line.strip()]
+    assert any(line.endswith("manifest.json") for line in checksum_lines)
     assert (out_dir / "no_filter" / "summary.json").exists()
     assert (out_dir / "synchronous_ablation" / "summary.json").exists()
     assert (out_dir / "ranking_stability" / "summary.json").exists()
@@ -197,3 +209,4 @@ def test_render_pr26_followups_tex_smoke(tmp_path: Path) -> None:
     contents = tex_path.read_text()
     assert "\\newcommand{\\PrTwentySixManifestCommit}" in contents
     assert "\\newcommand{\\PrTwentySixPhaseTwoTeExcessMedian}" in contents
+    assert "\\newcommand{\\PrTwentySixManifestDoi}" in contents

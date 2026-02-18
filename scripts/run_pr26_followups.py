@@ -9,8 +9,12 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import platform
+import shlex
 import subprocess
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -31,19 +35,68 @@ def main(argv: list[str] | None = None) -> None:
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     manifest_path = out_dir / "manifest.json"
+    checksums_path = out_dir / "checksums.sha256"
+
+    def _run_output(command: list[str]) -> str:
+        try:
+            return subprocess.run(
+                command,
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout.strip()
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            return "unknown"
+
+    branch_name = _run_output(["git", "rev-parse", "--abbrev-ref", "HEAD"])
+    command_line = " ".join(
+        [
+            "uv",
+            "run",
+            "python",
+            "scripts/run_pr26_followups.py",
+            *[shlex.quote(arg) for arg in (argv or [])],
+        ]
+    )
 
     manifest: dict[str, object] = {
+        "schema_version": "1.0",
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "data_dir": str(args.data_dir),
         "quick": args.quick,
         "git_commit": "unknown",
+        "git_branch": branch_name,
+        "command_line": command_line,
+        "python_version": sys.version.split(" ", maxsplit=1)[0],
+        "uv_version": _run_output(["uv", "--version"]),
+        "platform": platform.platform(),
         "commands": {},
         "outputs": {},
         "analysis_status": {},
+        "zenodo": None,
     }
 
     def _write_manifest() -> None:
         manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2))
+
+    def _sha256(path: Path) -> str:
+        digest = hashlib.sha256()
+        with path.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(8192), b""):
+                digest.update(chunk)
+        return digest.hexdigest()
+
+    def _write_checksums() -> None:
+        targets: list[Path] = [manifest_path]
+        for path in sorted(out_dir.rglob("*")):
+            if not path.is_file():
+                continue
+            if path == checksums_path:
+                continue
+            if path.suffix in {".json", ".csv"} and path not in targets:
+                targets.append(path)
+        lines = [f"{_sha256(path)}  {path.relative_to(out_dir)}" for path in targets]
+        checksums_path.write_text("\n".join(lines) + "\n")
 
     no_filter_dir = out_dir / "no_filter"
     no_filter_args = ["--out-dir", str(no_filter_dir)]
@@ -207,18 +260,11 @@ def main(argv: list[str] | None = None) -> None:
     }
     _write_manifest()
 
-    try:
-        git_commit = subprocess.run(
-            ["git", "rev-parse", "HEAD"],
-            check=True,
-            capture_output=True,
-            text=True,
-        ).stdout.strip()
-    except Exception:
-        git_commit = "unknown"
+    git_commit = _run_output(["git", "rev-parse", "HEAD"])
 
     manifest["git_commit"] = git_commit
     _write_manifest()
+    _write_checksums()
     print(json.dumps(manifest, ensure_ascii=False, indent=2))
 
 
