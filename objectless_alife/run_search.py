@@ -198,10 +198,7 @@ def _get_val(cli_val: object, key: str, file_cfg: dict[str, object], default: ob
 
 def _get_bool(cli_val: bool | None, key: str, file_cfg: dict[str, object], default: bool) -> bool:
     """CLI > file > default resolution for boolean flags."""
-    if cli_val is not None:
-        return cli_val
-    raw = file_cfg.get(key, default)
-    return _coerce_bool(raw, key)
+    return _coerce_bool(_get_val(cli_val, key, file_cfg, default), key)
 
 
 def _get_int(cli_val: int | None, key: str, file_cfg: dict[str, object], default: int) -> int:
