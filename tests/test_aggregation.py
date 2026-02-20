@@ -1,11 +1,16 @@
 import sys
 from unittest.mock import MagicMock
 
-# Mock pyarrow before importing aggregation
-mock_pa = MagicMock()
-mock_pq = MagicMock()
-sys.modules["pyarrow"] = mock_pa
-sys.modules["pyarrow.parquet"] = mock_pq
+# Only mock pyarrow if it's not already available.
+# This avoids breaking other tests in environments (like CI) where it is installed.
+try:
+    import pyarrow  # noqa: F401
+    import pyarrow.parquet  # noqa: F401
+except ImportError:
+    mock_pa = MagicMock()
+    mock_pq = MagicMock()
+    sys.modules["pyarrow"] = mock_pa
+    sys.modules["pyarrow.parquet"] = mock_pq
 
 from objectless_alife.aggregation import (  # noqa: E402
     _mean,
