@@ -26,14 +26,10 @@
 export async function loadSimulationData(url, timeoutMs = 10000) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  let response;
 
   try {
-    const response = await fetch(url, { signal: controller.signal });
-    if (!response.ok) {
-      throw new Error(`Failed to load ${url}: ${response.status} ${response.statusText}`);
-    }
-    const data = await response.json();
-    return data;
+    response = await fetch(url, { signal: controller.signal });
   } catch (err) {
     if (err.name === "AbortError") {
       throw new Error(`Request for ${url} timed out after ${timeoutMs}ms`);
@@ -42,6 +38,13 @@ export async function loadSimulationData(url, timeoutMs = 10000) {
   } finally {
     clearTimeout(timeoutId);
   }
+
+  if (!response.ok) {
+    throw new Error(`Failed to load ${url}: ${response.status} ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  return data;
 }
 
 /**
