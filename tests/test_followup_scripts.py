@@ -1,6 +1,8 @@
 import json
 from pathlib import Path
 
+import pyarrow as pa
+
 from objectless_alife.config import ExperimentConfig
 from objectless_alife.rules import ObservationPhase
 from objectless_alife.run_search import run_experiment
@@ -148,6 +150,34 @@ def test_phenotype_taxonomy_smoke(tmp_path: Path) -> None:
     assert (out_dir / "taxonomy.csv").exists()
 
 
+def test_phenotype_taxonomy_handles_missing_adjacency_column(tmp_path: Path, monkeypatch) -> None:
+    table = pa.table(
+        {
+            "rule_id": ["r1", "r2"],
+            "state_entropy": [0.9, 0.1],
+            "predictability_hamming": [0.7, 0.1],
+            "mi_excess": [0.2, 0.0],
+        }
+    )
+    monkeypatch.setattr("scripts.phenotype_taxonomy.load_final_step_metrics", lambda _: table)
+
+    out_dir = tmp_path / "taxonomy_missing_adj"
+    taxonomy_main(
+        [
+            "--data-dir",
+            str(tmp_path / "unused"),
+            "--out-dir",
+            str(out_dir),
+            "--top-k",
+            "2",
+        ]
+    )
+    payload = json.loads((out_dir / "taxonomy.json").read_text())
+    assert "rows" in payload
+    assert len(payload["rows"]) == 2
+    assert (out_dir / "taxonomy.csv").exists()
+
+
 def test_run_pr26_followups_orchestrator_smoke(tmp_path: Path) -> None:
     data_dir = tmp_path / "orchestrator_data"
     _make_small_dataset(data_dir)
@@ -177,6 +207,7 @@ def test_run_pr26_followups_orchestrator_smoke(tmp_path: Path) -> None:
     assert checksums_path.exists()
     checksum_lines = [line for line in checksums_path.read_text().splitlines() if line.strip()]
     assert any(line.endswith("manifest.json") for line in checksum_lines)
+    assert not any("/rules/" in line for line in checksum_lines)
     assert (out_dir / "no_filter" / "summary.json").exists()
     assert (out_dir / "synchronous_ablation" / "summary.json").exists()
     assert (out_dir / "ranking_stability" / "summary.json").exists()

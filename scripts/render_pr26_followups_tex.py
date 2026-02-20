@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 from pathlib import Path
 
 
@@ -20,7 +21,7 @@ def _load_json(path: Path) -> dict:
 
 
 def _fmt_float(value: object) -> str:
-    if isinstance(value, (int, float)):
+    if isinstance(value, (int, float)) and math.isfinite(float(value)):
         return f"{float(value):.4f}"
     return "NaN"
 
@@ -67,6 +68,7 @@ def main(argv: list[str] | None = None) -> None:
             if isinstance(count, int) and count > dominant_count:
                 dominant_label = str(label)
                 dominant_count = count
+    dominant_label_tex = dominant_label.replace("_", "\\_")
     dominant_count_text = str(dominant_count) if dominant_count >= 0 else "NaN"
     sync_phase_count = len(sync.get("phase_pairwise", {}))
     manifest_doi = (manifest.get("zenodo") or {}).get("doi", "N/A")
@@ -82,7 +84,7 @@ def main(argv: list[str] | None = None) -> None:
         f"\\newcommand{{\\PrTwentySixPhaseTwoTeMedian}}{{{_fmt_float(te_phase2.get('te_median'))}}}",
         f"\\newcommand{{\\PrTwentySixPhaseTwoTeNullMedian}}{{{_fmt_float(te_phase2.get('te_null_median'))}}}",
         f"\\newcommand{{\\PrTwentySixPhaseTwoTeExcessMedian}}{{{_fmt_float(te_phase2.get('te_excess_median'))}}}",
-        f"\\newcommand{{\\PrTwentySixDominantPhenotype}}{{{dominant_label}}}",
+        f"\\newcommand{{\\PrTwentySixDominantPhenotype}}{{{dominant_label_tex}}}",
         f"\\newcommand{{\\PrTwentySixDominantPhenotypeCount}}{{{dominant_count_text}}}",
         f"\\newcommand{{\\PrTwentySixSynchronousPhaseCount}}{{{sync_phase_count}}}",
     ]

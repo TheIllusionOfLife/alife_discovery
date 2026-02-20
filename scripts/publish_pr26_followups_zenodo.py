@@ -13,6 +13,7 @@ import argparse
 import hashlib
 import json
 import os
+from datetime import date
 from pathlib import Path
 from urllib import error, parse, request
 
@@ -66,21 +67,37 @@ def _upload_file(url: str, token: str, file_path: Path) -> dict:
             raise RuntimeError(f"Zenodo upload failed ({exc.code}): {body}") from exc
 
 
-def _collect_upload_targets(followup_dir: Path, manifest_path: Path) -> list[Path]:
+def _collect_upload_targets(followup_dir: Path, manifest_path: Path, manifest: dict) -> list[Path]:
     targets: list[Path] = []
     checksums = followup_dir / "checksums.sha256"
     if checksums.exists():
         targets.append(checksums)
-    for path in sorted(followup_dir.rglob("*")):
-        if not path.is_file():
-            continue
-        if path.suffix not in {".json", ".csv"}:
-            continue
-        if path == manifest_path:
-            continue
-        if path in targets:
-            continue
-        targets.append(path)
+    outputs = manifest.get("outputs", {})
+    if isinstance(outputs, dict):
+        for entry in outputs.values():
+            if not isinstance(entry, dict):
+                continue
+            for key in ("json", "csv"):
+                path_text = entry.get(key)
+                if not isinstance(path_text, str):
+                    continue
+                candidate = Path(path_text)
+                if not candidate.is_absolute():
+                    candidate = Path.cwd() / candidate
+                try:
+                    resolved = candidate.resolve()
+                except OSError:
+                    continue
+                try:
+                    resolved.relative_to(followup_dir.resolve())
+                except ValueError:
+                    continue
+                if not resolved.is_file():
+                    continue
+                if resolved == manifest_path:
+                    continue
+                if resolved not in targets:
+                    targets.append(resolved)
     return targets
 
 
@@ -91,14 +108,24 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--deposit-id", type=int, default=None)
     parser.add_argument("--sandbox", action="store_true", help="Use sandbox.zenodo.org API")
     parser.add_argument("--publish", action="store_true", help="Publish deposition after upload")
+    parser.add_argument(
+        "--title",
+        default="objectless_alife PR26 follow-up lightweight reproducibility bundle",
+        help="Zenodo deposition title used for --publish metadata validation",
+    )
+    parser.add_argument(
+        "--creator",
+        default="Yuya Mukai",
+        help="Zenodo creator display name used for --publish metadata validation",
+    )
     args = parser.parse_args(argv)
 
     token = os.environ.get("ZENODO_TOKEN")
     if not token:
         raise RuntimeError("ZENODO_TOKEN environment variable is required")
 
-    followup_dir = Path(args.followup_dir)
-    manifest_path = Path(args.manifest)
+    followup_dir = Path(args.followup_dir).resolve()
+    manifest_path = Path(args.manifest).resolve()
     manifest = json.loads(manifest_path.read_text())
     api_base = "https://sandbox.zenodo.org/api" if args.sandbox else "https://zenodo.org/api"
 
@@ -117,12 +144,12 @@ def main(argv: list[str] | None = None) -> None:
     deposit_id = int(deposition["id"])
     uploaded_files: list[dict[str, object]] = []
 
-    for file_path in _collect_upload_targets(followup_dir, manifest_path):
+    for file_path in _collect_upload_targets(followup_dir, manifest_path, manifest):
         upload_resp = _upload_file(bucket_url, token, file_path)
         uploaded_files.append(
             {
                 "name": file_path.name,
-                "relative_path": str(file_path.relative_to(followup_dir)),
+                "relative_path": str(file_path.resolve().relative_to(followup_dir)),
                 "size_bytes": file_path.stat().st_size,
                 "sha256": _sha256(file_path),
                 "download_url": upload_resp.get("download", ""),
@@ -130,15 +157,13 @@ def main(argv: list[str] | None = None) -> None:
         )
 
     doi = ""
-    if args.publish:
-        publish_url = deposition["links"]["publish"]
-        published = _request_json("POST", publish_url, token, payload={})
-        doi = str(published.get("doi", ""))
-        record_url = published.get("links", {}).get("html", record_url)
-    else:
-        metadata_doi = deposition.get("metadata", {}).get("prereserve_doi", {}).get("doi")
-        if metadata_doi:
-            doi = str(metadata_doi)
+    metadata_doi = deposition.get("metadata", {}).get("prereserve_doi", {}).get("doi")
+    if metadata_doi:
+        doi = str(metadata_doi)
+
+    if args.publish and "/records/" not in record_url:
+        host = "https://sandbox.zenodo.org" if args.sandbox else "https://zenodo.org"
+        record_url = f"{host}/records/{deposit_id}"
 
     manifest["zenodo"] = {
         "sandbox": args.sandbox,
@@ -149,6 +174,29 @@ def main(argv: list[str] | None = None) -> None:
     }
     manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2))
     _upload_file(bucket_url, token, manifest_path)
+
+    if args.publish:
+        metadata_payload = {
+            "metadata": {
+                "title": args.title,
+                "creators": [{"name": args.creator}],
+                "publication_date": date.today().isoformat(),
+                "upload_type": "dataset",
+                "resource_type": "dataset",
+                "description": (
+                    "Lightweight summary bundle for objectless_alife PR26 follow-up analyses, "
+                    "including manifest, checksums, and summary JSON/CSV outputs."
+                ),
+            }
+        }
+        _request_json(
+            "PUT",
+            f"{api_base}/deposit/depositions/{deposit_id}",
+            token,
+            payload=metadata_payload,
+        )
+        publish_url = deposition["links"]["publish"]
+        _request_json("POST", publish_url, token, payload={})
     print(json.dumps(manifest["zenodo"], ensure_ascii=False, indent=2))
 
 

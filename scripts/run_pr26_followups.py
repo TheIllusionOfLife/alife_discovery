@@ -87,15 +87,35 @@ def main(argv: list[str] | None = None) -> None:
         return digest.hexdigest()
 
     def _write_checksums() -> None:
+        out_dir_resolved = out_dir.resolve()
         targets: list[Path] = [manifest_path]
-        for path in sorted(out_dir.rglob("*")):
-            if not path.is_file():
-                continue
-            if path == checksums_path:
-                continue
-            if path.suffix in {".json", ".csv"} and path not in targets:
-                targets.append(path)
-        lines = [f"{_sha256(path)}  {path.relative_to(out_dir)}" for path in targets]
+        outputs = manifest.get("outputs", {})
+        if isinstance(outputs, dict):
+            for entry in outputs.values():
+                if not isinstance(entry, dict):
+                    continue
+                for key in ("json", "csv"):
+                    path_text = entry.get(key)
+                    if not isinstance(path_text, str):
+                        continue
+                    candidate = Path(path_text)
+                    if not candidate.is_absolute():
+                        candidate = Path.cwd() / candidate
+                    try:
+                        resolved = candidate.resolve()
+                    except OSError:
+                        continue
+                    if not resolved.is_file():
+                        continue
+                    try:
+                        resolved.relative_to(out_dir_resolved)
+                    except ValueError:
+                        continue
+                    if resolved not in targets:
+                        targets.append(resolved)
+        lines = [
+            f"{_sha256(path)}  {path.resolve().relative_to(out_dir_resolved)}" for path in targets
+        ]
         checksums_path.write_text("\n".join(lines) + "\n")
 
     no_filter_dir = out_dir / "no_filter"

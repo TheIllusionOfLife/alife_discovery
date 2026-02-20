@@ -1,0 +1,24 @@
+{
+  "top_k": 50,
+  "n_shuffles": 200,
+  "conditions": {
+    "phase_1": {
+      "n_rules": 50,
+      "te_median": 0.0031923012435384076,
+      "te_null_median": 0.003512643180430229,
+      "te_excess_median": 0.0
+    },
+    "phase_2": {
+      "n_rules": 50,
+      "te_median": 0.07191082429633786,
+      "te_null_median": 0.003963530570678378,
+      "te_excess_median": 0.058077283813171066
+    },
+    "control": {
+      "n_rules": 50,
+      "te_median": 0.11257404023084577,
+      "te_null_median": 0.04760663409264512,
+      "te_excess_median": 0.068805252327335
+    }
+  }
+}

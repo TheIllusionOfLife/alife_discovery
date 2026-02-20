@@ -1,0 +1,67 @@
+{
+  "n_rules": 5000,
+  "n_seed_batches": 3,
+  "steps": 200,
+  "pairwise_kendall_tau": {
+    "1": [
+      {
+        "batch_a": 0,
+        "batch_b": 1,
+        "kendall_tau": NaN,
+        "n_rules": 0
+      },
+      {
+        "batch_a": 0,
+        "batch_b": 2,
+        "kendall_tau": NaN,
+        "n_rules": 0
+      },
+      {
+        "batch_a": 1,
+        "batch_b": 2,
+        "kendall_tau": NaN,
+        "n_rules": 0
+      }
+    ],
+    "2": [
+      {
+        "batch_a": 0,
+        "batch_b": 1,
+        "kendall_tau": NaN,
+        "n_rules": 0
+      },
+      {
+        "batch_a": 0,
+        "batch_b": 2,
+        "kendall_tau": NaN,
+        "n_rules": 0
+      },
+      {
+        "batch_a": 1,
+        "batch_b": 2,
+        "kendall_tau": NaN,
+        "n_rules": 0
+      }
+    ],
+    "3": [
+      {
+        "batch_a": 0,
+        "batch_b": 1,
+        "kendall_tau": NaN,
+        "n_rules": 0
+      },
+      {
+        "batch_a": 0,
+        "batch_b": 2,
+        "kendall_tau": NaN,
+        "n_rules": 0
+      },
+      {
+        "batch_a": 1,
+        "batch_b": 2,
+        "kendall_tau": NaN,
+        "n_rules": 0
+      }
+    ]
+  }
+}
