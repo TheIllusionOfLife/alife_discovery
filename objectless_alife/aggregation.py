@@ -808,6 +808,7 @@ def run_halt_window_sweep(config: HaltWindowSweepConfig) -> Path:
                 halt_detector,
                 uniform_detector,
                 config.update_mode,
+                enable_viability_filters=config.enable_viability_filters,
                 state_uniform_mode=config.state_uniform_mode,
             )
 
@@ -833,6 +834,7 @@ def run_halt_window_sweep(config: HaltWindowSweepConfig) -> Path:
                     "mi_excess": mi_exc,
                     "update_mode": config.update_mode.value,
                     "state_uniform_mode": config.state_uniform_mode.value,
+                    "enable_viability_filters": config.enable_viability_filters,
                 }
             )
 

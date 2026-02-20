@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pyarrow as pa
 
+import scripts.viability_filter_ablation as viability_ablation_module
 from objectless_alife.config import ExperimentConfig
 from objectless_alife.rules import ObservationPhase
 from objectless_alife.run_search import run_experiment
@@ -342,3 +343,54 @@ def test_viability_filter_ablation_with_state_uniform_mode_rerun(tmp_path: Path)
     ablation = payload["state_uniform_mode_ablation"]
     assert "terminal" in ablation
     assert "tag_only" in ablation
+
+
+def test_viability_filter_ablation_skips_missing_phase_metrics(tmp_path: Path) -> None:
+    data_dir = tmp_path / "viability_data_missing"
+    _make_small_dataset(data_dir)
+    (data_dir / "phase_2" / "logs" / "metrics_summary.parquet").unlink()
+    out_dir = tmp_path / "viability_out_missing"
+    viability_ablation_main(
+        [
+            "--data-dir",
+            str(data_dir),
+            "--out-dir",
+            str(out_dir),
+        ]
+    )
+    payload = json.loads((out_dir / "summary.json").read_text())
+    baseline = payload["baseline_filter_shift"]
+    assert "phase_1" in baseline
+    assert "phase_2" not in baseline
+
+
+def test_viability_state_uniform_ablation_uses_explicit_seed_starts(
+    monkeypatch, tmp_path: Path
+) -> None:
+    seen_starts: list[tuple[int, int, str]] = []
+
+    def _fake_run_experiment(config: ExperimentConfig) -> None:
+        seen_starts.append(
+            (config.rule_seed_start, config.sim_seed_start, config.state_uniform_mode.value)
+        )
+
+    monkeypatch.setattr(viability_ablation_module, "run_experiment", _fake_run_experiment)
+    monkeypatch.setattr(
+        viability_ablation_module,
+        "_summarize_dataset",
+        lambda _path: {"phase_1": {"n_all": 1, "n_survived": 1}},
+    )
+
+    viability_ablation_module._run_state_uniform_mode_ablation(
+        out_root=tmp_path / "ablation",
+        n_rules=1,
+        steps=2,
+        seed_batches=1,
+        rule_seed_start=123,
+        sim_seed_start=456,
+    )
+
+    assert seen_starts == [
+        (123, 456, "terminal"),
+        (123, 456, "tag_only"),
+    ]

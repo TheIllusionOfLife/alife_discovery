@@ -26,7 +26,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--publish", action="store_true")
     parser.add_argument("--zenodo-sandbox", action="store_true")
     args = parser.parse_args(argv)
-    if args.publish and "ZENODO_TOKEN" not in os.environ:
+    if args.publish and not os.environ.get("ZENODO_TOKEN"):
         raise RuntimeError("--publish requested but ZENODO_TOKEN is not set")
 
     run_args = [

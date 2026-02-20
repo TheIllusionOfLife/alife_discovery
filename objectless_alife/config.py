@@ -335,6 +335,7 @@ class HaltWindowSweepConfig:
     halt_windows: tuple[int, ...] = (5, 10, 20)
     out_dir: Path = Path("data/halt_window_sweep")
     steps: int = 200
+    enable_viability_filters: bool = True
     update_mode: UpdateMode = UpdateMode.SEQUENTIAL
     state_uniform_mode: StateUniformMode = StateUniformMode.TERMINAL
     phase: ObservationPhase = ObservationPhase.PHASE2_PROFILE

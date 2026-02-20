@@ -29,6 +29,7 @@ def _alignment_id(rule_id: str, alignment_key: str) -> str:
     if alignment_key == "rule_id":
         return rule_id
     if alignment_key == "rule_seed":
+        # Keep this regex in sync with rule_id formatting in simulation payloads.
         match = RULE_ID_SEED_RE.match(rule_id)
         if match is None:
             return rule_id
@@ -58,6 +59,8 @@ def _rank_map(metrics_path: Path, alignment_key: str) -> dict[str, int]:
     )
     rows.sort(key=lambda pair: float(pair[1]), reverse=True)
     rank_map: dict[str, int] = {}
+    # rows is sorted by descending excess; when multiple rule_id values collapse to the
+    # same alignment_key (e.g. rule_seed), first-seen wins so we keep the highest-excess one.
     for rule_id, _ in rows:
         key = _alignment_id(str(rule_id), alignment_key)
         if key not in rank_map:

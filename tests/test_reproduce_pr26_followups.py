@@ -26,11 +26,16 @@ def test_reproduce_publish_requires_token(monkeypatch: pytest.MonkeyPatch) -> No
     with pytest.raises(RuntimeError, match="ZENODO_TOKEN"):
         reproduce_main(["--publish"])
 
+    monkeypatch.setenv("ZENODO_TOKEN", "")
+    with pytest.raises(RuntimeError, match="ZENODO_TOKEN"):
+        reproduce_main(["--publish"])
+
 
 def test_reproduce_with_paper_runs_tectonic(monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[list[str]] = []
 
     def _fake_run(cmd: list[str], check: bool, env=None) -> subprocess.CompletedProcess[str]:
+        assert check is True
         calls.append(cmd)
         return subprocess.CompletedProcess(cmd, 0)
 

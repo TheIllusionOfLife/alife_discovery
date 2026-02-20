@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 
 import pyarrow as pa
@@ -23,11 +24,7 @@ PHASE_LABELS = {
 
 
 def _excess_from_table(table: pa.Table) -> dict[str, float]:
-    mi_col = pc.cast(table.column("neighbor_mutual_information"), pa.float64(), safe=False)
-    null_col = pc.cast(table.column("mi_shuffle_null"), pa.float64(), safe=False)
-    diff = pc.subtract(mi_col, null_col)
-    finite = pc.if_else(pc.is_finite(diff), diff, pa.scalar(0.0))
-    excess = pc.max_element_wise(finite, pa.scalar(0.0))
+    excess = pc.cast(table.column("mi_excess"), pa.float64(), safe=False)
     return {
         str(rule_id): float(value)
         for rule_id, value in zip(
@@ -42,6 +39,8 @@ def _quantiles(values: list[float]) -> dict[str, float]:
     sorted_vals = sorted(values)
 
     def _pick(q: float) -> float:
+        # Use nearest-lower index truncation (no interpolation); this is a quick,
+        # deterministic summary for exploratory comparison.
         idx = int((len(sorted_vals) - 1) * q)
         return float(sorted_vals[idx])
 
@@ -62,6 +61,12 @@ def _summarize_dataset(data_dir: Path) -> dict[str, dict[str, float | int]]:
     summary: dict[str, dict[str, float | int]] = {}
     for phase, label in PHASE_LABELS.items():
         metrics_path = data_dir / f"phase_{phase}" / "logs" / "metrics_summary.parquet"
+        if not metrics_path.exists():
+            print(
+                f"Skipping {label}: missing metrics file at {metrics_path}",
+                file=sys.stderr,
+            )
+            continue
         table = load_final_step_metrics(metrics_path)
         excess_map = _excess_from_table(table)
         surv_map = _phase_survival_map(runs_path, phase)
@@ -88,6 +93,8 @@ def _run_state_uniform_mode_ablation(
     n_rules: int,
     steps: int,
     seed_batches: int,
+    rule_seed_start: int,
+    sim_seed_start: int,
 ) -> dict[str, object]:
     results: dict[str, object] = {}
     phases = (
@@ -104,6 +111,8 @@ def _run_state_uniform_mode_ablation(
                 n_seed_batches=seed_batches,
                 out_dir=mode_dir,
                 steps=steps,
+                rule_seed_start=rule_seed_start,
+                sim_seed_start=sim_seed_start,
                 state_uniform_mode=mode,
             )
         )
@@ -133,6 +142,8 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--ablation-n-rules", type=int, default=300)
     parser.add_argument("--ablation-steps", type=int, default=200)
     parser.add_argument("--ablation-seed-batches", type=int, default=1)
+    parser.add_argument("--ablation-rule-seed-start", type=int, default=0)
+    parser.add_argument("--ablation-sim-seed-start", type=int, default=0)
     args = parser.parse_args(argv)
 
     out_dir = args.out_dir
@@ -150,6 +161,8 @@ def main(argv: list[str] | None = None) -> None:
             n_rules=args.ablation_n_rules,
             steps=args.ablation_steps,
             seed_batches=args.ablation_seed_batches,
+            rule_seed_start=args.ablation_rule_seed_start,
+            sim_seed_start=args.ablation_sim_seed_start,
         )
 
     (out_dir / "summary.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2))

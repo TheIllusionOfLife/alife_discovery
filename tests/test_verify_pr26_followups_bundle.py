@@ -1,3 +1,4 @@
+import hashlib
 import json
 from pathlib import Path
 
@@ -7,6 +8,10 @@ from scripts.verify_pr26_followups_bundle import verify_bundle
 def _write(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text)
+
+
+def _sha(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def _build_bundle(tmp_path: Path) -> Path:
@@ -36,11 +41,6 @@ def _build_bundle(tmp_path: Path) -> Path:
     _write(base / "no_filter" / "summary.json", '{"ok": true}\n')
     _write(base / "no_filter" / "summary.csv", "k,v\nok,1\n")
     _write(base / "manifest.json", json.dumps(manifest, indent=2))
-
-    import hashlib
-
-    def _sha(path: Path) -> str:
-        return hashlib.sha256(path.read_bytes()).hexdigest()
 
     payload = json.loads((base / "manifest.json").read_text())
     payload["zenodo"]["files"][0]["sha256"] = _sha(base / "no_filter" / "summary.json")
@@ -95,9 +95,43 @@ def test_verify_bundle_fails_on_zenodo_hash_mismatch(tmp_path: Path) -> None:
     payload = json.loads((bundle / "manifest.json").read_text())
     payload["zenodo"]["files"][0]["sha256"] = "0" * 64
     (bundle / "manifest.json").write_text(json.dumps(payload, indent=2))
+    checksum_lines = (bundle / "checksums.sha256").read_text().splitlines()
+    updated_lines: list[str] = []
+    for line in checksum_lines:
+        if line.endswith("manifest.json"):
+            updated_lines.append(f"{_sha(bundle / 'manifest.json')}  manifest.json")
+        else:
+            updated_lines.append(line)
+    (bundle / "checksums.sha256").write_text("\n".join(updated_lines) + "\n")
     ok, errors = verify_bundle(bundle)
     assert not ok
     assert any("Zenodo hash mismatch" in err for err in errors)
+    assert not any("Checksum mismatch for manifest.json" in err for err in errors)
+
+
+def test_verify_bundle_fails_on_checksum_path_traversal(tmp_path: Path) -> None:
+    bundle = _build_bundle(tmp_path)
+    with (bundle / "checksums.sha256").open("a") as handle:
+        handle.write(f"{'0' * 64}  ../../etc/passwd\n")
+    ok, errors = verify_bundle(bundle)
+    assert not ok
+    assert any("escapes bundle directory" in err for err in errors)
+
+
+def test_verify_bundle_fails_on_zenodo_path_traversal(tmp_path: Path) -> None:
+    bundle = _build_bundle(tmp_path)
+    payload = json.loads((bundle / "manifest.json").read_text())
+    payload["zenodo"]["files"].append(
+        {
+            "name": "escape",
+            "relative_path": "../../etc/passwd",
+            "sha256": "0" * 64,
+        }
+    )
+    (bundle / "manifest.json").write_text(json.dumps(payload, indent=2))
+    ok, errors = verify_bundle(bundle)
+    assert not ok
+    assert any("zenodo relative_path escapes bundle directory" in err for err in errors)
 
 
 def test_verify_bundle_missing_files(tmp_path: Path) -> None:

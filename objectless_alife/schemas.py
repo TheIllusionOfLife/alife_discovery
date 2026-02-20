@@ -158,5 +158,6 @@ HALT_WINDOW_SWEEP_SCHEMA = pa.schema(
         ("mi_excess", pa.float64()),
         ("update_mode", pa.string()),
         ("state_uniform_mode", pa.string()),
+        ("enable_viability_filters", pa.bool_()),
     ]
 )

@@ -976,9 +976,11 @@ def test_halt_window_sweep_output_schema(tmp_path: Path) -> None:
         "halt_window",
         "survived",
         "mi_excess",
+        "enable_viability_filters",
     }
     assert expected_cols.issubset(table.column_names)
     assert table.num_rows == 2 * 2  # 2 rules x 2 halt_windows
+    assert table.column("enable_viability_filters").to_pylist() == [True, True, True, True]
 
 
 def test_run_batch_search_supports_synchronous_update_mode(tmp_path: Path) -> None:
@@ -1038,6 +1040,8 @@ def test_state_uniform_mode_terminal_terminates(tmp_path: Path) -> None:
         world_config=WorldConfig(steps=6, num_agents=1),
     )
     payload = json.loads(next((tmp_path / "rules").glob("*.json")).read_text())
+    metrics = pq.read_table(tmp_path / "logs" / "metrics_summary.parquet")
+    assert metrics.num_rows < 6
     assert payload["metadata"]["state_uniform_mode"] == "terminal"
     assert payload["metadata"]["termination_reason"] == "state_uniform"
 

@@ -31,6 +31,22 @@ def _parse_checksums(checksums_path: Path) -> dict[str, str]:
     return entries
 
 
+def _resolve_bundle_path(
+    *,
+    followup_dir: Path,
+    rel_path: str,
+    errors: list[str],
+    context: str,
+) -> Path | None:
+    candidate = (followup_dir / rel_path).resolve()
+    try:
+        candidate.relative_to(followup_dir)
+    except ValueError:
+        errors.append(f"{context} escapes bundle directory: {rel_path}")
+        return None
+    return candidate
+
+
 def verify_bundle(followup_dir: Path) -> tuple[bool, list[str]]:
     errors: list[str] = []
     followup_dir = followup_dir.resolve()
@@ -65,7 +81,14 @@ def verify_bundle(followup_dir: Path) -> tuple[bool, list[str]]:
             errors.append(f"checksums has unexpected entries: {extra}")
 
     for rel_path, expected_hash in checksum_entries.items():
-        target = followup_dir / rel_path
+        target = _resolve_bundle_path(
+            followup_dir=followup_dir,
+            rel_path=rel_path,
+            errors=errors,
+            context="checksums entry",
+        )
+        if target is None:
+            continue
         if not target.exists():
             errors.append(f"checksums entry points to missing file: {rel_path}")
             continue
@@ -85,7 +108,14 @@ def verify_bundle(followup_dir: Path) -> tuple[bool, list[str]]:
                 rel_path = file_entry.get("relative_path")
                 if not isinstance(rel_path, str):
                     continue
-                local_path = followup_dir / rel_path
+                local_path = _resolve_bundle_path(
+                    followup_dir=followup_dir,
+                    rel_path=rel_path,
+                    errors=errors,
+                    context="zenodo relative_path",
+                )
+                if local_path is None:
+                    continue
                 if not local_path.exists():
                     continue
                 recorded_hash = file_entry.get("sha256")
