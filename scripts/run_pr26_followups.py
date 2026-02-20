@@ -89,6 +89,26 @@ def main(argv: list[str] | None = None) -> None:
     def _write_checksums() -> None:
         out_dir_resolved = out_dir.resolve()
         targets: list[Path] = [manifest_path]
+
+        def _resolve_output_path(path_text: str) -> Path | None:
+            candidate = Path(path_text)
+            if candidate.is_absolute():
+                try:
+                    return candidate.resolve()
+                except OSError:
+                    return None
+            manifest_relative = manifest_path.parent / candidate
+            try:
+                manifest_resolved = manifest_relative.resolve()
+            except OSError:
+                manifest_resolved = None
+            if manifest_resolved is not None and manifest_resolved.is_file():
+                return manifest_resolved
+            try:
+                return (Path.cwd() / candidate).resolve()
+            except OSError:
+                return None
+
         outputs = manifest.get("outputs", {})
         if isinstance(outputs, dict):
             for entry in outputs.values():
@@ -98,12 +118,8 @@ def main(argv: list[str] | None = None) -> None:
                     path_text = entry.get(key)
                     if not isinstance(path_text, str):
                         continue
-                    candidate = Path(path_text)
-                    if not candidate.is_absolute():
-                        candidate = Path.cwd() / candidate
-                    try:
-                        resolved = candidate.resolve()
-                    except OSError:
+                    resolved = _resolve_output_path(path_text)
+                    if resolved is None:
                         continue
                     if not resolved.is_file():
                         continue

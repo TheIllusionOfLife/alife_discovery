@@ -13,9 +13,15 @@ import argparse
 import hashlib
 import json
 import os
+import time
 from datetime import date
 from pathlib import Path
 from urllib import error, parse, request
+
+HTTP_TIMEOUT_SECONDS = 30
+HTTP_MAX_RETRIES = 3
+HTTP_RETRY_BACKOFF_SECONDS = 1.0
+RETRYABLE_HTTP_STATUS_CODES = {429, 500, 502, 503, 504}
 
 
 def _sha256(path: Path) -> str:
@@ -38,12 +44,24 @@ def _request_json(
     req = request.Request(url=url, method=method, data=data)
     req.add_header("Authorization", f"Bearer {token}")
     req.add_header("Content-Type", "application/json")
-    try:
-        with request.urlopen(req) as resp:
-            return json.loads(resp.read().decode("utf-8"))
-    except error.HTTPError as exc:  # pragma: no cover - error body asserted via RuntimeError text
-        body = exc.read().decode("utf-8", errors="replace")
-        raise RuntimeError(f"Zenodo request failed ({exc.code}): {body}") from exc
+    for attempt in range(HTTP_MAX_RETRIES):
+        try:
+            with request.urlopen(req, timeout=HTTP_TIMEOUT_SECONDS) as resp:
+                return json.loads(resp.read().decode("utf-8"))
+        except (
+            error.HTTPError
+        ) as exc:  # pragma: no cover - error body asserted via RuntimeError text
+            if exc.code in RETRYABLE_HTTP_STATUS_CODES and attempt < HTTP_MAX_RETRIES - 1:
+                time.sleep(HTTP_RETRY_BACKOFF_SECONDS * (2**attempt))
+                continue
+            body = exc.read().decode("utf-8", errors="replace")
+            raise RuntimeError(f"Zenodo request failed ({exc.code}): {body}") from exc
+        except error.URLError as exc:
+            if attempt < HTTP_MAX_RETRIES - 1:
+                time.sleep(HTTP_RETRY_BACKOFF_SECONDS * (2**attempt))
+                continue
+            raise RuntimeError(f"Zenodo request failed: {exc}") from exc
+    raise RuntimeError("Zenodo request failed after retries")
 
 
 def _upload_file(url: str, token: str, file_path: Path) -> dict:
@@ -57,18 +75,58 @@ def _upload_file(url: str, token: str, file_path: Path) -> dict:
         req.add_header("Authorization", f"Bearer {token}")
         req.add_header("Content-Type", "application/octet-stream")
         req.add_header("Content-Length", str(file_path.stat().st_size))
-        try:
-            with request.urlopen(req) as resp:
-                return json.loads(resp.read().decode("utf-8"))
-        except (
-            error.HTTPError
-        ) as exc:  # pragma: no cover - error body asserted via RuntimeError text
-            body = exc.read().decode("utf-8", errors="replace")
-            raise RuntimeError(f"Zenodo upload failed ({exc.code}): {body}") from exc
+        for attempt in range(HTTP_MAX_RETRIES):
+            try:
+                with request.urlopen(req, timeout=HTTP_TIMEOUT_SECONDS) as resp:
+                    return json.loads(resp.read().decode("utf-8"))
+            except (
+                error.HTTPError
+            ) as exc:  # pragma: no cover - error body asserted via RuntimeError text
+                if exc.code in RETRYABLE_HTTP_STATUS_CODES and attempt < HTTP_MAX_RETRIES - 1:
+                    handle.seek(0)
+                    time.sleep(HTTP_RETRY_BACKOFF_SECONDS * (2**attempt))
+                    continue
+                body = exc.read().decode("utf-8", errors="replace")
+                raise RuntimeError(f"Zenodo upload failed ({exc.code}): {body}") from exc
+            except error.URLError as exc:
+                if attempt < HTTP_MAX_RETRIES - 1:
+                    handle.seek(0)
+                    time.sleep(HTTP_RETRY_BACKOFF_SECONDS * (2**attempt))
+                    continue
+                raise RuntimeError(f"Zenodo upload failed: {exc}") from exc
+    raise RuntimeError("Zenodo upload failed after retries")
 
 
-def _collect_upload_targets(followup_dir: Path, manifest_path: Path, manifest: dict) -> list[Path]:
+def _collect_upload_targets(
+    followup_dir: Path, manifest_path: Path, manifest: dict
+) -> tuple[list[Path], dict[str, int]]:
     targets: list[Path] = []
+    skipped = {
+        "non_string_path": 0,
+        "resolve_error": 0,
+        "outside_followup_dir": 0,
+        "missing_file": 0,
+    }
+
+    def _resolve_output_path(path_text: str) -> Path | None:
+        candidate = Path(path_text)
+        if candidate.is_absolute():
+            try:
+                return candidate.resolve()
+            except OSError:
+                return None
+        manifest_relative = manifest_path.parent / candidate
+        try:
+            manifest_resolved = manifest_relative.resolve()
+        except OSError:
+            manifest_resolved = None
+        if manifest_resolved is not None and manifest_resolved.is_file():
+            return manifest_resolved
+        try:
+            return (Path.cwd() / candidate).resolve()
+        except OSError:
+            return None
+
     checksums = followup_dir / "checksums.sha256"
     if checksums.exists():
         targets.append(checksums)
@@ -80,25 +138,25 @@ def _collect_upload_targets(followup_dir: Path, manifest_path: Path, manifest: d
             for key in ("json", "csv"):
                 path_text = entry.get(key)
                 if not isinstance(path_text, str):
+                    skipped["non_string_path"] += 1
                     continue
-                candidate = Path(path_text)
-                if not candidate.is_absolute():
-                    candidate = Path.cwd() / candidate
-                try:
-                    resolved = candidate.resolve()
-                except OSError:
+                resolved = _resolve_output_path(path_text)
+                if resolved is None:
+                    skipped["resolve_error"] += 1
                     continue
                 try:
                     resolved.relative_to(followup_dir.resolve())
                 except ValueError:
+                    skipped["outside_followup_dir"] += 1
                     continue
                 if not resolved.is_file():
+                    skipped["missing_file"] += 1
                     continue
                 if resolved == manifest_path:
                     continue
                 if resolved not in targets:
                     targets.append(resolved)
-    return targets
+    return targets, skipped
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -144,17 +202,19 @@ def main(argv: list[str] | None = None) -> None:
     deposit_id = int(deposition["id"])
     uploaded_files: list[dict[str, object]] = []
 
-    for file_path in _collect_upload_targets(followup_dir, manifest_path, manifest):
+    upload_targets, skipped = _collect_upload_targets(followup_dir, manifest_path, manifest)
+    for file_path in upload_targets:
         upload_resp = _upload_file(bucket_url, token, file_path)
-        uploaded_files.append(
-            {
-                "name": file_path.name,
-                "relative_path": str(file_path.resolve().relative_to(followup_dir)),
-                "size_bytes": file_path.stat().st_size,
-                "sha256": _sha256(file_path),
-                "download_url": upload_resp.get("download", ""),
-            }
-        )
+        entry: dict[str, object] = {
+            "name": file_path.name,
+            "relative_path": str(file_path.resolve().relative_to(followup_dir)),
+            "size_bytes": file_path.stat().st_size,
+            "download_url": upload_resp.get("download", ""),
+        }
+        # Avoid circular hash coupling: checksums file includes manifest hash.
+        if file_path.name != "checksums.sha256":
+            entry["sha256"] = _sha256(file_path)
+        uploaded_files.append(entry)
 
     doi = ""
     metadata_doi = deposition.get("metadata", {}).get("prereserve_doi", {}).get("doi")
@@ -196,7 +256,17 @@ def main(argv: list[str] | None = None) -> None:
             payload=metadata_payload,
         )
         publish_url = deposition["links"]["publish"]
-        _request_json("POST", publish_url, token, payload={})
+        published = _request_json("POST", publish_url, token, payload={})
+        published_doi = published.get("doi")
+        if isinstance(published_doi, str) and published_doi:
+            manifest["zenodo"]["doi"] = published_doi
+        published_record_url = published.get("links", {}).get("html", "")
+        if isinstance(published_record_url, str) and published_record_url:
+            manifest["zenodo"]["record_url"] = published_record_url
+        manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2))
+    print(
+        f"Uploaded {len(upload_targets)} files; skipped={skipped}",
+    )
     print(json.dumps(manifest["zenodo"], ensure_ascii=False, indent=2))
 
 
