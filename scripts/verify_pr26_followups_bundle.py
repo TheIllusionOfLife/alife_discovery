@@ -55,9 +55,9 @@ def verify_bundle(followup_dir: Path) -> tuple[bool, list[str]]:
     followup_dir = followup_dir.resolve()
     manifest_path = followup_dir / "manifest.json"
     checksums_path = followup_dir / "checksums.sha256"
-    if not manifest_path.exists():
+    if not manifest_path.is_file():
         return False, [f"Missing manifest: {manifest_path}"]
-    if not checksums_path.exists():
+    if not checksums_path.is_file():
         return False, [f"Missing checksums: {checksums_path}"]
 
     try:
@@ -126,8 +126,16 @@ def verify_bundle(followup_dir: Path) -> tuple[bool, list[str]]:
                     context="zenodo relative_path",
                 )
                 if local_path is None:
+                    errors.append(f"zenodo.files entry is invalid for {rel_path}: {file_entry}")
+                    if rel_path == "checksums.sha256":
+                        return False, errors
                     continue
                 if not local_path.is_file():
+                    errors.append(
+                        f"zenodo.files entry points to missing file: {rel_path}: {file_entry}"
+                    )
+                    if rel_path == "checksums.sha256":
+                        return False, errors
                     continue
                 recorded_hash = file_entry.get("sha256")
                 # checksums.sha256 intentionally omits recorded hash to avoid circular coupling.

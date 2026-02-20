@@ -153,6 +153,26 @@ def test_verify_bundle_missing_files(tmp_path: Path) -> None:
     assert all(isinstance(err, str) for err in errors)
 
 
+def test_verify_bundle_rejects_manifest_directory(tmp_path: Path) -> None:
+    bundle = tmp_path / "bundle_dir_manifest"
+    bundle.mkdir(parents=True)
+    (bundle / "manifest.json").mkdir()
+    (bundle / "checksums.sha256").write_text("")
+    ok, errors = verify_bundle(bundle)
+    assert not ok
+    assert any("Missing manifest" in err for err in errors)
+
+
+def test_verify_bundle_rejects_checksums_directory(tmp_path: Path) -> None:
+    bundle = tmp_path / "bundle_dir_checksums"
+    bundle.mkdir(parents=True)
+    (bundle / "manifest.json").write_text("{}")
+    (bundle / "checksums.sha256").mkdir()
+    ok, errors = verify_bundle(bundle)
+    assert not ok
+    assert any("Missing checksums" in err for err in errors)
+
+
 def test_verify_bundle_fails_on_malformed_manifest(tmp_path: Path) -> None:
     bundle = _build_bundle(tmp_path)
     (bundle / "manifest.json").write_text("{bad json")
@@ -181,3 +201,20 @@ def test_main_ok(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     verify_main(["--followup-dir", str(bundle)])
     captured = capsys.readouterr()
     assert "Bundle verification: OK" in captured.out
+
+
+def test_verify_bundle_fails_fast_when_zenodo_checksums_entry_missing(tmp_path: Path) -> None:
+    bundle = _build_bundle(tmp_path)
+    payload = json.loads((bundle / "manifest.json").read_text())
+    payload["zenodo"]["files"].append(
+        {
+            "name": "checksums.sha256",
+            "relative_path": "checksums.sha256",
+            "sha256": "0" * 64,
+        }
+    )
+    (bundle / "checksums.sha256").unlink()
+    (bundle / "manifest.json").write_text(json.dumps(payload, indent=2))
+    ok, errors = verify_bundle(bundle)
+    assert not ok
+    assert any("checksums.sha256" in err for err in errors)

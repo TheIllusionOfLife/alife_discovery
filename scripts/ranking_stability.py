@@ -24,6 +24,8 @@ from objectless_alife.run_search import run_batch_search
 from objectless_alife.stats import load_final_step_metrics
 
 RULE_ID_SEED_RE = re.compile(r"^phase\d+_rs(?P<rule_seed>\d+)_ss\d+$")
+# Prevent seed-range overlap across batches when deriving per-batch base_sim_seed.
+BATCH_SEED_SPACING = 100_000
 
 
 def _alignment_id(rule_id: str, alignment_key: str) -> str:
@@ -114,7 +116,7 @@ def main(argv: list[str] | None = None) -> None:
                 phase=phase,
                 out_dir=batch_dir,
                 base_rule_seed=args.rule_seed_start,
-                base_sim_seed=args.sim_seed_start + (batch_idx * 100_000),
+                base_sim_seed=args.sim_seed_start + (batch_idx * BATCH_SEED_SPACING),
                 config=SearchConfig(steps=args.steps),
             )
             per_phase[batch_idx] = _rank_map(
@@ -123,9 +125,9 @@ def main(argv: list[str] | None = None) -> None:
             )
         batch_rankings[phase.value] = per_phase
 
-    phase_results: dict[str, list[dict[str, float | int | str]]] = {}
+    phase_results: dict[str, list[dict[str, float | int | str | None]]] = {}
     for phase in phases:
-        rows: list[dict[str, float | int | str]] = []
+        rows: list[dict[str, float | int | str | None]] = []
         per_phase = batch_rankings[phase.value]
         for a, b in itertools.combinations(sorted(per_phase.keys()), 2):
             rank_a = per_phase[a]
@@ -134,7 +136,7 @@ def main(argv: list[str] | None = None) -> None:
             overlap_fraction_a = len(shared) / len(rank_a) if rank_a else 0.0
             overlap_fraction_b = len(shared) / len(rank_b) if rank_b else 0.0
             if len(shared) < 2:
-                tau = float("nan")
+                tau: float | None = None
             else:
                 series_a = [rank_a[rid] for rid in shared]
                 series_b = [rank_b[rid] for rid in shared]
@@ -160,7 +162,7 @@ def main(argv: list[str] | None = None) -> None:
         "pairwise_kendall_tau": phase_results,
     }
     (out_dir / "summary.json").write_text(json.dumps(output, ensure_ascii=False, indent=2))
-    csv_rows: list[dict[str, str | float | int]] = []
+    csv_rows: list[dict[str, str | float | int | None]] = []
     for phase, rows in phase_results.items():
         for row in rows:
             csv_rows.append(
@@ -168,7 +170,7 @@ def main(argv: list[str] | None = None) -> None:
                     "phase": phase,
                     "batch_a": int(row["batch_a"]),
                     "batch_b": int(row["batch_b"]),
-                    "kendall_tau": float(row["kendall_tau"]),
+                    "kendall_tau": row["kendall_tau"],
                     "n_rules": int(row["n_rules"]),
                     "overlap_fraction_a": float(row["overlap_fraction_a"]),
                     "overlap_fraction_b": float(row["overlap_fraction_b"]),
