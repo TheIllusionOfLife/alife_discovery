@@ -61,6 +61,11 @@ def main(argv: list[str] | None = None) -> None:
 
     metrics_path = Path(args.data_dir) / "phase_2" / "logs" / "metrics_summary.parquet"
     table = load_final_step_metrics(metrics_path)
+    if "same_state_adjacency_fraction" not in table.column_names:
+        table = table.append_column(
+            "same_state_adjacency_fraction",
+            pa.array([0.0] * table.num_rows, type=pa.float64()),
+        )
 
     mi_col = pc.cast(table.column("mi_excess"), pa.float64(), safe=False)
     mi_filled = pc.if_else(pc.is_valid(mi_col), mi_col, pa.scalar(0.0))

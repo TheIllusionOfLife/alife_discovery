@@ -20,6 +20,7 @@ from pathlib import Path
 
 from scripts.no_filter_analysis import main as run_no_filter
 from scripts.phenotype_taxonomy import main as run_taxonomy
+from scripts.pr26_followups_manifest_paths import collect_manifest_output_paths
 from scripts.ranking_stability import main as run_ranking_stability
 from scripts.synchronous_ablation import main as run_sync_ablation
 from scripts.te_null_analysis import main as run_te_null
@@ -87,15 +88,19 @@ def main(argv: list[str] | None = None) -> None:
         return digest.hexdigest()
 
     def _write_checksums() -> None:
+        out_dir_resolved = out_dir.resolve()
         targets: list[Path] = [manifest_path]
-        for path in sorted(out_dir.rglob("*")):
-            if not path.is_file():
-                continue
-            if path == checksums_path:
-                continue
-            if path.suffix in {".json", ".csv"} and path not in targets:
-                targets.append(path)
-        lines = [f"{_sha256(path)}  {path.relative_to(out_dir)}" for path in targets]
+        output_targets, _skipped = collect_manifest_output_paths(
+            manifest,
+            manifest_path,
+            base_dir=out_dir_resolved,
+        )
+        for resolved in output_targets:
+            if resolved not in targets:
+                targets.append(resolved)
+        lines = [
+            f"{_sha256(path)}  {path.resolve().relative_to(out_dir_resolved)}" for path in targets
+        ]
         checksums_path.write_text("\n".join(lines) + "\n")
 
     no_filter_dir = out_dir / "no_filter"

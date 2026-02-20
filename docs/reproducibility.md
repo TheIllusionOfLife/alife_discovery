@@ -36,3 +36,15 @@ This document maps manuscript outputs to canonical artifact paths.
 
 - `data/` is generated and intentionally untracked.
 - Commands in `README.md` and `AGENTS.md` are the source of truth for rerunning pipelines.
+
+## PR26 Follow-Up Archive
+
+- Zenodo DOI (published on February 20, 2026): `10.5281/zenodo.18713158`
+- Record URL: `https://zenodo.org/records/18713158`
+- In-repo lightweight bundle source:
+  - `data/post_hoc/pr26_followups/manifest.json`
+  - `data/post_hoc/pr26_followups/checksums.sha256`
+  - `data/post_hoc/pr26_followups/*/summary.json|csv`
+  - `data/post_hoc/pr26_followups/phenotypes/taxonomy.json|csv`
+- This archived bundle was generated with the full follow-up configuration
+  (`n_rules=5000`, `steps=200`) for final post-merge PR26 reproducibility.
