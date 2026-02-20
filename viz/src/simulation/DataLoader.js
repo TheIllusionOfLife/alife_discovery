@@ -20,13 +20,29 @@
 /**
  * Load simulation JSON from a URL or file path.
  * @param {string} url
+ * @param {number} timeoutMs - Timeout in milliseconds (default 10s)
  * @returns {Promise<SimulationData | PairedData>}
  */
-export async function loadSimulationData(url) {
-  const response = await fetch(url);
+export async function loadSimulationData(url, timeoutMs = 10000) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  let response;
+
+  try {
+    response = await fetch(url, { signal: controller.signal });
+  } catch (err) {
+    if (err.name === "AbortError") {
+      throw new Error(`Request for ${url} timed out after ${timeoutMs}ms`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+
   if (!response.ok) {
     throw new Error(`Failed to load ${url}: ${response.status} ${response.statusText}`);
   }
+
   const data = await response.json();
   return data;
 }
