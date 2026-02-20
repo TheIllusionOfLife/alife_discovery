@@ -145,18 +145,81 @@ def _parse_update_mode(raw_update_mode: str) -> UpdateMode:
         raise ValueError(f"update-mode must be one of {valid}") from exc
 
 
-# ---------------------------------------------------------------------------
-# Main CLI
-# ---------------------------------------------------------------------------
+def _coerce_bool(raw: object, key: str) -> bool:
+    """Coerce raw value to bool with strict string-check."""
+    if isinstance(raw, bool):
+        return raw
+    if isinstance(raw, str):
+        normalized = raw.strip().lower()
+        if normalized in {"1", "true", "yes", "on"}:
+            return True
+        if normalized in {"0", "false", "no", "off"}:
+            return False
+    raise ValueError(f"{key} must be a boolean value")
 
 
-def main(argv: list[str] | None = None) -> None:
-    """CLI entrypoint for search execution.
+def _coerce_int(raw: object, key: str) -> int:
+    """Coerce raw value to int; rejects booleans."""
+    if isinstance(raw, bool):
+        raise ValueError(f"{key} must be an integer value")
+    if isinstance(raw, (int, float, str, bytes, bytearray)):
+        return int(raw)
+    if hasattr(raw, "__int__"):
+        return int(raw)
+    raise ValueError(f"{key} must be an integer value")
 
-    Supports ``--config path/to/config.json`` for experiment reproducibility.
-    CLI arguments override config-file values; config-file values override
-    built-in defaults.
-    """
+
+def _coerce_float(raw: object, key: str) -> float:
+    """Coerce raw value to float; rejects booleans."""
+    if isinstance(raw, bool):
+        raise ValueError(f"{key} must be a float value")
+    if isinstance(raw, (int, float, str, bytes, bytearray)):
+        return float(raw)
+    if hasattr(raw, "__float__"):
+        return float(raw)
+    raise ValueError(f"{key} must be a float value")
+
+
+def _coerce_str(raw: object, key: str) -> str:
+    """Coerce raw value to str; rejects booleans."""
+    if isinstance(raw, bool):
+        raise ValueError(f"{key} must be a string-coercible value")
+    if isinstance(raw, (str, Path, int, float)):
+        return str(raw)
+    raise ValueError(f"{key} must be a string-coercible value")
+
+
+def _get_val(cli_val: object, key: str, file_cfg: dict[str, object], default: object) -> object:
+    """CLI > file > default resolution."""
+    if cli_val is not None:
+        return cli_val
+    return file_cfg.get(key, default)
+
+
+def _get_bool(cli_val: bool | None, key: str, file_cfg: dict[str, object], default: bool) -> bool:
+    """CLI > file > default resolution for boolean flags."""
+    return _coerce_bool(_get_val(cli_val, key, file_cfg, default), key)
+
+
+def _get_int(cli_val: int | None, key: str, file_cfg: dict[str, object], default: int) -> int:
+    """CLI > file > default resolution for integer values."""
+    return _coerce_int(_get_val(cli_val, key, file_cfg, default), key)
+
+
+def _get_float(
+    cli_val: float | None, key: str, file_cfg: dict[str, object], default: float
+) -> float:
+    """CLI > file > default resolution for float values."""
+    return _coerce_float(_get_val(cli_val, key, file_cfg, default), key)
+
+
+def _get_str(cli_val: str | None, key: str, file_cfg: dict[str, object], default: str) -> str:
+    """CLI > file > default resolution for string values."""
+    return _coerce_str(_get_val(cli_val, key, file_cfg, default), key)
+
+
+def _build_parser() -> argparse.ArgumentParser:
+    """Build the CLI argument parser."""
     parser = argparse.ArgumentParser(description="Run objective-free ALife search")
     parser.add_argument(
         "--config",
@@ -206,6 +269,22 @@ def main(argv: list[str] | None = None) -> None:
         default=None,
         help="Skip expensive null-model computations (shuffle_null_mi)",
     )
+    return parser
+
+
+# ---------------------------------------------------------------------------
+# Main CLI
+# ---------------------------------------------------------------------------
+
+
+def main(argv: list[str] | None = None) -> None:
+    """CLI entrypoint for search execution.
+
+    Supports ``--config path/to/config.json`` for experiment reproducibility.
+    CLI arguments override config-file values; config-file values override
+    built-in defaults.
+    """
+    parser = _build_parser()
     args = parser.parse_args(argv)
 
     # Load config file defaults (CLI overrides file, file overrides built-in)
@@ -213,95 +292,47 @@ def main(argv: list[str] | None = None) -> None:
     if args.config is not None:
         file_cfg = json.loads(Path(args.config).read_text())
 
-    def _coerce_bool(raw: object, key: str) -> bool:
-        if isinstance(raw, bool):
-            return raw
-        if isinstance(raw, str):
-            normalized = raw.strip().lower()
-            if normalized in {"1", "true", "yes", "on"}:
-                return True
-            if normalized in {"0", "false", "no", "off"}:
-                return False
-        raise ValueError(f"{key} must be a boolean value")
-
-    def _coerce_int(raw: object, key: str) -> int:
-        if isinstance(raw, bool):
-            raise ValueError(f"{key} must be an integer value")
-        if isinstance(raw, (int, float, str, bytes, bytearray)):
-            return int(raw)
-        if hasattr(raw, "__int__"):
-            return int(raw)
-        raise ValueError(f"{key} must be an integer value")
-
-    def _coerce_float(raw: object, key: str) -> float:
-        if isinstance(raw, bool):
-            raise ValueError(f"{key} must be a float value")
-        if isinstance(raw, (int, float, str, bytes, bytearray)):
-            return float(raw)
-        if hasattr(raw, "__float__"):
-            return float(raw)
-        raise ValueError(f"{key} must be a float value")
-
-    def _coerce_str(raw: object, key: str) -> str:
-        if isinstance(raw, bool):
-            raise ValueError(f"{key} must be a string-coercible value")
-        if isinstance(raw, (str, Path, int, float)):
-            return str(raw)
-        raise ValueError(f"{key} must be a string-coercible value")
-
-    def _get(cli_val: object, key: str, default: object) -> object:
-        if cli_val is not None:
-            return cli_val
-        return file_cfg.get(key, default)
-
-    def _get_bool(cli_val: bool | None, key: str, default: bool) -> bool:
-        """CLI > file > default for boolean flags."""
-        if cli_val is not None:
-            return cli_val
-        raw = file_cfg.get(key, default)
-        return _coerce_bool(raw, key)
-
-    phase_raw = _coerce_int(_get(args.phase, "phase", 1), "phase")
-    n_rules = _coerce_int(_get(args.n_rules, "n_rules", 100), "n_rules")
-    steps = _coerce_int(_get(args.steps, "steps", 200), "steps")
-    halt_window = _coerce_int(_get(args.halt_window, "halt_window", 10), "halt_window")
-    update_mode_raw = _coerce_str(
-        _get(args.update_mode, "update_mode", UpdateMode.SEQUENTIAL.value),
-        "update_mode",
+    phase_raw = _get_int(args.phase, "phase", file_cfg, 1)
+    n_rules = _get_int(args.n_rules, "n_rules", file_cfg, 100)
+    steps = _get_int(args.steps, "steps", file_cfg, 200)
+    halt_window = _get_int(args.halt_window, "halt_window", file_cfg, 10)
+    update_mode_raw = _get_str(
+        args.update_mode, "update_mode", file_cfg, UpdateMode.SEQUENTIAL.value
     )
     update_mode = _parse_update_mode(update_mode_raw)
     enable_viability_filters = _get_bool(
-        args.enable_viability_filters, "enable_viability_filters", True
+        args.enable_viability_filters, "enable_viability_filters", file_cfg, True
     )
-    rule_seed = _coerce_int(_get(args.rule_seed, "rule_seed", 0), "rule_seed")
-    sim_seed = _coerce_int(_get(args.sim_seed, "sim_seed", 0), "sim_seed")
-    out_dir = Path(_coerce_str(_get(args.out_dir, "out_dir", "data"), "out_dir"))
-    grid_sizes_raw = _coerce_str(_get(args.grid_sizes, "grid_sizes", "20x20"), "grid_sizes")
-    agent_counts_raw = _coerce_str(_get(args.agent_counts, "agent_counts", "30"), "agent_counts")
-    seed_batches = _coerce_int(_get(args.seed_batches, "seed_batches", 1), "seed_batches")
-    phases_raw = _coerce_str(_get(args.phases, "phases", "1,2"), "phases")
-    filter_short_period = _get_bool(args.filter_short_period, "filter_short_period", False)
-    short_period_max_period = _coerce_int(
-        _get(args.short_period_max_period, "short_period_max_period", 2), "short_period_max_period"
+    rule_seed = _get_int(args.rule_seed, "rule_seed", file_cfg, 0)
+    sim_seed = _get_int(args.sim_seed, "sim_seed", file_cfg, 0)
+    out_dir = Path(_get_str(args.out_dir, "out_dir", file_cfg, "data"))
+    grid_sizes_raw = _get_str(args.grid_sizes, "grid_sizes", file_cfg, "20x20")
+    agent_counts_raw = _get_str(args.agent_counts, "agent_counts", file_cfg, "30")
+    seed_batches = _get_int(args.seed_batches, "seed_batches", file_cfg, 1)
+    phases_raw = _get_str(args.phases, "phases", file_cfg, "1,2")
+    filter_short_period = _get_bool(
+        args.filter_short_period, "filter_short_period", file_cfg, False
     )
-    short_period_history_size = _coerce_int(
-        _get(args.short_period_history_size, "short_period_history_size", 8),
-        "short_period_history_size",
+    short_period_max_period = _get_int(
+        args.short_period_max_period, "short_period_max_period", file_cfg, 2
     )
-    filter_low_activity = _get_bool(args.filter_low_activity, "filter_low_activity", False)
-    low_activity_window = _coerce_int(
-        _get(args.low_activity_window, "low_activity_window", 5), "low_activity_window"
+    short_period_history_size = _get_int(
+        args.short_period_history_size, "short_period_history_size", file_cfg, 8
     )
-    low_activity_min_unique_ratio = _coerce_float(
-        _get(args.low_activity_min_unique_ratio, "low_activity_min_unique_ratio", 0.2),
+    filter_low_activity = _get_bool(
+        args.filter_low_activity, "filter_low_activity", file_cfg, False
+    )
+    low_activity_window = _get_int(args.low_activity_window, "low_activity_window", file_cfg, 5)
+    low_activity_min_unique_ratio = _get_float(
+        args.low_activity_min_unique_ratio,
         "low_activity_min_unique_ratio",
+        file_cfg,
+        0.2,
     )
-    block_ncd_window = _coerce_int(
-        _get(args.block_ncd_window, "block_ncd_window", 10), "block_ncd_window"
-    )
-    fast_metrics = _get_bool(args.fast_metrics, "fast_metrics", False)
-    is_density_sweep = _get_bool(args.density_sweep, "density_sweep", False)
-    is_experiment = _get_bool(args.experiment, "experiment", False)
+    block_ncd_window = _get_int(args.block_ncd_window, "block_ncd_window", file_cfg, 10)
+    fast_metrics = _get_bool(args.fast_metrics, "fast_metrics", file_cfg, False)
+    is_density_sweep = _get_bool(args.density_sweep, "density_sweep", file_cfg, False)
+    is_experiment = _get_bool(args.experiment, "experiment", file_cfg, False)
 
     if is_density_sweep and is_experiment:
         raise ValueError(
