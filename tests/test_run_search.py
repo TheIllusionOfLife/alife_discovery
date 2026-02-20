@@ -19,6 +19,7 @@ from objectless_alife.run_search import (
     MultiSeedConfig,
     RuntimeConfig,
     SearchConfig,
+    StateUniformMode,
     UpdateMode,
     _collect_final_metric_rows,
     _entropy_from_action_counts,
@@ -897,6 +898,7 @@ def test_run_search_main_config_parses_string_booleans(tmp_path: Path) -> None:
                 "filter_low_activity": "false",
                 "enable_viability_filters": "false",
                 "update_mode": "synchronous",
+                "state_uniform_mode": "tag_only",
             }
         )
     )
@@ -907,6 +909,7 @@ def test_run_search_main_config_parses_string_booleans(tmp_path: Path) -> None:
     assert payload["metadata"]["filter_low_activity"] is False
     assert payload["metadata"]["enable_viability_filters"] is False
     assert payload["metadata"]["update_mode"] == "synchronous"
+    assert payload["metadata"]["state_uniform_mode"] == "tag_only"
 
 
 def test_run_search_main_config_rejects_invalid_boolean(tmp_path: Path) -> None:
@@ -1000,6 +1003,43 @@ def test_run_batch_search_disable_viability_filters_runs_full_horizon(tmp_path: 
     assert metrics.num_rows == 6
     payload = json.loads(next((tmp_path / "rules").glob("*.json")).read_text())
     assert payload["metadata"]["enable_viability_filters"] is False
+
+
+def test_state_uniform_mode_tag_only_does_not_terminate(tmp_path: Path) -> None:
+    run_batch_search(
+        n_rules=1,
+        phase=ObservationPhase.PHASE1_DENSITY,
+        out_dir=tmp_path,
+        config=SearchConfig(
+            steps=6,
+            halt_window=100,
+            state_uniform_mode=StateUniformMode.TAG_ONLY,
+        ),
+        world_config=WorldConfig(steps=6, num_agents=1),
+    )
+    metrics = pq.read_table(tmp_path / "logs" / "metrics_summary.parquet")
+    assert metrics.num_rows == 6
+    payload = json.loads(next((tmp_path / "rules").glob("*.json")).read_text())
+    assert payload["metadata"]["state_uniform_mode"] == "tag_only"
+    assert payload["filter_results"]["state_uniform"] is True
+    assert payload["metadata"]["termination_reason"] is None
+
+
+def test_state_uniform_mode_terminal_terminates(tmp_path: Path) -> None:
+    run_batch_search(
+        n_rules=1,
+        phase=ObservationPhase.PHASE1_DENSITY,
+        out_dir=tmp_path,
+        config=SearchConfig(
+            steps=6,
+            halt_window=100,
+            state_uniform_mode=StateUniformMode.TERMINAL,
+        ),
+        world_config=WorldConfig(steps=6, num_agents=1),
+    )
+    payload = json.loads(next((tmp_path / "rules").glob("*.json")).read_text())
+    assert payload["metadata"]["state_uniform_mode"] == "terminal"
+    assert payload["metadata"]["termination_reason"] == "state_uniform"
 
 
 def test_halt_window_sweep_workload_cap(tmp_path: Path) -> None:

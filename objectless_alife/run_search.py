@@ -42,6 +42,7 @@ from objectless_alife.config import (  # noqa: F401
     RuntimeConfig,
     SearchConfig,
     SimulationResult,
+    StateUniformMode,
     UpdateMode,
 )
 from objectless_alife.rules import ObservationPhase
@@ -145,6 +146,15 @@ def _parse_update_mode(raw_update_mode: str) -> UpdateMode:
         raise ValueError(f"update-mode must be one of {valid}") from exc
 
 
+def _parse_state_uniform_mode(raw_state_uniform_mode: str) -> StateUniformMode:
+    """Parse state-uniform handling mode from CLI/config."""
+    try:
+        return StateUniformMode(raw_state_uniform_mode)
+    except ValueError as exc:
+        valid = ", ".join(mode.value for mode in StateUniformMode)
+        raise ValueError(f"state-uniform-mode must be one of {valid}") from exc
+
+
 def _coerce_bool(raw: object, key: str) -> bool:
     """Coerce raw value to bool with strict string-check."""
     if isinstance(raw, bool):
@@ -242,6 +252,12 @@ def _build_parser() -> argparse.ArgumentParser:
         action=argparse.BooleanOptionalAction,
         default=None,
     )
+    parser.add_argument(
+        "--state-uniform-mode",
+        type=str,
+        choices=[mode.value for mode in StateUniformMode],
+        default=None,
+    )
     parser.add_argument("--rule-seed", type=int, default=None)
     parser.add_argument("--sim-seed", type=int, default=None)
     parser.add_argument("--out-dir", type=Path, default=None)
@@ -303,6 +319,10 @@ def main(argv: list[str] | None = None) -> None:
     enable_viability_filters = _get_bool(
         args.enable_viability_filters, "enable_viability_filters", file_cfg, True
     )
+    state_uniform_mode_raw = _get_str(
+        args.state_uniform_mode, "state_uniform_mode", file_cfg, StateUniformMode.TERMINAL.value
+    )
+    state_uniform_mode = _parse_state_uniform_mode(state_uniform_mode_raw)
     rule_seed = _get_int(args.rule_seed, "rule_seed", file_cfg, 0)
     sim_seed = _get_int(args.sim_seed, "sim_seed", file_cfg, 0)
     out_dir = Path(_get_str(args.out_dir, "out_dir", file_cfg, "data"))
@@ -352,6 +372,7 @@ def main(argv: list[str] | None = None) -> None:
             halt_window=halt_window,
             enable_viability_filters=enable_viability_filters,
             update_mode=update_mode,
+            state_uniform_mode=state_uniform_mode,
             rule_seed_start=rule_seed,
             sim_seed_start=sim_seed,
             filter_short_period=filter_short_period,
@@ -383,6 +404,7 @@ def main(argv: list[str] | None = None) -> None:
             halt_window=halt_window,
             enable_viability_filters=enable_viability_filters,
             update_mode=update_mode,
+            state_uniform_mode=state_uniform_mode,
             rule_seed_start=rule_seed,
             sim_seed_start=sim_seed,
             filter_short_period=filter_short_period,
@@ -410,6 +432,7 @@ def main(argv: list[str] | None = None) -> None:
             halt_window=halt_window,
             enable_viability_filters=enable_viability_filters,
             update_mode=update_mode,
+            state_uniform_mode=state_uniform_mode,
             filter_short_period=filter_short_period,
             short_period_max_period=short_period_max_period,
             short_period_history_size=short_period_history_size,

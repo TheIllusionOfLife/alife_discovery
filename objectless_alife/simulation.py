@@ -17,7 +17,7 @@ from pathlib import Path
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from objectless_alife.config import SearchConfig, SimulationResult
+from objectless_alife.config import SearchConfig, SimulationResult, StateUniformMode
 from objectless_alife.filters import (
     ACTION_SPACE_SIZE,
     HaltDetector,
@@ -325,7 +325,10 @@ def run_batch_search(
                     else False
                 )
                 if search_config.enable_viability_filters:
-                    if uniform_triggered:
+                    if (
+                        uniform_triggered
+                        and search_config.state_uniform_mode == StateUniformMode.TERMINAL
+                    ):
                         terminated_at = step
                         termination_reason = TerminationReason.STATE_UNIFORM.value
                         break
@@ -395,6 +398,7 @@ def run_batch_search(
                     "filter_low_activity": search_config.filter_low_activity,
                     "enable_viability_filters": search_config.enable_viability_filters,
                     "update_mode": search_config.update_mode.value,
+                    "state_uniform_mode": search_config.state_uniform_mode.value,
                     "schema_version": RULE_PAYLOAD_SCHEMA_VERSION,
                 },
             }

@@ -45,6 +45,13 @@ class UpdateMode(Enum):
     SYNCHRONOUS = "synchronous"
 
 
+class StateUniformMode(Enum):
+    """Handling policy when all agents share the same state."""
+
+    TERMINAL = "terminal"
+    TAG_ONLY = "tag_only"
+
+
 @dataclass(frozen=True)
 class RuntimeConfig:
     """Core runtime knobs shared by search/experiment/sweep runs."""
@@ -53,6 +60,7 @@ class RuntimeConfig:
     halt_window: int = 10
     enable_viability_filters: bool = True
     update_mode: UpdateMode = UpdateMode.SEQUENTIAL
+    state_uniform_mode: StateUniformMode = StateUniformMode.TERMINAL
 
 
 @dataclass(frozen=True)
@@ -84,6 +92,7 @@ class SearchConfig:
     halt_window: int = 10
     enable_viability_filters: bool = True
     update_mode: UpdateMode = UpdateMode.SEQUENTIAL
+    state_uniform_mode: StateUniformMode = StateUniformMode.TERMINAL
     filter_short_period: bool = False
     short_period_max_period: int = 2
     short_period_history_size: int = 8
@@ -110,6 +119,7 @@ class SearchConfig:
             halt_window=runtime.halt_window,
             enable_viability_filters=runtime.enable_viability_filters,
             update_mode=runtime.update_mode,
+            state_uniform_mode=runtime.state_uniform_mode,
             filter_short_period=filters.filter_short_period,
             short_period_max_period=filters.short_period_max_period,
             short_period_history_size=filters.short_period_history_size,
@@ -129,6 +139,7 @@ class SearchConfig:
                 halt_window=self.halt_window,
                 enable_viability_filters=self.enable_viability_filters,
                 update_mode=self.update_mode,
+                state_uniform_mode=self.state_uniform_mode,
             ),
             FilterConfig(
                 filter_short_period=self.filter_short_period,
@@ -152,6 +163,7 @@ def _search_config_from_legacy_fields(
     halt_window: int,
     enable_viability_filters: bool,
     update_mode: UpdateMode,
+    state_uniform_mode: StateUniformMode,
     filter_short_period: bool,
     short_period_max_period: int,
     short_period_history_size: int,
@@ -167,6 +179,7 @@ def _search_config_from_legacy_fields(
         halt_window=halt_window,
         enable_viability_filters=enable_viability_filters,
         update_mode=update_mode,
+        state_uniform_mode=state_uniform_mode,
         filter_short_period=filter_short_period,
         short_period_max_period=short_period_max_period,
         short_period_history_size=short_period_history_size,
@@ -193,6 +206,7 @@ class ExperimentConfig:
     halt_window: int = 10
     enable_viability_filters: bool = True
     update_mode: UpdateMode = UpdateMode.SEQUENTIAL
+    state_uniform_mode: StateUniformMode = StateUniformMode.TERMINAL
     rule_seed_start: int = 0
     sim_seed_start: int = 0
     filter_short_period: bool = False
@@ -221,6 +235,7 @@ class ExperimentConfig:
             halt_window=self.halt_window,
             enable_viability_filters=self.enable_viability_filters,
             update_mode=self.update_mode,
+            state_uniform_mode=self.state_uniform_mode,
             filter_short_period=self.filter_short_period,
             short_period_max_period=self.short_period_max_period,
             short_period_history_size=self.short_period_history_size,
@@ -250,6 +265,7 @@ class DensitySweepConfig:
     halt_window: int = 10
     enable_viability_filters: bool = True
     update_mode: UpdateMode = UpdateMode.SEQUENTIAL
+    state_uniform_mode: StateUniformMode = StateUniformMode.TERMINAL
     rule_seed_start: int = 0
     sim_seed_start: int = 0
     filter_short_period: bool = False
@@ -278,6 +294,7 @@ class DensitySweepConfig:
             halt_window=self.halt_window,
             enable_viability_filters=self.enable_viability_filters,
             update_mode=self.update_mode,
+            state_uniform_mode=self.state_uniform_mode,
             filter_short_period=self.filter_short_period,
             short_period_max_period=self.short_period_max_period,
             short_period_history_size=self.short_period_history_size,
@@ -305,6 +322,7 @@ class MultiSeedConfig:
     halt_window: int = 10
     enable_viability_filters: bool = True
     update_mode: UpdateMode = UpdateMode.SEQUENTIAL
+    state_uniform_mode: StateUniformMode = StateUniformMode.TERMINAL
     phase: ObservationPhase = ObservationPhase.PHASE2_PROFILE
     shuffle_null_n_shuffles: int = 200
 
@@ -318,6 +336,7 @@ class HaltWindowSweepConfig:
     out_dir: Path = Path("data/halt_window_sweep")
     steps: int = 200
     update_mode: UpdateMode = UpdateMode.SEQUENTIAL
+    state_uniform_mode: StateUniformMode = StateUniformMode.TERMINAL
     phase: ObservationPhase = ObservationPhase.PHASE2_PROFILE
     shuffle_null_n_shuffles: int = 200
 

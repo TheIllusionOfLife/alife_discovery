@@ -10,6 +10,7 @@ import argparse
 import csv
 import itertools
 import json
+import re
 from pathlib import Path
 
 import pyarrow as pa
@@ -21,8 +22,21 @@ from objectless_alife.rules import ObservationPhase
 from objectless_alife.run_search import run_batch_search
 from objectless_alife.stats import load_final_step_metrics
 
+RULE_ID_SEED_RE = re.compile(r"^phase\d+_rs(?P<rule_seed>\d+)_ss\d+$")
 
-def _rank_map(metrics_path: Path) -> dict[str, int]:
+
+def _alignment_id(rule_id: str, alignment_key: str) -> str:
+    if alignment_key == "rule_id":
+        return rule_id
+    if alignment_key == "rule_seed":
+        match = RULE_ID_SEED_RE.match(rule_id)
+        if match is None:
+            return rule_id
+        return f"rule_seed:{match.group('rule_seed')}"
+    raise ValueError(f"Unhandled alignment key: {alignment_key}")
+
+
+def _rank_map(metrics_path: Path, alignment_key: str) -> dict[str, int]:
     table = load_final_step_metrics(metrics_path)
     mi = pc.fill_null(
         pc.cast(table.column("neighbor_mutual_information"), pa.float64(), safe=False),
@@ -43,7 +57,12 @@ def _rank_map(metrics_path: Path) -> dict[str, int]:
         )
     )
     rows.sort(key=lambda pair: float(pair[1]), reverse=True)
-    return {str(rule_id): idx for idx, (rule_id, _) in enumerate(rows)}
+    rank_map: dict[str, int] = {}
+    for rule_id, _ in rows:
+        key = _alignment_id(str(rule_id), alignment_key)
+        if key not in rank_map:
+            rank_map[key] = len(rank_map)
+    return rank_map
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -54,6 +73,13 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--n-seed-batches", type=int, default=3)
     parser.add_argument("--rule-seed-start", type=int, default=0)
     parser.add_argument("--sim-seed-start", type=int, default=0)
+    parser.add_argument(
+        "--alignment-key",
+        type=str,
+        choices=("rule_seed", "rule_id"),
+        default="rule_seed",
+        help="Key used to align rules across seed batches when computing Kendall tau.",
+    )
     parser.add_argument("--quick", action="store_true", help="Run a small sanity-sized preset")
     args = parser.parse_args(argv)
     if args.quick:
@@ -82,7 +108,10 @@ def main(argv: list[str] | None = None) -> None:
                 base_sim_seed=args.sim_seed_start + (batch_idx * 100_000),
                 config=SearchConfig(steps=args.steps),
             )
-            per_phase[batch_idx] = _rank_map(batch_dir / "logs" / "metrics_summary.parquet")
+            per_phase[batch_idx] = _rank_map(
+                batch_dir / "logs" / "metrics_summary.parquet",
+                alignment_key=args.alignment_key,
+            )
         batch_rankings[phase.value] = per_phase
 
     phase_results: dict[str, list[dict[str, float | int]]] = {}
@@ -93,19 +122,32 @@ def main(argv: list[str] | None = None) -> None:
             rank_a = per_phase[a]
             rank_b = per_phase[b]
             shared = sorted(set(rank_a) & set(rank_b))
+            overlap_fraction_a = len(shared) / len(rank_a) if rank_a else 0.0
+            overlap_fraction_b = len(shared) / len(rank_b) if rank_b else 0.0
             if len(shared) < 2:
                 tau = float("nan")
             else:
                 series_a = [rank_a[rid] for rid in shared]
                 series_b = [rank_b[rid] for rid in shared]
                 tau = float(kendalltau(series_a, series_b).statistic)
-            rows.append({"batch_a": a, "batch_b": b, "kendall_tau": tau, "n_rules": len(shared)})
+            rows.append(
+                {
+                    "batch_a": a,
+                    "batch_b": b,
+                    "kendall_tau": tau,
+                    "n_rules": len(shared),
+                    "overlap_fraction_a": overlap_fraction_a,
+                    "overlap_fraction_b": overlap_fraction_b,
+                    "alignment_key": args.alignment_key,
+                }
+            )
         phase_results[str(phase.value)] = rows
 
     output = {
         "n_rules": args.n_rules,
         "n_seed_batches": args.n_seed_batches,
         "steps": args.steps,
+        "alignment_key": args.alignment_key,
         "pairwise_kendall_tau": phase_results,
     }
     (out_dir / "summary.json").write_text(json.dumps(output, ensure_ascii=False, indent=2))
@@ -119,12 +161,24 @@ def main(argv: list[str] | None = None) -> None:
                     "batch_b": int(row["batch_b"]),
                     "kendall_tau": float(row["kendall_tau"]),
                     "n_rules": int(row["n_rules"]),
+                    "overlap_fraction_a": float(row["overlap_fraction_a"]),
+                    "overlap_fraction_b": float(row["overlap_fraction_b"]),
+                    "alignment_key": str(row["alignment_key"]),
                 }
             )
     with (out_dir / "summary.csv").open("w", newline="") as f:
         writer = csv.DictWriter(
             f,
-            fieldnames=["phase", "batch_a", "batch_b", "kendall_tau", "n_rules"],
+            fieldnames=[
+                "phase",
+                "batch_a",
+                "batch_b",
+                "kendall_tau",
+                "n_rules",
+                "overlap_fraction_a",
+                "overlap_fraction_b",
+                "alignment_key",
+            ],
         )
         writer.writeheader()
         writer.writerows(csv_rows)

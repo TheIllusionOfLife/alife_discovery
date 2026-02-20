@@ -24,6 +24,7 @@ from objectless_alife.config import (
     MultiSeedConfig,
     SearchConfig,
     SimulationResult,
+    StateUniformMode,
     UpdateMode,
 )
 from objectless_alife.filters import HaltDetector, StateUniformDetector, TerminationReason
@@ -673,6 +674,7 @@ def _run_simulation_to_completion(
     uniform_detector: StateUniformDetector,
     update_mode: UpdateMode,
     enable_viability_filters: bool = True,
+    state_uniform_mode: StateUniformMode = StateUniformMode.TERMINAL,
 ) -> tuple[str | None, tuple[tuple[int, int, int, int], ...]]:
     """Run a single simulation until termination or completion.
 
@@ -686,7 +688,7 @@ def _run_simulation_to_completion(
         snapshot = world.snapshot()
         states = world.state_vector()
 
-        if uniform_detector.observe(states):
+        if uniform_detector.observe(states) and state_uniform_mode == StateUniformMode.TERMINAL:
             termination_reason = TerminationReason.STATE_UNIFORM.value
             break
         if halt_detector.observe(snapshot):
@@ -734,6 +736,7 @@ def run_multi_seed_robustness(config: MultiSeedConfig) -> Path:
                 uniform_detector,
                 config.update_mode,
                 config.enable_viability_filters,
+                config.state_uniform_mode,
             )
 
             survived = termination_reason is None
@@ -761,6 +764,7 @@ def run_multi_seed_robustness(config: MultiSeedConfig) -> Path:
                     "mi_excess": mi_exc,
                     "same_state_adjacency_fraction": adj_frac,
                     "update_mode": config.update_mode.value,
+                    "state_uniform_mode": config.state_uniform_mode.value,
                     "enable_viability_filters": config.enable_viability_filters,
                 }
             )
@@ -804,6 +808,7 @@ def run_halt_window_sweep(config: HaltWindowSweepConfig) -> Path:
                 halt_detector,
                 uniform_detector,
                 config.update_mode,
+                state_uniform_mode=config.state_uniform_mode,
             )
 
             survived = termination_reason is None
@@ -827,6 +832,7 @@ def run_halt_window_sweep(config: HaltWindowSweepConfig) -> Path:
                     "mi_shuffle_null": mi_null,
                     "mi_excess": mi_exc,
                     "update_mode": config.update_mode.value,
+                    "state_uniform_mode": config.state_uniform_mode.value,
                 }
             )
 
