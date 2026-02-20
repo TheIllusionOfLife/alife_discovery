@@ -72,6 +72,12 @@ def test_to_float_list_mixed():
     assert result == [1.0, 2.5]
 
 
+def test_to_float_list_non_convertible_raises():
+    rows = [{"val": "abc"}]
+    with pytest.raises(ValueError):
+        _to_float_list(rows, "val")
+
+
 def test_mean_empty():
     assert _mean([]) is None
 
