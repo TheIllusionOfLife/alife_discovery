@@ -174,3 +174,10 @@ def test_main_exits_on_failure(tmp_path: Path) -> None:
     with pytest.raises(SystemExit) as exc_info:
         verify_main(["--followup-dir", str(missing)])
     assert exc_info.value.code == 1
+
+
+def test_main_ok(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    bundle = _build_bundle(tmp_path)
+    verify_main(["--followup-dir", str(bundle)])
+    captured = capsys.readouterr()
+    assert "Bundle verification: OK" in captured.out

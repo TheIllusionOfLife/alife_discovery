@@ -68,7 +68,7 @@ def _rank_map(metrics_path: Path, alignment_key: str) -> dict[str, int]:
     # rows is sorted by descending excess; when multiple rule_id values collapse to the
     # same alignment_key (e.g. rule_seed), first-seen wins so we keep the highest-excess one.
     for rule_id, _ in rows:
-        key = _alignment_id(str(rule_id), alignment_key)
+        key = _alignment_id(rule_id, alignment_key)
         if key not in rank_map:
             rank_map[key] = len(rank_map)
     return rank_map
@@ -123,9 +123,9 @@ def main(argv: list[str] | None = None) -> None:
             )
         batch_rankings[phase.value] = per_phase
 
-    phase_results: dict[str, list[dict[str, float | int]]] = {}
+    phase_results: dict[str, list[dict[str, float | int | str]]] = {}
     for phase in phases:
-        rows: list[dict[str, float | int]] = []
+        rows: list[dict[str, float | int | str]] = []
         per_phase = batch_rankings[phase.value]
         for a, b in itertools.combinations(sorted(per_phase.keys()), 2):
             rank_a = per_phase[a]

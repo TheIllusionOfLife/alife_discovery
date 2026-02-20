@@ -9,11 +9,13 @@ from pathlib import Path
 
 from scripts.pr26_followups_manifest_paths import collect_manifest_output_paths
 
+CHUNK_SIZE = 8192
+
 
 def _sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(8192), b""):
+        for chunk in iter(lambda: handle.read(CHUNK_SIZE), b""):
             digest.update(chunk)
     return digest.hexdigest()
 
@@ -98,7 +100,7 @@ def verify_bundle(followup_dir: Path) -> tuple[bool, list[str]]:
         )
         if target is None:
             continue
-        if not target.exists():
+        if not target.is_file():
             errors.append(f"checksums entry points to missing file: {rel_path}")
             continue
         actual_hash = _sha256(target)
@@ -125,7 +127,7 @@ def verify_bundle(followup_dir: Path) -> tuple[bool, list[str]]:
                 )
                 if local_path is None:
                     continue
-                if not local_path.exists():
+                if not local_path.is_file():
                     continue
                 recorded_hash = file_entry.get("sha256")
                 # checksums.sha256 intentionally omits recorded hash to avoid circular coupling.
