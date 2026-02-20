@@ -18,6 +18,8 @@ from datetime import date
 from pathlib import Path
 from urllib import error, parse, request
 
+from scripts.pr26_followups_manifest_paths import collect_manifest_output_paths
+
 HTTP_TIMEOUT_SECONDS = 30
 HTTP_MAX_RETRIES = 3
 HTTP_RETRY_BACKOFF_SECONDS = 1.0
@@ -101,61 +103,20 @@ def _collect_upload_targets(
     followup_dir: Path, manifest_path: Path, manifest: dict
 ) -> tuple[list[Path], dict[str, int]]:
     targets: list[Path] = []
-    skipped = {
-        "non_string_path": 0,
-        "resolve_error": 0,
-        "outside_followup_dir": 0,
-        "missing_file": 0,
-    }
-
-    def _resolve_output_path(path_text: str) -> Path | None:
-        candidate = Path(path_text)
-        if candidate.is_absolute():
-            try:
-                return candidate.resolve()
-            except OSError:
-                return None
-        manifest_relative = manifest_path.parent / candidate
-        try:
-            manifest_resolved = manifest_relative.resolve()
-        except OSError:
-            manifest_resolved = None
-        if manifest_resolved is not None and manifest_resolved.is_file():
-            return manifest_resolved
-        try:
-            return (Path.cwd() / candidate).resolve()
-        except OSError:
-            return None
 
     checksums = followup_dir / "checksums.sha256"
     if checksums.exists():
         targets.append(checksums)
-    outputs = manifest.get("outputs", {})
-    if isinstance(outputs, dict):
-        for entry in outputs.values():
-            if not isinstance(entry, dict):
-                continue
-            for key in ("json", "csv"):
-                path_text = entry.get(key)
-                if not isinstance(path_text, str):
-                    skipped["non_string_path"] += 1
-                    continue
-                resolved = _resolve_output_path(path_text)
-                if resolved is None:
-                    skipped["resolve_error"] += 1
-                    continue
-                try:
-                    resolved.relative_to(followup_dir.resolve())
-                except ValueError:
-                    skipped["outside_followup_dir"] += 1
-                    continue
-                if not resolved.is_file():
-                    skipped["missing_file"] += 1
-                    continue
-                if resolved == manifest_path:
-                    continue
-                if resolved not in targets:
-                    targets.append(resolved)
+    output_targets, skipped = collect_manifest_output_paths(
+        manifest,
+        manifest_path,
+        base_dir=followup_dir,
+    )
+    for resolved in output_targets:
+        if resolved == manifest_path:
+            continue
+        if resolved not in targets:
+            targets.append(resolved)
     return targets, skipped
 
 

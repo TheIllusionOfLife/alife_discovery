@@ -8,6 +8,7 @@ from objectless_alife.rules import ObservationPhase
 from objectless_alife.run_search import run_experiment
 from scripts.no_filter_analysis import main as no_filter_main
 from scripts.phenotype_taxonomy import main as taxonomy_main
+from scripts.pr26_followups_manifest_paths import collect_manifest_output_paths
 from scripts.ranking_stability import main as ranking_main
 from scripts.render_pr26_followups_tex import main as render_tex_main
 from scripts.run_pr26_followups import main as run_all_followups_main
@@ -241,3 +242,32 @@ def test_render_pr26_followups_tex_smoke(tmp_path: Path) -> None:
     assert "\\newcommand{\\PrTwentySixManifestCommit}" in contents
     assert "\\newcommand{\\PrTwentySixPhaseTwoTeExcessMedian}" in contents
     assert "\\newcommand{\\PrTwentySixManifestDoi}" in contents
+
+
+def test_collect_manifest_output_paths_resolves_manifest_relative(tmp_path: Path) -> None:
+    out_dir = tmp_path / "bundle"
+    output_json = out_dir / "no_filter" / "summary.json"
+    output_csv = out_dir / "no_filter" / "summary.csv"
+    output_json.parent.mkdir(parents=True, exist_ok=True)
+    output_json.write_text('{"ok": true}\n')
+    output_csv.write_text("k,v\nok,1\n")
+    manifest_path = out_dir / "manifest.json"
+    manifest = {
+        "outputs": {
+            "no_filter": {
+                "json": "no_filter/summary.json",
+                "csv": "no_filter/summary.csv",
+            }
+        }
+    }
+    manifest_path.write_text(json.dumps(manifest))
+
+    targets, skipped = collect_manifest_output_paths(
+        manifest,
+        manifest_path,
+        base_dir=out_dir,
+    )
+
+    assert output_json.resolve() in targets
+    assert output_csv.resolve() in targets
+    assert skipped["outside_base_dir"] == 0

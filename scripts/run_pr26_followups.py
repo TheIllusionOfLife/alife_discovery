@@ -20,6 +20,7 @@ from pathlib import Path
 
 from scripts.no_filter_analysis import main as run_no_filter
 from scripts.phenotype_taxonomy import main as run_taxonomy
+from scripts.pr26_followups_manifest_paths import collect_manifest_output_paths
 from scripts.ranking_stability import main as run_ranking_stability
 from scripts.synchronous_ablation import main as run_sync_ablation
 from scripts.te_null_analysis import main as run_te_null
@@ -89,46 +90,14 @@ def main(argv: list[str] | None = None) -> None:
     def _write_checksums() -> None:
         out_dir_resolved = out_dir.resolve()
         targets: list[Path] = [manifest_path]
-
-        def _resolve_output_path(path_text: str) -> Path | None:
-            candidate = Path(path_text)
-            if candidate.is_absolute():
-                try:
-                    return candidate.resolve()
-                except OSError:
-                    return None
-            manifest_relative = manifest_path.parent / candidate
-            try:
-                manifest_resolved = manifest_relative.resolve()
-            except OSError:
-                manifest_resolved = None
-            if manifest_resolved is not None and manifest_resolved.is_file():
-                return manifest_resolved
-            try:
-                return (Path.cwd() / candidate).resolve()
-            except OSError:
-                return None
-
-        outputs = manifest.get("outputs", {})
-        if isinstance(outputs, dict):
-            for entry in outputs.values():
-                if not isinstance(entry, dict):
-                    continue
-                for key in ("json", "csv"):
-                    path_text = entry.get(key)
-                    if not isinstance(path_text, str):
-                        continue
-                    resolved = _resolve_output_path(path_text)
-                    if resolved is None:
-                        continue
-                    if not resolved.is_file():
-                        continue
-                    try:
-                        resolved.relative_to(out_dir_resolved)
-                    except ValueError:
-                        continue
-                    if resolved not in targets:
-                        targets.append(resolved)
+        output_targets, _skipped = collect_manifest_output_paths(
+            manifest,
+            manifest_path,
+            base_dir=out_dir_resolved,
+        )
+        for resolved in output_targets:
+            if resolved not in targets:
+                targets.append(resolved)
         lines = [
             f"{_sha256(path)}  {path.resolve().relative_to(out_dir_resolved)}" for path in targets
         ]
