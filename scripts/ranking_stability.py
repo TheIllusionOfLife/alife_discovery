@@ -11,6 +11,7 @@ import csv
 import itertools
 import json
 import re
+import warnings
 from pathlib import Path
 
 import pyarrow as pa
@@ -32,6 +33,11 @@ def _alignment_id(rule_id: str, alignment_key: str) -> str:
         # Keep this regex in sync with rule_id formatting in simulation payloads.
         match = RULE_ID_SEED_RE.match(rule_id)
         if match is None:
+            warnings.warn(
+                f"_alignment_id: rule_id did not match RULE_ID_SEED_RE for "
+                f"alignment_key={alignment_key!r}: {rule_id!r}",
+                stacklevel=2,
+            )
             return rule_id
         return f"rule_seed:{match.group('rule_seed')}"
     raise ValueError(f"Unhandled alignment key: {alignment_key}")

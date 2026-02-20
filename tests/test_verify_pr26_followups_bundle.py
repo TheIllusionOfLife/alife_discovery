@@ -2,6 +2,9 @@ import hashlib
 import json
 from pathlib import Path
 
+import pytest
+
+from scripts.verify_pr26_followups_bundle import main as verify_main
 from scripts.verify_pr26_followups_bundle import verify_bundle
 
 
@@ -129,9 +132,18 @@ def test_verify_bundle_fails_on_zenodo_path_traversal(tmp_path: Path) -> None:
         }
     )
     (bundle / "manifest.json").write_text(json.dumps(payload, indent=2))
+    checksum_lines = (bundle / "checksums.sha256").read_text().splitlines()
+    updated_lines: list[str] = []
+    for line in checksum_lines:
+        if line.endswith("manifest.json"):
+            updated_lines.append(f"{_sha(bundle / 'manifest.json')}  manifest.json")
+        else:
+            updated_lines.append(line)
+    (bundle / "checksums.sha256").write_text("\n".join(updated_lines) + "\n")
     ok, errors = verify_bundle(bundle)
     assert not ok
     assert any("zenodo relative_path escapes bundle directory" in err for err in errors)
+    assert not any("Checksum mismatch for manifest.json" in err for err in errors)
 
 
 def test_verify_bundle_missing_files(tmp_path: Path) -> None:
@@ -139,3 +151,26 @@ def test_verify_bundle_missing_files(tmp_path: Path) -> None:
     assert not ok
     assert any("Missing manifest" in err for err in errors)
     assert all(isinstance(err, str) for err in errors)
+
+
+def test_verify_bundle_fails_on_malformed_manifest(tmp_path: Path) -> None:
+    bundle = _build_bundle(tmp_path)
+    (bundle / "manifest.json").write_text("{bad json")
+    ok, errors = verify_bundle(bundle)
+    assert not ok
+    assert any("Invalid JSON in manifest" in err for err in errors)
+
+
+def test_verify_bundle_fails_on_malformed_checksum_line(tmp_path: Path) -> None:
+    bundle = _build_bundle(tmp_path)
+    (bundle / "checksums.sha256").write_text("not-a-valid-checksum-line\n")
+    ok, errors = verify_bundle(bundle)
+    assert not ok
+    assert any("Invalid checksums file" in err for err in errors)
+
+
+def test_main_exits_on_failure(tmp_path: Path) -> None:
+    missing = tmp_path / "does_not_exist"
+    with pytest.raises(SystemExit) as exc_info:
+        verify_main(["--followup-dir", str(missing)])
+    assert exc_info.value.code == 1

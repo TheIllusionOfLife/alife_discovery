@@ -38,9 +38,10 @@ def _resolve_bundle_path(
     errors: list[str],
     context: str,
 ) -> Path | None:
-    candidate = (followup_dir / rel_path).resolve()
+    followup_dir_resolved = followup_dir.resolve()
+    candidate = (followup_dir_resolved / rel_path).resolve()
     try:
-        candidate.relative_to(followup_dir)
+        candidate.relative_to(followup_dir_resolved)
     except ValueError:
         errors.append(f"{context} escapes bundle directory: {rel_path}")
         return None
@@ -57,7 +58,11 @@ def verify_bundle(followup_dir: Path) -> tuple[bool, list[str]]:
     if not checksums_path.exists():
         return False, [f"Missing checksums: {checksums_path}"]
 
-    manifest = json.loads(manifest_path.read_text())
+    try:
+        manifest = json.loads(manifest_path.read_text())
+    except json.JSONDecodeError as exc:
+        errors.append(f"Invalid JSON in manifest: {exc}")
+        return False, errors
     output_paths, skipped = collect_manifest_output_paths(
         manifest,
         manifest_path,
@@ -70,7 +75,11 @@ def verify_bundle(followup_dir: Path) -> tuple[bool, list[str]]:
     for path in output_paths:
         expected_rel_paths.add(str(path.resolve().relative_to(followup_dir)))
 
-    checksum_entries = _parse_checksums(checksums_path)
+    try:
+        checksum_entries = _parse_checksums(checksums_path)
+    except ValueError as exc:
+        errors.append(f"Invalid checksums file: {exc}")
+        return False, errors
     checksum_paths = set(checksum_entries.keys())
     if checksum_paths != expected_rel_paths:
         missing = sorted(expected_rel_paths - checksum_paths)

@@ -982,6 +982,24 @@ def test_halt_window_sweep_output_schema(tmp_path: Path) -> None:
     assert table.num_rows == 2 * 2  # 2 rules x 2 halt_windows
     assert table.column("enable_viability_filters").to_pylist() == [True, True, True, True]
 
+    disabled_config = HaltWindowSweepConfig(
+        rule_seeds=(0, 1),
+        halt_windows=(5, 10),
+        out_dir=tmp_path / "halt_sweep_disabled",
+        steps=8,
+        enable_viability_filters=False,
+    )
+    disabled_output_path = run_halt_window_sweep(disabled_config)
+    disabled_table = pq.read_table(disabled_output_path)
+    assert expected_cols.issubset(disabled_table.column_names)
+    assert disabled_table.num_rows == 2 * 2
+    assert disabled_table.column("enable_viability_filters").to_pylist() == [
+        False,
+        False,
+        False,
+        False,
+    ]
+
 
 def test_run_batch_search_supports_synchronous_update_mode(tmp_path: Path) -> None:
     run_batch_search(
