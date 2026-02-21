@@ -28,13 +28,13 @@ The Role of Observation Richness in Objective-Free Artificial Life}
 %% =========================================================================
 \begin{abstract}
 We show that spatial coordination among agents emerges in a multi-agent grid world
-when agents can observe neighbor states, without any objective function guiding
-the search.
+when agents can observe neighbor states, without any positive behavioral
+objective guiding the search.
 Existing artificial life systems typically rely on fitness functions---explicit
 or implicit---which introduce evaluation bias and constrain the space of
 discoverable phenomena.
-We propose an objective-free approach based on large-scale random rule generation
-with viability-only filtering, comparing four observation conditions:
+We propose an objective-free but viability-filtered approach based on
+large-scale random rule generation, comparing four observation conditions:
 random walk, a step-clock control, density-only observation, and state-profile observation.
 Across 5{,}000 rules per condition, agents with state-profile observation
 achieve nonzero median excess MI (MI calibrated by a permutation-based shuffle
@@ -49,8 +49,8 @@ pair-count bias ($\mathrm{MI}_{\mathrm{excess}}$ near zero at 0.050~bits, within
 floor of the $N\!=\!200$ shuffle null).
 Moran's $I$ further distinguishes local coordination from large-scale clustering.
 These results demonstrate that observation channel richness---not rule table
-capacity or selection pressure---drives the emergence of spatial coordination
-in objective-free systems.
+capacity or positive-objective selection pressure---drives the emergence of
+spatial coordination in objective-free but viability-filtered systems.
 \end{abstract}
 
 Submission type: \textbf{Full Paper}\\
@@ -82,13 +82,13 @@ criteria~\citep{stanley2019openended}. The question then arises: \emph{can
 meaningful spatial structure emerge in a multi-agent system with no fitness
 function?}
 
-We explore the unexplored quadrant of \emph{no objective $\times$ viability-only
-selection}, where the only filtering criterion is physical
+We explore the unexplored quadrant of \emph{no positive objective $\times$
+viability-only selection}, where the only filtering criterion is physical
 consistency---removing rules that produce trivially broken simulations (all
 agents halt or converge to a single state). This viability-only filtering is
-analogous to the laws of physics: it constrains what is possible without
-specifying what is desirable. Importantly, this negative selection does
-constitute a minimal selection pressure (surviving rules must avoid
+analogous to minimal physical constraints: it constrains what is possible
+without specifying what is desirable. Importantly, this negative selection
+does constitute a minimal selection pressure (surviving rules must avoid
 degenerate dynamics), but no behavioral or performance criterion is employed.
 
 Our core contribution is threefold:
@@ -139,9 +139,10 @@ We use mutual information as a \emph{post-hoc} analysis tool, never as a
 selection criterion.
 
 \paragraph{Our position.}
-Our approach differs from all the above by using \emph{no} evaluation function
----not fitness, not novelty, not complexity. We generate random rules, discard
-only physically broken ones, and ask what structure the surviving rules exhibit.
+Our approach differs from all the above by using \emph{no positive objective}
+---not fitness, novelty, or complexity as an optimization target. We generate
+random rules, discard only physically broken ones, and ask what structure the
+surviving rules exhibit.
 
 %% =========================================================================
 %% 3. METHODS
@@ -241,6 +242,10 @@ No fitness function, novelty metric, complexity threshold, or behavioral
 criterion is used at any stage.
 Across 5{,}000 rules per condition, survival rates are:
 Random Walk 100\%, Phase~1 71.4\%, Phase~2 74.7\%, Control 44.5\%.
+Operationally, these filters enforce viability constraints only: they remove
+degenerate trajectories but do not reward any specific spatial pattern,
+information score, or task completion behavior. All coordination metrics are
+computed \emph{after} filtering and are never fed back into search.
 
 \subsection{Metrics}
 
@@ -454,6 +459,15 @@ higher ($r = 0.45$) due to its substantially lower survival rate.
 The relevant comparison is therefore Phase~1 vs.\ Phase~2: because their
 filter--MI coupling is matched, the Phase~2 excess-MI advantage cannot be
 explained by differential filter selection.
+
+\subsection{Ranking-Stability Overlap Interpretation}
+
+Post-merge follow-up analysis reports Kendall-$\tau$ stability with explicit
+overlap diagnostics across seed batches. For Phase~2 in the archived
+follow-up run, compared seed batches show zero shared surviving rule IDs under
+the selected alignment key, so $\tau$ is undefined and reported as
+\emph{N/A}. This indicates non-identifiability (insufficient overlap), not
+negative rank correlation.
 
 \subsection{Temporal Dynamics}
 
@@ -678,6 +692,11 @@ Several limitations constrain the generalizability of our findings:
         (supplementary material) confirms that results are robust to
         this parameter choice: survival rates and MI distributions
         remain qualitatively unchanged.
+  \item \textbf{Ranking overlap boundary case}: Kendall-$\tau$ ranking
+        stability requires overlapping rule identities across batches.
+        When overlap is zero, $\tau$ is not estimable and is reported
+        as N/A. Overlap fraction is therefore a prerequisite diagnostic
+        for interpreting ranking stability.
 \end{itemize}
 
 %% =========================================================================
@@ -686,7 +705,7 @@ Several limitations constrain the generalizability of our findings:
 \section{Conclusion}
 
 We have shown that meaningful spatial coordination emerges in a multi-agent
-system through objective-free negative selection, and that the richness of
+system through objective-free but viability-filtered negative selection, and that the richness of
 agents' observation channels---not rule table capacity---is the critical factor.
 The evidence ladder from step-clock control through density-only to
 state-profile observation demonstrates a monotonic relationship between

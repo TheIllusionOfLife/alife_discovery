@@ -41,6 +41,8 @@ This document maps manuscript outputs to canonical artifact paths.
 
 - Zenodo DOI (published on February 20, 2026): `10.5281/zenodo.18713158`
 - Record URL: `https://zenodo.org/records/18713158`
+- Artifact-freeze git tag: `v0.1.0-pr26-freeze`
+- Current manuscript integration baseline commit (PR #36 merge): `927a1c48a8085c5479958b32cae7f0ffeab966f5`
 - In-repo lightweight bundle source:
   - `data/post_hoc/pr26_followups/manifest.json`
   - `data/post_hoc/pr26_followups/checksums.sha256`
@@ -52,3 +54,5 @@ This document maps manuscript outputs to canonical artifact paths.
   - `uv run python scripts/verify_pr26_followups_bundle.py --followup-dir data/post_hoc/pr26_followups`
 - One-command reproduction entrypoint:
   - `uv run python scripts/reproduce_pr26_followups.py --mode full --data-dir data/stage_d --followup-dir data/post_hoc/pr26_followups --with-paper`
+- Reviewer-response mapping note:
+  - `docs/reviewer_response_mapping.md`
