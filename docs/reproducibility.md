@@ -48,3 +48,7 @@ This document maps manuscript outputs to canonical artifact paths.
   - `data/post_hoc/pr26_followups/phenotypes/taxonomy.json|csv`
 - This archived bundle was generated with the full follow-up configuration
   (`n_rules=5000`, `steps=200`) for final post-merge PR26 reproducibility.
+- Bundle integrity check command:
+  - `uv run python scripts/verify_pr26_followups_bundle.py --followup-dir data/post_hoc/pr26_followups`
+- One-command reproduction entrypoint:
+  - `uv run python scripts/reproduce_pr26_followups.py --mode full --data-dir data/stage_d --followup-dir data/post_hoc/pr26_followups --with-paper`

@@ -118,6 +118,7 @@ uv run python scripts/synchronous_ablation.py --out-dir data/post_hoc/synchronou
 uv run python scripts/ranking_stability.py --out-dir data/post_hoc/ranking_stability
 uv run python scripts/te_null_analysis.py --data-dir data/stage_d --out-dir data/post_hoc/te_null
 uv run python scripts/phenotype_taxonomy.py --data-dir data/stage_d --out-dir data/post_hoc/phenotypes
+uv run python scripts/viability_filter_ablation.py --data-dir data/stage_d --out-dir data/post_hoc/viability_ablation
 ```
 
 Run all PR #26 follow-ups in one command (writes `manifest.json`):
@@ -145,6 +146,23 @@ uv run python scripts/render_pr26_followups_tex.py \
   --output paper/generated/pr26_followups.tex
 ```
 
+Verify lightweight bundle integrity (manifest/checksums/summary outputs):
+
+```bash
+uv run python scripts/verify_pr26_followups_bundle.py \
+  --followup-dir data/post_hoc/pr26_followups
+```
+
+Run the full PR26 reproducibility pipeline in one command:
+
+```bash
+uv run python scripts/reproduce_pr26_followups.py \
+  --mode full \
+  --data-dir data/stage_d \
+  --followup-dir data/post_hoc/pr26_followups \
+  --with-paper
+```
+
 `paper/supplementary.tex` automatically loads `paper/generated/pr26_followups.tex` when present,
 and falls back to `paper/generated/pr26_followups.defaults.tex` otherwise.
 
@@ -164,10 +182,14 @@ Expected outputs and rough runtime guidance:
   outputs `summary.json`, `summary.csv`; quick: minutes, paper-scale: hours.
 - `scripts/ranking_stability.py`:
   outputs `summary.json`, `summary.csv`; quick: minutes, paper-scale: hours.
+  Default ranking alignment is `rule_seed` (`--alignment-key rule_seed|rule_id`).
 - `scripts/te_null_analysis.py`:
   outputs `summary.json`, `summary.csv`; quick: minutes, paper-scale depends on `top-k` and `n-shuffles`.
 - `scripts/phenotype_taxonomy.py`:
   outputs `taxonomy.json`, `taxonomy.csv`; quick: seconds to minutes.
+- `scripts/viability_filter_ablation.py`:
+  outputs baseline filter-shift summary JSON/Parquet; optional rerun ablation compares
+  `state_uniform_mode=terminal` vs `tag_only`.
 
 `scripts/run_pr26_followups.py` manifest includes reproducibility/provenance fields:
 - `schema_version`, `generated_at_utc`, `git_commit`, `git_branch`

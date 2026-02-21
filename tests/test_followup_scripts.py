@@ -1,8 +1,10 @@
+import csv
 import json
 from pathlib import Path
 
 import pyarrow as pa
 
+import scripts.viability_filter_ablation as viability_ablation_module
 from objectless_alife.config import ExperimentConfig
 from objectless_alife.rules import ObservationPhase
 from objectless_alife.run_search import run_experiment
@@ -14,6 +16,7 @@ from scripts.render_pr26_followups_tex import main as render_tex_main
 from scripts.run_pr26_followups import main as run_all_followups_main
 from scripts.synchronous_ablation import main as sync_main
 from scripts.te_null_analysis import main as te_main
+from scripts.viability_filter_ablation import main as viability_ablation_main
 
 
 def _make_small_dataset(data_dir: Path, sim_seed_start: int = 0) -> None:
@@ -88,7 +91,36 @@ def test_ranking_stability_smoke(tmp_path: Path) -> None:
     )
     payload = json.loads((out_dir / "summary.json").read_text())
     assert "pairwise_kendall_tau" in payload
+    assert payload["alignment_key"] == "rule_seed"
     assert (out_dir / "summary.csv").exists()
+
+
+def test_ranking_stability_rule_id_alignment_can_be_disjoint(tmp_path: Path) -> None:
+    out_dir = tmp_path / "stability_rule_id"
+    ranking_main(
+        [
+            "--out-dir",
+            str(out_dir),
+            "--n-rules",
+            "2",
+            "--steps",
+            "4",
+            "--n-seed-batches",
+            "2",
+            "--alignment-key",
+            "rule_id",
+        ]
+    )
+    payload = json.loads((out_dir / "summary.json").read_text())
+    phase2_rows = payload["pairwise_kendall_tau"]["2"]
+    assert len(phase2_rows) == 1
+    assert phase2_rows[0]["alignment_key"] == "rule_id"
+    assert phase2_rows[0]["n_rules"] == 0
+    with (out_dir / "summary.csv").open(newline="") as handle:
+        rows = list(csv.DictReader(handle))
+    phase2_csv_rows = [row for row in rows if row["phase"] == "2"]
+    assert len(phase2_csv_rows) == 1
+    assert phase2_csv_rows[0]["kendall_tau"] == ""
 
 
 def test_te_null_analysis_smoke(tmp_path: Path) -> None:
@@ -271,3 +303,100 @@ def test_collect_manifest_output_paths_resolves_manifest_relative(tmp_path: Path
     assert output_json.resolve() in targets
     assert output_csv.resolve() in targets
     assert skipped["outside_base_dir"] == 0
+
+
+def test_viability_filter_ablation_smoke(tmp_path: Path) -> None:
+    data_dir = tmp_path / "viability_data"
+    _make_small_dataset(data_dir)
+    out_dir = tmp_path / "viability_out"
+    viability_ablation_main(
+        [
+            "--data-dir",
+            str(data_dir),
+            "--out-dir",
+            str(out_dir),
+        ]
+    )
+    payload = json.loads((out_dir / "summary.json").read_text())
+    assert "baseline_filter_shift" in payload
+    assert "phase_2" in payload["baseline_filter_shift"]
+    assert (out_dir / "summary.parquet").exists()
+
+
+def test_viability_filter_ablation_with_state_uniform_mode_rerun(tmp_path: Path) -> None:
+    data_dir = tmp_path / "viability_data_rerun"
+    _make_small_dataset(data_dir)
+    out_dir = tmp_path / "viability_out_rerun"
+    ablation_out = tmp_path / "viability_mode_runs"
+    viability_ablation_main(
+        [
+            "--data-dir",
+            str(data_dir),
+            "--out-dir",
+            str(out_dir),
+            "--run-state-uniform-ablation",
+            "--ablation-out-dir",
+            str(ablation_out),
+            "--ablation-n-rules",
+            "1",
+            "--ablation-steps",
+            "4",
+            "--ablation-seed-batches",
+            "1",
+        ]
+    )
+    payload = json.loads((out_dir / "summary.json").read_text())
+    ablation = payload["state_uniform_mode_ablation"]
+    assert "terminal" in ablation
+    assert "tag_only" in ablation
+
+
+def test_viability_filter_ablation_skips_missing_phase_metrics(tmp_path: Path) -> None:
+    data_dir = tmp_path / "viability_data_missing"
+    _make_small_dataset(data_dir)
+    (data_dir / "phase_2" / "logs" / "metrics_summary.parquet").unlink()
+    out_dir = tmp_path / "viability_out_missing"
+    viability_ablation_main(
+        [
+            "--data-dir",
+            str(data_dir),
+            "--out-dir",
+            str(out_dir),
+        ]
+    )
+    payload = json.loads((out_dir / "summary.json").read_text())
+    baseline = payload["baseline_filter_shift"]
+    assert "phase_1" in baseline
+    assert "phase_2" not in baseline
+
+
+def test_viability_state_uniform_ablation_uses_explicit_seed_starts(
+    monkeypatch, tmp_path: Path
+) -> None:
+    seen_starts: list[tuple[int, int, str]] = []
+
+    def _fake_run_experiment(config: ExperimentConfig) -> None:
+        seen_starts.append(
+            (config.rule_seed_start, config.sim_seed_start, config.state_uniform_mode.value)
+        )
+
+    monkeypatch.setattr(viability_ablation_module, "run_experiment", _fake_run_experiment)
+    monkeypatch.setattr(
+        viability_ablation_module,
+        "_summarize_dataset",
+        lambda _path: {"phase_1": {"n_all": 1, "n_survived": 1}},
+    )
+
+    viability_ablation_module._run_state_uniform_mode_ablation(
+        out_root=tmp_path / "ablation",
+        n_rules=1,
+        steps=2,
+        seed_batches=1,
+        rule_seed_start=123,
+        sim_seed_start=456,
+    )
+
+    assert seen_starts == [
+        (123, 456, "terminal"),
+        (123, 456, "tag_only"),
+    ]
