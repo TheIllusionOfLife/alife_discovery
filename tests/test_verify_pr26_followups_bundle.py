@@ -203,18 +203,54 @@ def test_main_ok(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assert "Bundle verification: OK" in captured.out
 
 
-def test_verify_bundle_fails_fast_when_zenodo_checksums_entry_missing(tmp_path: Path) -> None:
+def test_verify_bundle_reports_missing_zenodo_checksums_entry_path(tmp_path: Path) -> None:
     bundle = _build_bundle(tmp_path)
     payload = json.loads((bundle / "manifest.json").read_text())
     payload["zenodo"]["files"].append(
         {
             "name": "checksums.sha256",
-            "relative_path": "checksums.sha256",
+            "relative_path": "missing/checksums.sha256",
             "sha256": "0" * 64,
         }
     )
-    (bundle / "checksums.sha256").unlink()
     (bundle / "manifest.json").write_text(json.dumps(payload, indent=2))
     ok, errors = verify_bundle(bundle)
     assert not ok
-    assert any("checksums.sha256" in err for err in errors)
+    assert any("zenodo.files entry points to missing file" in err for err in errors)
+    assert any("missing/checksums.sha256" in err for err in errors)
+
+
+def test_verify_bundle_zenodo_missing_sha256(tmp_path: Path) -> None:
+    bundle = _build_bundle(tmp_path)
+    payload = json.loads((bundle / "manifest.json").read_text())
+    del payload["zenodo"]["files"][0]["sha256"]
+    (bundle / "manifest.json").write_text(json.dumps(payload, indent=2))
+    checksum_lines = (bundle / "checksums.sha256").read_text().splitlines()
+    updated_lines: list[str] = []
+    for line in checksum_lines:
+        if line.endswith("manifest.json"):
+            updated_lines.append(f"{_sha(bundle / 'manifest.json')}  manifest.json")
+        else:
+            updated_lines.append(line)
+    (bundle / "checksums.sha256").write_text("\n".join(updated_lines) + "\n")
+    ok, errors = verify_bundle(bundle)
+    assert not ok
+    assert any("zenodo.files missing sha256" in err for err in errors)
+
+
+def test_verify_bundle_zenodo_nonstring_sha256(tmp_path: Path) -> None:
+    bundle = _build_bundle(tmp_path)
+    payload = json.loads((bundle / "manifest.json").read_text())
+    payload["zenodo"]["files"][0]["sha256"] = 123
+    (bundle / "manifest.json").write_text(json.dumps(payload, indent=2))
+    checksum_lines = (bundle / "checksums.sha256").read_text().splitlines()
+    updated_lines: list[str] = []
+    for line in checksum_lines:
+        if line.endswith("manifest.json"):
+            updated_lines.append(f"{_sha(bundle / 'manifest.json')}  manifest.json")
+        else:
+            updated_lines.append(line)
+    (bundle / "checksums.sha256").write_text("\n".join(updated_lines) + "\n")
+    ok, errors = verify_bundle(bundle)
+    assert not ok
+    assert any("zenodo.files sha256 is not string" in err for err in errors)

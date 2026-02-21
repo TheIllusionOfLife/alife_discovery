@@ -1,3 +1,4 @@
+import csv
 import json
 from pathlib import Path
 
@@ -115,6 +116,11 @@ def test_ranking_stability_rule_id_alignment_can_be_disjoint(tmp_path: Path) -> 
     assert len(phase2_rows) == 1
     assert phase2_rows[0]["alignment_key"] == "rule_id"
     assert phase2_rows[0]["n_rules"] == 0
+    with (out_dir / "summary.csv").open(newline="") as handle:
+        rows = list(csv.DictReader(handle))
+    phase2_csv_rows = [row for row in rows if row["phase"] == "2"]
+    assert len(phase2_csv_rows) == 1
+    assert phase2_csv_rows[0]["kendall_tau"] == ""
 
 
 def test_te_null_analysis_smoke(tmp_path: Path) -> None:

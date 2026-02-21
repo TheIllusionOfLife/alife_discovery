@@ -170,7 +170,7 @@ def main(argv: list[str] | None = None) -> None:
                     "phase": phase,
                     "batch_a": int(row["batch_a"]),
                     "batch_b": int(row["batch_b"]),
-                    "kendall_tau": row["kendall_tau"],
+                    "kendall_tau": "" if row["kendall_tau"] is None else row["kendall_tau"],
                     "n_rules": int(row["n_rules"]),
                     "overlap_fraction_a": float(row["overlap_fraction_a"]),
                     "overlap_fraction_b": float(row["overlap_fraction_b"]),
