@@ -23,7 +23,7 @@ from objectless_alife.rules import ObservationPhase  # noqa: E402
 from objectless_alife.run_search import (  # noqa: E402
     MultiSeedConfig,
     run_multi_seed_robustness,
-    select_top_rules_by_excess_mi,
+    select_top_rules_by_delta_mi,
 )
 
 DATA_DIR = PROJECT_ROOT / "data" / "stage_d"
@@ -41,7 +41,7 @@ def run_multi_seed_for_phase(
     top_k: int = 50,
     n_sim_seeds: int = 20,
 ) -> Path:
-    """Select top rules by MI_excess and run multi-seed robustness for a phase.
+    """Select top rules by delta_mi and run multi-seed robustness for a phase.
 
     Returns the path to the output parquet file.
     """
@@ -52,7 +52,7 @@ def run_multi_seed_for_phase(
     metrics_path = data_dir / phase_label / "logs" / "metrics_summary.parquet"
     rules_dir = data_dir / phase_label / "rules"
 
-    top_seeds = select_top_rules_by_excess_mi(metrics_path, rules_dir, top_k=top_k)
+    top_seeds = select_top_rules_by_delta_mi(metrics_path, rules_dir, top_k=top_k)
     if not top_seeds:
         raise ValueError(f"No surviving rules found for {phase_label}")
 
@@ -70,9 +70,9 @@ def summarize_multi_seed_results(results_path: Path) -> dict:
 
     Returns dict with:
       - total_rules: number of distinct rule seeds
-      - rules_with_positive_median: rules whose median MI_excess > 0
+      - rules_with_positive_median: rules whose median delta_mi > 0
       - fraction_with_positive_median: ratio of above
-      - mean_positive_fraction: mean P(MI_excess > 0) across seeds per rule
+      - mean_positive_fraction: mean P(delta_mi > 0) across seeds per rule
       - overall_survival_rate: fraction of (rule, seed) pairs that survived
     """
     table = pq.read_table(results_path)
@@ -80,7 +80,7 @@ def summarize_multi_seed_results(results_path: Path) -> dict:
 
     rule_seeds = sorted(set(r["rule_seed"] for r in rows))
     rules_with_positive_median = 0
-    mi_excess_positive_fracs: list[float] = []
+    delta_mi_positive_fracs: list[float] = []
     overall_survived = 0
     overall_total = 0
 
@@ -90,15 +90,15 @@ def summarize_multi_seed_results(results_path: Path) -> dict:
         overall_survived += len(survived_rows)
         overall_total += len(rule_rows)
 
-        mi_excess_vals = [r["mi_excess"] for r in survived_rows]
-        if mi_excess_vals:
-            median_mi = statistics.median(mi_excess_vals)
+        delta_mi_vals = [r["delta_mi"] for r in survived_rows]
+        if delta_mi_vals:
+            median_mi = statistics.median(delta_mi_vals)
             if median_mi > 0:
                 rules_with_positive_median += 1
-            positive_frac = sum(1 for v in mi_excess_vals if v > 0) / len(mi_excess_vals)
-            mi_excess_positive_fracs.append(positive_frac)
+            positive_frac = sum(1 for v in delta_mi_vals if v > 0) / len(delta_mi_vals)
+            delta_mi_positive_fracs.append(positive_frac)
         else:
-            mi_excess_positive_fracs.append(0.0)
+            delta_mi_positive_fracs.append(0.0)
 
     n_rules = len(rule_seeds)
     return {
@@ -106,7 +106,7 @@ def summarize_multi_seed_results(results_path: Path) -> dict:
         "rules_with_positive_median": rules_with_positive_median,
         "fraction_with_positive_median": (rules_with_positive_median / n_rules if n_rules else 0.0),
         "mean_positive_fraction": (
-            statistics.mean(mi_excess_positive_fracs) if mi_excess_positive_fracs else 0.0
+            statistics.mean(delta_mi_positive_fracs) if delta_mi_positive_fracs else 0.0
         ),
         "overall_survival_rate": (overall_survived / overall_total if overall_total > 0 else 0.0),
     }
@@ -125,11 +125,11 @@ def main() -> None:
         result_path = run_multi_seed_for_phase(phase, DATA_DIR, out_dir)
         summary = summarize_multi_seed_results(result_path)
         print(
-            f"  Rules with positive median MI_excess: "
+            f"  Rules with positive median delta_mi: "
             f"{summary['rules_with_positive_median']}/{summary['total_rules']} "
             f"({summary['fraction_with_positive_median']:.1%})"
         )
-        print(f"  Mean P(MI_excess > 0) across seeds: {summary['mean_positive_fraction']:.3f}")
+        print(f"  Mean P(delta_mi > 0) across seeds: {summary['mean_positive_fraction']:.3f}")
         print(f"  Overall survival rate: {summary['overall_survival_rate']:.1%}")
 
 

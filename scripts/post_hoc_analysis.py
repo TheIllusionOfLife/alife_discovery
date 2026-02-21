@@ -1,11 +1,11 @@
 """Post-hoc analyses on stage_d data for supplementary tables.
 
 Computes:
-  1. Halt-window sweep (Table D) — survival + median MI_excess for {5,10,20}
+  1. Halt-window sweep (Table D) — survival + median delta_mi for {5,10,20}
   2. Alt null models (Table G) — mean null MI: shuffle, block, fixed-marginal
   3. Spatial scrambling (Section H) — mean scrambled MI for top-50 P2
   4. Transfer entropy (Section I) — per-condition median TE
-  5. Capacity-matched controls (Section J) — Phase 5 & 6 MI_excess
+  5. Capacity-matched controls (Section J) — Phase 5 & 6 delta_mi
 
 Usage:
     uv run python scripts/post_hoc_analysis.py
@@ -14,6 +14,7 @@ Usage:
 from __future__ import annotations
 
 import json
+import math
 import random
 import statistics
 import sys
@@ -36,7 +37,7 @@ from objectless_alife.metrics import (  # noqa: E402
 from objectless_alife.run_search import (  # noqa: E402
     HaltWindowSweepConfig,
     run_halt_window_sweep,
-    select_top_rules_by_excess_mi,
+    select_top_rules_by_delta_mi,
 )
 
 # ---------------------------------------------------------------------------
@@ -49,7 +50,15 @@ P2_SIM_LOG = DATA_DIR / "phase_2" / "logs" / "simulation_log.parquet"
 P1_SIM_LOG = DATA_DIR / "phase_1" / "logs" / "simulation_log.parquet"
 CTRL_SIM_LOG = DATA_DIR / "control" / "logs" / "simulation_log.parquet"
 
+
+def _safe_mean(values: list[float]) -> float:
+    return statistics.mean(values) if values else math.nan
+
+
 GRID_W, GRID_H = 20, 20
+HALT_WINDOWS = (5, 10, 20)
+SAMPLE_SIZE = 5000
+MAX_LABELS = 199
 MI_COLUMNS = [
     "rule_id",
     "step",
@@ -124,8 +133,8 @@ def _rule_ids_for_seeds(phase_value: int, seeds: list[int]) -> set[str]:
     return {f"phase{phase_value}_rs{s}_ss{s}" for s in seeds}
 
 
-def _median_mi_excess_from_metrics(metrics_path: Path) -> float:
-    """Compute median MI_excess from a metrics summary parquet."""
+def _median_delta_mi_from_metrics(metrics_path: Path) -> float:
+    """Compute median delta_mi from a metrics summary parquet."""
     table = pq.read_table(metrics_path, columns=MI_COLUMNS)
     rows = table.to_pylist()
     max_steps: dict[str, int] = {}
@@ -134,7 +143,7 @@ def _median_mi_excess_from_metrics(metrics_path: Path) -> float:
         step = int(row["step"])
         if rid not in max_steps or step > max_steps[rid]:
             max_steps[rid] = step
-    mi_excess_vals = []
+    delta_mi_vals = []
     for row in rows:
         rid = row["rule_id"]
         if int(row["step"]) != max_steps[rid]:
@@ -142,8 +151,8 @@ def _median_mi_excess_from_metrics(metrics_path: Path) -> float:
         mi = row["neighbor_mutual_information"]
         null = row["mi_shuffle_null"]
         if mi is not None and null is not None:
-            mi_excess_vals.append(max(float(mi) - float(null), 0.0))
-    return statistics.median(mi_excess_vals) if mi_excess_vals else 0.0
+            delta_mi_vals.append(float(mi) - float(null))
+    return statistics.median(delta_mi_vals) if delta_mi_vals else 0.0
 
 
 # ---------------------------------------------------------------------------
@@ -152,11 +161,11 @@ def _median_mi_excess_from_metrics(metrics_path: Path) -> float:
 def run_halt_window_analysis(
     top_seeds: list[int],
 ) -> dict[int, dict[str, float]]:
-    """Run halt-window sweep: {window: {survival_rate, median_mi_excess}}."""
+    """Run halt-window sweep: {window: {survival_rate, median_delta_mi}}."""
     print("=== Halt-Window Sweep ===")
     config = HaltWindowSweepConfig(
         rule_seeds=tuple(top_seeds),
-        halt_windows=(5, 10, 20),
+        halt_windows=HALT_WINDOWS,
         out_dir=PROJECT_ROOT / "data" / "post_hoc" / "halt_window",
     )
     output_path = run_halt_window_sweep(config)
@@ -164,22 +173,22 @@ def run_halt_window_analysis(
     rows = table.to_pylist()
 
     results: dict[int, dict[str, float]] = {}
-    for window in (5, 10, 20):
+    for window in HALT_WINDOWS:
         window_rows = [r for r in rows if r["halt_window"] == window]
         if not window_rows:
-            results[window] = {"survival_rate": 0.0, "median_mi_excess": 0.0}
+            results[window] = {"survival_rate": 0.0, "median_delta_mi": 0.0}
             print(f"  Window {window:2d}: no data")
             continue
         survived = sum(1 for r in window_rows if r["survived"])
         survival_rate = survived / len(window_rows) * 100
-        mi_vals = [float(r["mi_excess"]) for r in window_rows if r["survived"]]
+        mi_vals = [float(r["delta_mi"]) for r in window_rows if r["survived"]]
         median_mi = statistics.median(mi_vals) if mi_vals else 0.0
         results[window] = {
             "survival_rate": survival_rate,
-            "median_mi_excess": median_mi,
+            "median_delta_mi": median_mi,
         }
         print(
-            f"  Window {window:2d}: survival={survival_rate:.1f}%, median MI_excess={median_mi:.3f}"
+            f"  Window {window:2d}: survival={survival_rate:.1f}%, median delta_mi={median_mi:.3f}"
         )
 
     return results
@@ -208,9 +217,9 @@ def run_alt_null_analysis(
             print(f"  Processed {i + 1}/{len(snapshots)} rules")
 
     results = {
-        "state_shuffle": statistics.mean(state_shuffle_vals),
-        "block_shuffle": statistics.mean(block_shuffle_vals),
-        "fixed_marginal": statistics.mean(fixed_marginal_vals),
+        "state_shuffle": _safe_mean(state_shuffle_vals),
+        "block_shuffle": _safe_mean(block_shuffle_vals),
+        "fixed_marginal": _safe_mean(fixed_marginal_vals),
     }
     for name, val in results.items():
         print(f"  {name}: {val:.4f} bits")
@@ -236,8 +245,8 @@ def run_spatial_scramble_analysis(
             print(f"  Processed {i + 1}/{len(snapshots)} rules")
 
     results = {
-        "observed_mi": statistics.mean(observed_vals),
-        "scrambled_mi": statistics.mean(scrambled_vals),
+        "observed_mi": _safe_mean(observed_vals),
+        "scrambled_mi": _safe_mean(scrambled_vals),
     }
     print(f"  Mean observed MI:  {results['observed_mi']:.4f} bits")
     print(f"  Mean scrambled MI: {results['scrambled_mi']:.4f} bits")
@@ -291,7 +300,7 @@ def run_capacity_matched_analysis() -> dict[str, dict[str, float]]:
     print("  Running Phase 5 (capacity-matched P1) — 5000 rules...")
     phase5_out = PROJECT_ROOT / "data" / "post_hoc" / "phase_5"
     phase5_results = run_batch_search(
-        n_rules=5000,
+        n_rules=SAMPLE_SIZE,
         phase=ObservationPhase.PHASE1_CAPACITY_MATCHED,
         out_dir=phase5_out,
     )
@@ -302,22 +311,22 @@ def run_capacity_matched_analysis() -> dict[str, dict[str, float]]:
         phase5_out / "logs" / "metrics_summary.parquet",
         MI_COLUMNS,
         phase5_results,
-        199,
+        MAX_LABELS,
     )
-    phase5_mi_excess = []
+    phase5_delta_mi = []
     for row in phase5_metrics:
         mi = row.get("neighbor_mutual_information")
         null = row.get("mi_shuffle_null")
         if mi is not None and null is not None:
-            phase5_mi_excess.append(max(float(mi) - float(null), 0.0))
-    phase5_med = statistics.median(phase5_mi_excess) if phase5_mi_excess else 0.0
-    print(f"    Phase 5: survival={phase5_survival:.1f}%, median MI_excess={phase5_med:.3f}")
+            phase5_delta_mi.append(float(mi) - float(null))
+    phase5_med = statistics.median(phase5_delta_mi) if phase5_delta_mi else 0.0
+    print(f"    Phase 5: survival={phase5_survival:.1f}%, median delta_mi={phase5_med:.3f}")
 
     # Run Phase 6 (Random-encoding Phase 2)
     print("  Running Phase 6 (random-encoding P2) — 5000 rules...")
     phase6_out = PROJECT_ROOT / "data" / "post_hoc" / "phase_6"
     phase6_results = run_batch_search(
-        n_rules=5000,
+        n_rules=SAMPLE_SIZE,
         phase=ObservationPhase.PHASE2_RANDOM_ENCODING,
         out_dir=phase6_out,
     )
@@ -328,35 +337,35 @@ def run_capacity_matched_analysis() -> dict[str, dict[str, float]]:
         phase6_out / "logs" / "metrics_summary.parquet",
         MI_COLUMNS,
         phase6_results,
-        199,
+        MAX_LABELS,
     )
-    phase6_mi_excess = []
+    phase6_delta_mi = []
     for row in phase6_metrics:
         mi = row.get("neighbor_mutual_information")
         null = row.get("mi_shuffle_null")
         if mi is not None and null is not None:
-            phase6_mi_excess.append(max(float(mi) - float(null), 0.0))
-    phase6_med = statistics.median(phase6_mi_excess) if phase6_mi_excess else 0.0
-    print(f"    Phase 6: survival={phase6_survival:.1f}%, median MI_excess={phase6_med:.3f}")
+            phase6_delta_mi.append(float(mi) - float(null))
+    phase6_med = statistics.median(phase6_delta_mi) if phase6_delta_mi else 0.0
+    print(f"    Phase 6: survival={phase6_survival:.1f}%, median delta_mi={phase6_med:.3f}")
 
     # Reference: P1 and P2 from stage_d
     p1_path = DATA_DIR / "phase_1" / "logs" / "metrics_summary.parquet"
-    p1_median = _median_mi_excess_from_metrics(p1_path)
-    p2_median = _median_mi_excess_from_metrics(P2_METRICS)
-    print(f"    Reference P1: median MI_excess={p1_median:.3f}")
-    print(f"    Reference P2: median MI_excess={p2_median:.3f}")
+    p1_median = _median_delta_mi_from_metrics(p1_path)
+    p2_median = _median_delta_mi_from_metrics(P2_METRICS)
+    print(f"    Reference P1: median delta_mi={p1_median:.3f}")
+    print(f"    Reference P2: median delta_mi={p2_median:.3f}")
 
     return {
         "Phase 5 (cap-matched P1)": {
             "survival_rate": phase5_survival,
-            "median_mi_excess": phase5_med,
+            "median_delta_mi": phase5_med,
         },
         "Phase 6 (rand-encoding P2)": {
             "survival_rate": phase6_survival,
-            "median_mi_excess": phase6_med,
+            "median_delta_mi": phase6_med,
         },
-        "Phase 1 (reference)": {"median_mi_excess": p1_median},
-        "Phase 2 (reference)": {"median_mi_excess": p2_median},
+        "Phase 1 (reference)": {"median_delta_mi": p1_median},
+        "Phase 2 (reference)": {"median_delta_mi": p2_median},
     }
 
 
@@ -369,7 +378,7 @@ def main() -> None:
 
     # Step 1: Get top-50 P2 seeds
     print("\nExtracting top-50 Phase 2 rule seeds...")
-    top_seeds = select_top_rules_by_excess_mi(P2_METRICS, P2_RULES, top_k=50)
+    top_seeds = select_top_rules_by_delta_mi(P2_METRICS, P2_RULES, top_k=50)
     print(f"  Found {len(top_seeds)} seeds")
 
     # Step 2: Load snapshots for top-50 P2 rules
@@ -391,9 +400,9 @@ def main() -> None:
     print("=" * 60)
 
     print("\n--- Table D: Halt Window Sensitivity ---")
-    for window in (5, 10, 20):
+    for window in HALT_WINDOWS:
         r = halt_results[window]
-        print(f"{window}  & {r['survival_rate']:.1f}\\% & {r['median_mi_excess']:.3f} \\\\")
+        print(f"{window}  & {r['survival_rate']:.1f}\\% & {r['median_delta_mi']:.3f} \\\\")
 
     print("\n--- Table G: Alternative Null Models ---")
     print(f"State shuffle & {null_results['state_shuffle']:.4f} \\\\")
@@ -410,7 +419,7 @@ def main() -> None:
 
     print("\n--- Section J: Capacity-Matched Controls ---")
     for cond, vals in cap_results.items():
-        parts = [f"median MI_excess={vals['median_mi_excess']:.3f}"]
+        parts = [f"median delta_mi={vals['median_delta_mi']:.3f}"]
         if "survival_rate" in vals:
             parts.append(f"survival={vals['survival_rate']:.1f}%")
         print(f"  {cond}: {', '.join(parts)}")

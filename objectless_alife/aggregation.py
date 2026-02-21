@@ -2,7 +2,7 @@
 
 Contains higher-level experiment drivers (``run_experiment``,
 ``run_density_sweep``, ``run_multi_seed_robustness``,
-``run_halt_window_sweep``, ``select_top_rules_by_excess_mi``) and the
+``run_halt_window_sweep``, ``select_top_rules_by_delta_mi``) and the
 internal aggregation helpers they share.
 """
 
@@ -30,6 +30,7 @@ from objectless_alife.config import (
 from objectless_alife.filters import HaltDetector, StateUniformDetector, TerminationReason
 from objectless_alife.metrics import (
     neighbor_mutual_information,
+    neighbor_pair_count,
     same_state_adjacency_fraction,
     shuffle_null_mi,
 )
@@ -116,14 +117,14 @@ def _build_phase_summary(
         "mean_terminated_at": _mean([float(v) for v in terminated_at_values]),
     }
 
-    # Derive mi_excess per rule before summarizing (avoid mutating caller's list)
+    # Derive delta_mi per rule before summarizing (avoid mutating caller's list)
     enriched_rows = []
     for row in final_metric_rows:
         new_row = row.copy()
         mi = new_row.get("neighbor_mutual_information")
         null = new_row.get("mi_shuffle_null")
-        new_row["mi_excess"] = (
-            max(float(mi) - float(null), 0.0)
+        new_row["delta_mi"] = (
+            float(mi) - float(null)
             if mi is not None and null is not None and mi == mi and null == null
             else None
         )
@@ -588,14 +589,14 @@ def run_experiment(config: ExperimentConfig) -> list[SimulationResult]:
     return all_results
 
 
-def select_top_rules_by_excess_mi(
+def select_top_rules_by_delta_mi(
     metrics_path: Path,
     rules_dir: Path,
     top_k: int = 50,
 ) -> list[int]:
-    """Select top-K rule seeds by MI_excess from existing experiment data.
+    """Select top-K rule seeds by delta_mi from existing experiment data.
 
-    Returns a list of rule seeds sorted by descending MI_excess.
+    Returns a list of rule seeds sorted by descending delta_mi.
     Only includes surviving rules.
     """
     metrics_file = pq.ParquetFile(metrics_path)
@@ -647,8 +648,8 @@ def select_top_rules_by_excess_mi(
             seed = rid_to_seed.get(rid_str)
             if seed is None:
                 continue  # skip if rule_seed missing
-            excess = max(m["mi"] - m["null"], 0.0)
-            survived_seeds.append((seed, excess))
+            delta = m["mi"] - m["null"]
+            survived_seeds.append((seed, delta))
     else:
         survived_seeds = []
         for path in sorted(rules_dir.glob("*.json")):
@@ -658,9 +659,9 @@ def select_top_rules_by_excess_mi(
             rid = data["rule_id"]
             if rid not in rule_metrics:
                 continue
-            excess = max(rule_metrics[rid]["mi"] - rule_metrics[rid]["null"], 0.0)
+            delta = rule_metrics[rid]["mi"] - rule_metrics[rid]["null"]
             seed = data["metadata"]["rule_seed"]
-            survived_seeds.append((int(seed), excess))
+            survived_seeds.append((int(seed), delta))
 
     survived_seeds.sort(key=lambda x: x[1], reverse=True)
     return [seed for seed, _ in survived_seeds[:top_k]]
@@ -748,7 +749,8 @@ def run_multi_seed_robustness(config: MultiSeedConfig) -> Path:
                 n_shuffles=config.shuffle_null_n_shuffles,
                 rng=random.Random(sim_seed),
             )
-            mi_exc = max(mi - mi_null, 0.0)
+            mi_delta = mi - mi_null
+            n_pairs = neighbor_pair_count(snapshot, world_cfg.grid_width, world_cfg.grid_height)
             adj_frac = same_state_adjacency_fraction(
                 snapshot, world_cfg.grid_width, world_cfg.grid_height
             )
@@ -761,7 +763,8 @@ def run_multi_seed_robustness(config: MultiSeedConfig) -> Path:
                     "termination_reason": termination_reason,
                     "neighbor_mutual_information": mi,
                     "mi_shuffle_null": mi_null,
-                    "mi_excess": mi_exc,
+                    "delta_mi": mi_delta,
+                    "n_pairs": n_pairs,
                     "same_state_adjacency_fraction": adj_frac,
                     "update_mode": config.update_mode.value,
                     "state_uniform_mode": config.state_uniform_mode.value,
@@ -821,7 +824,8 @@ def run_halt_window_sweep(config: HaltWindowSweepConfig) -> Path:
                 n_shuffles=config.shuffle_null_n_shuffles,
                 rng=random.Random(sim_seed),
             )
-            mi_exc = max(mi - mi_null, 0.0)
+            mi_delta = mi - mi_null
+            n_pairs = neighbor_pair_count(snapshot, world_cfg.grid_width, world_cfg.grid_height)
 
             rows.append(
                 {
@@ -831,7 +835,8 @@ def run_halt_window_sweep(config: HaltWindowSweepConfig) -> Path:
                     "termination_reason": termination_reason,
                     "neighbor_mutual_information": mi,
                     "mi_shuffle_null": mi_null,
-                    "mi_excess": mi_exc,
+                    "delta_mi": mi_delta,
+                    "n_pairs": n_pairs,
                     "update_mode": config.update_mode.value,
                     "state_uniform_mode": config.state_uniform_mode.value,
                     "enable_viability_filters": config.enable_viability_filters,

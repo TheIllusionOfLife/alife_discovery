@@ -90,8 +90,9 @@ class TestSummarizeMultiSeedResults:
                 "termination_reason": None,
                 "neighbor_mutual_information": 0.5,
                 "mi_shuffle_null": 0.1,
-                "mi_excess": 0.4,
+                "delta_mi": 0.4,
                 "same_state_adjacency_fraction": 0.3,
+                "n_pairs": 0,
             },
             {
                 "rule_seed": 0,
@@ -100,8 +101,9 @@ class TestSummarizeMultiSeedResults:
                 "termination_reason": None,
                 "neighbor_mutual_information": 0.3,
                 "mi_shuffle_null": 0.1,
-                "mi_excess": 0.2,
+                "delta_mi": 0.2,
                 "same_state_adjacency_fraction": 0.25,
+                "n_pairs": 0,
             },
             {
                 "rule_seed": 1,
@@ -110,8 +112,9 @@ class TestSummarizeMultiSeedResults:
                 "termination_reason": "halt",
                 "neighbor_mutual_information": 0.0,
                 "mi_shuffle_null": 0.0,
-                "mi_excess": 0.0,
+                "delta_mi": 0.0,
                 "same_state_adjacency_fraction": 0.0,
+                "n_pairs": 0,
             },
             {
                 "rule_seed": 1,
@@ -120,8 +123,9 @@ class TestSummarizeMultiSeedResults:
                 "termination_reason": None,
                 "neighbor_mutual_information": 0.0,
                 "mi_shuffle_null": 0.05,
-                "mi_excess": 0.0,
+                "delta_mi": -0.05,
                 "same_state_adjacency_fraction": 0.2,
+                "n_pairs": 0,
             },
         ]
         path = tmp_path / "logs" / "multi_seed_results.parquet"
@@ -139,8 +143,8 @@ class TestSummarizeMultiSeedResults:
     def test_correctly_identifies_positive_median_rules(self, tmp_path: Path) -> None:
         from scripts.multi_seed_p1_control import summarize_multi_seed_results
 
-        # Rule 0: both seeds have positive MI_excess → positive median
-        # Rule 1: all seeds have zero MI_excess → zero median
+        # Rule 0: both seeds have positive delta_mi → positive median
+        # Rule 1: delta_mi is negative (below shuffle null) → negative median
         rows = [
             {
                 "rule_seed": 0,
@@ -149,8 +153,9 @@ class TestSummarizeMultiSeedResults:
                 "termination_reason": None,
                 "neighbor_mutual_information": 0.5,
                 "mi_shuffle_null": 0.1,
-                "mi_excess": 0.4,
+                "delta_mi": 0.4,
                 "same_state_adjacency_fraction": 0.3,
+                "n_pairs": 0,
             },
             {
                 "rule_seed": 0,
@@ -159,8 +164,9 @@ class TestSummarizeMultiSeedResults:
                 "termination_reason": None,
                 "neighbor_mutual_information": 0.3,
                 "mi_shuffle_null": 0.1,
-                "mi_excess": 0.2,
+                "delta_mi": 0.2,
                 "same_state_adjacency_fraction": 0.25,
+                "n_pairs": 0,
             },
             {
                 "rule_seed": 1,
@@ -169,8 +175,9 @@ class TestSummarizeMultiSeedResults:
                 "termination_reason": None,
                 "neighbor_mutual_information": 0.05,
                 "mi_shuffle_null": 0.05,
-                "mi_excess": 0.0,
+                "delta_mi": 0.0,
                 "same_state_adjacency_fraction": 0.2,
+                "n_pairs": 0,
             },
             {
                 "rule_seed": 1,
@@ -179,8 +186,9 @@ class TestSummarizeMultiSeedResults:
                 "termination_reason": None,
                 "neighbor_mutual_information": 0.04,
                 "mi_shuffle_null": 0.05,
-                "mi_excess": 0.0,
+                "delta_mi": -0.01,
                 "same_state_adjacency_fraction": 0.2,
+                "n_pairs": 0,
             },
         ]
         path = tmp_path / "logs" / "multi_seed_results.parquet"
@@ -194,7 +202,7 @@ class TestSummarizeMultiSeedResults:
     def test_zero_survivor_rules_counted_in_mean_positive_fraction(self, tmp_path: Path) -> None:
         from scripts.multi_seed_p1_control import summarize_multi_seed_results
 
-        # Rule 0: both seeds survive with positive MI_excess
+        # Rule 0: both seeds survive with positive delta_mi
         # Rule 1: all seeds fail → should contribute 0.0 to mean_positive_fraction
         rows = [
             {
@@ -204,8 +212,9 @@ class TestSummarizeMultiSeedResults:
                 "termination_reason": None,
                 "neighbor_mutual_information": 0.5,
                 "mi_shuffle_null": 0.1,
-                "mi_excess": 0.4,
+                "delta_mi": 0.4,
                 "same_state_adjacency_fraction": 0.3,
+                "n_pairs": 0,
             },
             {
                 "rule_seed": 0,
@@ -214,8 +223,9 @@ class TestSummarizeMultiSeedResults:
                 "termination_reason": None,
                 "neighbor_mutual_information": 0.3,
                 "mi_shuffle_null": 0.1,
-                "mi_excess": 0.2,
+                "delta_mi": 0.2,
                 "same_state_adjacency_fraction": 0.25,
+                "n_pairs": 0,
             },
             {
                 "rule_seed": 1,
@@ -224,8 +234,9 @@ class TestSummarizeMultiSeedResults:
                 "termination_reason": "halt",
                 "neighbor_mutual_information": 0.0,
                 "mi_shuffle_null": 0.0,
-                "mi_excess": 0.0,
+                "delta_mi": 0.0,
                 "same_state_adjacency_fraction": 0.0,
+                "n_pairs": 0,
             },
             {
                 "rule_seed": 1,
@@ -234,8 +245,9 @@ class TestSummarizeMultiSeedResults:
                 "termination_reason": "halt",
                 "neighbor_mutual_information": 0.0,
                 "mi_shuffle_null": 0.0,
-                "mi_excess": 0.0,
+                "delta_mi": 0.0,
                 "same_state_adjacency_fraction": 0.0,
+                "n_pairs": 0,
             },
         ]
         path = tmp_path / "logs" / "multi_seed_results.parquet"
@@ -247,3 +259,43 @@ class TestSummarizeMultiSeedResults:
         assert summary["mean_positive_fraction"] == pytest.approx(0.5)
         assert summary["total_rules"] == 2
         assert summary["rules_with_positive_median"] == 1
+
+    def test_all_negative_delta_mi_rule_not_counted(self, tmp_path: Path) -> None:
+        from scripts.multi_seed_p1_control import summarize_multi_seed_results
+
+        # Rule 0: all seeds have negative delta_mi (MI below shuffle null)
+        # Verifies the unrectified path: such a rule must NOT contribute to
+        # rules_with_positive_median, and mean_positive_fraction should be 0.
+        rows = [
+            {
+                "rule_seed": 0,
+                "sim_seed": 0,
+                "survived": True,
+                "termination_reason": None,
+                "neighbor_mutual_information": 0.02,
+                "mi_shuffle_null": 0.10,
+                "delta_mi": -0.08,
+                "same_state_adjacency_fraction": 0.1,
+                "n_pairs": 0,
+            },
+            {
+                "rule_seed": 0,
+                "sim_seed": 1,
+                "survived": True,
+                "termination_reason": None,
+                "neighbor_mutual_information": 0.03,
+                "mi_shuffle_null": 0.10,
+                "delta_mi": -0.07,
+                "same_state_adjacency_fraction": 0.1,
+                "n_pairs": 0,
+            },
+        ]
+        path = tmp_path / "logs" / "multi_seed_results.parquet"
+        path.parent.mkdir(parents=True)
+        pq.write_table(pa.Table.from_pylist(rows, schema=MULTI_SEED_SCHEMA), path)
+
+        summary = summarize_multi_seed_results(path)
+        assert summary["total_rules"] == 1
+        assert summary["rules_with_positive_median"] == 0
+        assert summary["fraction_with_positive_median"] == pytest.approx(0.0)
+        assert summary["mean_positive_fraction"] == pytest.approx(0.0)
