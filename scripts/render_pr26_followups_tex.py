@@ -23,13 +23,13 @@ def _load_json(path: Path) -> dict:
 def _fmt_float(value: object) -> str:
     if isinstance(value, (int, float)) and math.isfinite(float(value)):
         return f"{float(value):.4f}"
-    return "NaN"
+    return "N/A"
 
 
 def _fmt_pct(value: object) -> str:
-    if isinstance(value, (int, float)):
+    if isinstance(value, (int, float)) and math.isfinite(float(value)):
         return f"{float(value) * 100.0:.2f}"
-    return "NaN"
+    return "N/A"
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -69,7 +69,7 @@ def main(argv: list[str] | None = None) -> None:
                 dominant_label = str(label)
                 dominant_count = count
     dominant_label_tex = dominant_label.replace("_", "\\_")
-    dominant_count_text = str(dominant_count) if dominant_count >= 0 else "NaN"
+    dominant_count_text = str(dominant_count) if dominant_count >= 0 else "N/A"
     sync_phase_count = len(sync.get("phase_pairwise", {}))
     manifest_doi = (manifest.get("zenodo") or {}).get("doi", "N/A")
 
