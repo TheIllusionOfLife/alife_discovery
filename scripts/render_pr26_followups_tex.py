@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import statistics
 from pathlib import Path
 
 
@@ -57,7 +58,7 @@ def main(argv: list[str] | None = None) -> None:
         for row in phase2_rows
         if isinstance(row, dict) and isinstance(row.get("kendall_tau"), (int, float))
     ]
-    tau_median = sorted(taus)[len(taus) // 2] if taus else float("nan")
+    tau_median = statistics.median(taus) if taus else float("nan")
 
     te_phase2 = te_null.get("conditions", {}).get("phase_2", {})
     phenotype_counts = phenotypes.get("counts", {})
