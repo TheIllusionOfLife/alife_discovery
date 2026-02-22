@@ -152,9 +152,7 @@ def _handle_figure(args: argparse.Namespace) -> None:
     if stats_path is not None:
         stats_path = _resolve_within_base(stats_path, base_dir)
     render_metric_distribution(
-        phase_data=[
-            (label, pdir / "logs" / "metrics_summary.parquet") for label, pdir in phases
-        ],
+        phase_data=[(label, pdir / "logs" / "metrics_summary.parquet") for label, pdir in phases],
         metric_names=["neighbor_mutual_information"],
         output_path=output_dir / "fig2_mi_distribution.pdf",
         stats_path=stats_path,
