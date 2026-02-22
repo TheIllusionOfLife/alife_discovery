@@ -14,7 +14,7 @@ from objectless_alife.export_web import (
     export_single,
 )
 from objectless_alife.rules import ObservationPhase
-from objectless_alife.run_search import run_batch_search
+from objectless_alife.simulation import run_batch_search
 
 
 @pytest.fixture()

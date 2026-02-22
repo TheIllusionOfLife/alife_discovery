@@ -6,7 +6,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
 
-from objectless_alife.run_search import MULTI_SEED_SCHEMA
+from objectless_alife.schemas import MULTI_SEED_SCHEMA
 
 
 def _setup_phase_data(
@@ -17,8 +17,9 @@ def _setup_phase_data(
     steps: int = 10,
 ) -> None:
     """Create minimal experiment data (rules + metrics) for a phase."""
+    from objectless_alife.config import SearchConfig
     from objectless_alife.rules import ObservationPhase
-    from objectless_alife.run_search import SearchConfig, run_batch_search
+    from objectless_alife.simulation import run_batch_search
 
     phase_map = {
         1: ObservationPhase.PHASE1_DENSITY,

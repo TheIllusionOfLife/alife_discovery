@@ -19,12 +19,12 @@ import pyarrow.parquet as pq
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from objectless_alife.rules import ObservationPhase  # noqa: E402
-from objectless_alife.run_search import (  # noqa: E402
-    MultiSeedConfig,
+from objectless_alife.aggregation import (  # noqa: E402
     run_multi_seed_robustness,
     select_top_rules_by_delta_mi,
 )
+from objectless_alife.config import MultiSeedConfig  # noqa: E402
+from objectless_alife.rules import ObservationPhase  # noqa: E402
 
 DATA_DIR = PROJECT_ROOT / "data" / "stage_d"
 

@@ -26,8 +26,8 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 import pyarrow.parquet as pq  # noqa: E402
 
+from objectless_alife.aggregation import select_top_rules_by_delta_mi  # noqa: E402
 from objectless_alife.metrics import shuffle_null_mi  # noqa: E402
-from objectless_alife.run_search import select_top_rules_by_delta_mi  # noqa: E402
 from scripts._common import load_final_snapshots  # noqa: E402
 
 DATA_DIR = PROJECT_ROOT / "data" / "stage_d"

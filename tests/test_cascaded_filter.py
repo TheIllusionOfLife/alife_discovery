@@ -44,7 +44,7 @@ class TestRunWithMediumFilters:
 
 class TestCascadedFilterEnd2End:
     def test_full_pipeline_small_run(self, tmp_path: Path) -> None:
-        from objectless_alife.run_search import run_batch_search
+        from objectless_alife.simulation import run_batch_search
         from scripts.cascaded_filter_analysis import run_with_medium_filters
 
         phase = ObservationPhase.PHASE1_DENSITY

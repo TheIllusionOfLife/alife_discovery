@@ -20,8 +20,7 @@ import pyarrow.compute as pc
 import pyarrow.parquet as pq
 from scipy.stats import chi2_contingency, mannwhitneyu, pointbiserialr
 
-from objectless_alife.run_search import PHASE_SUMMARY_METRIC_NAMES
-from objectless_alife.schemas import METRICS_SCHEMA
+from objectless_alife.schemas import METRICS_SCHEMA, PHASE_SUMMARY_METRIC_NAMES
 
 
 def wilson_score_ci(
