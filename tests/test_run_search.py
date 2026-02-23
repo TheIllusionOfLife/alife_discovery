@@ -133,6 +133,19 @@ def test_metric_compute_config_rejects_non_positive_shuffle_count() -> None:
         MetricComputeConfig(shuffle_null_n_shuffles=0)
 
 
+def test_experiment_config_rejects_invalid_legacy_fields_immediately() -> None:
+    with pytest.raises(ValueError, match="short_period_history_size"):
+        ExperimentConfig(
+            short_period_max_period=5,
+            short_period_history_size=8,
+        )
+
+
+def test_density_sweep_config_rejects_invalid_legacy_fields_immediately() -> None:
+    with pytest.raises(ValueError, match="low_activity_min_unique_ratio"):
+        DensitySweepConfig(low_activity_min_unique_ratio=1.2)
+
+
 def test_collect_final_metric_rows_requires_rule_id_and_step(tmp_path: Path) -> None:
     metrics_path = tmp_path / "metrics.parquet"
     table = pa.table({"state_entropy": [0.1, 0.2]})

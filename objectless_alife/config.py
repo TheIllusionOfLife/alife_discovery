@@ -266,6 +266,25 @@ class ExperimentConfig:
     search_config: SearchConfig | None = None
 
     def __post_init__(self) -> None:
+        RuntimeConfig(
+            steps=self.steps,
+            halt_window=self.halt_window,
+            enable_viability_filters=self.enable_viability_filters,
+            update_mode=self.update_mode,
+            state_uniform_mode=self.state_uniform_mode,
+        )
+        FilterConfig(
+            filter_short_period=self.filter_short_period,
+            short_period_max_period=self.short_period_max_period,
+            short_period_history_size=self.short_period_history_size,
+            filter_low_activity=self.filter_low_activity,
+            low_activity_window=self.low_activity_window,
+            low_activity_min_unique_ratio=self.low_activity_min_unique_ratio,
+        )
+        MetricComputeConfig(
+            block_ncd_window=self.block_ncd_window,
+            skip_null_models=self.skip_null_models,
+        )
         if self.search_config is None:
             return
         legacy = self._legacy_search_config()
@@ -325,6 +344,25 @@ class DensitySweepConfig:
     search_config: SearchConfig | None = None
 
     def __post_init__(self) -> None:
+        RuntimeConfig(
+            steps=self.steps,
+            halt_window=self.halt_window,
+            enable_viability_filters=self.enable_viability_filters,
+            update_mode=self.update_mode,
+            state_uniform_mode=self.state_uniform_mode,
+        )
+        FilterConfig(
+            filter_short_period=self.filter_short_period,
+            short_period_max_period=self.short_period_max_period,
+            short_period_history_size=self.short_period_history_size,
+            filter_low_activity=self.filter_low_activity,
+            low_activity_window=self.low_activity_window,
+            low_activity_min_unique_ratio=self.low_activity_min_unique_ratio,
+        )
+        MetricComputeConfig(
+            block_ncd_window=self.block_ncd_window,
+            skip_null_models=self.skip_null_models,
+        )
         if self.search_config is None:
             return
         legacy = self._legacy_search_config()

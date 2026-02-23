@@ -267,8 +267,11 @@ def export_batch(
 
     ranked = _get_surviving_rules_ranked_by_mi(data_dir)
     for rule_id, _ in ranked[:top_n]:
-        payload = _build_single_payload(data_dir, rule_id)
-        out_file = output_dir / f"{rule_id}.json"
+        safe_rule_id = Path(rule_id).name
+        if not _SAFE_NAME_RE.match(safe_rule_id):
+            raise ValueError(f"Unsafe rule_id for filename: {rule_id!r}")
+        payload = _build_single_payload(data_dir, safe_rule_id)
+        out_file = output_dir / f"{safe_rule_id}.json"
         out_file.write_text(json.dumps(payload, ensure_ascii=False, separators=(",", ":")))
 
 
@@ -303,8 +306,11 @@ def export_gallery(
 
     selected = [ranked[i] for i in indices]
     for rule_id, _ in selected:
-        payload = _build_single_payload(data_dir, rule_id)
-        out_file = output_dir / f"{rule_id}.json"
+        safe_rule_id = Path(rule_id).name
+        if not _SAFE_NAME_RE.match(safe_rule_id):
+            raise ValueError(f"Unsafe rule_id for filename: {rule_id!r}")
+        payload = _build_single_payload(data_dir, safe_rule_id)
+        out_file = output_dir / f"{safe_rule_id}.json"
         out_file.write_text(json.dumps(payload, ensure_ascii=False, separators=(",", ":")))
 
 

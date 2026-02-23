@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 
 import pytest
@@ -305,15 +306,22 @@ class TestDegenerate:
 
 
 class TestPathSecurity:
+    @staticmethod
+    def _copy_dataset(src_dir: Path, dst_dir: Path) -> None:
+        shutil.copytree(src_dir / "rules", dst_dir / "rules")
+        shutil.copytree(src_dir / "logs", dst_dir / "logs")
+
     def test_export_single_rejects_output_outside_base_dir(
         self, phase2_dir: Path, tmp_path: Path
     ) -> None:
         base_dir = tmp_path / "base"
         base_dir.mkdir()
+        inside_data_dir = base_dir / "phase_2"
+        self._copy_dataset(phase2_dir, inside_data_dir)
         out_file = tmp_path / "outside.json"
         with pytest.raises(ValueError, match="Path escapes base_dir"):
             export_single(
-                data_dir=phase2_dir,
+                data_dir=inside_data_dir,
                 rule_id="phase2_rs0_ss0",
                 output=out_file,
                 base_dir=base_dir,
@@ -322,8 +330,88 @@ class TestPathSecurity:
     def test_export_batch_accepts_paths_within_base_dir(
         self, phase2_dir: Path, tmp_path: Path
     ) -> None:
-        base_dir = tmp_path / "base"
-        base_dir.mkdir()
-        out_dir = base_dir / "batch_out"
+        local_base = tmp_path / "base"
+        local_base.mkdir()
+        out_dir = local_base / "batch_out"
         export_batch(data_dir=phase2_dir, top_n=1, output_dir=out_dir, base_dir=tmp_path)
         assert len(list(out_dir.glob("*.json"))) == 1
+
+    def test_export_batch_rejects_output_dir_outside_base_dir(
+        self, phase2_dir: Path, tmp_path: Path
+    ) -> None:
+        base_dir = tmp_path / "base"
+        base_dir.mkdir()
+        inside_data_dir = base_dir / "phase_2"
+        self._copy_dataset(phase2_dir, inside_data_dir)
+        outside_out_dir = tmp_path / "outside_batch"
+        with pytest.raises(ValueError, match="Path escapes base_dir"):
+            export_batch(
+                data_dir=inside_data_dir,
+                top_n=1,
+                output_dir=outside_out_dir,
+                base_dir=base_dir,
+            )
+
+    def test_export_paired_rejects_output_outside_base_dir(
+        self, phase2_dir: Path, control_dir: Path, tmp_path: Path
+    ) -> None:
+        base_dir = tmp_path / "base"
+        base_dir.mkdir()
+        inside_p2 = base_dir / "phase_2"
+        inside_ctrl = base_dir / "control"
+        self._copy_dataset(phase2_dir, inside_p2)
+        self._copy_dataset(control_dir, inside_ctrl)
+        outside_output = tmp_path / "outside_paired.json"
+        with pytest.raises(ValueError, match="Path escapes base_dir"):
+            export_paired(
+                phase2_dir=inside_p2,
+                control_dir=inside_ctrl,
+                sim_seed=0,
+                output=outside_output,
+                base_dir=base_dir,
+            )
+
+    def test_export_gallery_rejects_output_dir_outside_base_dir(
+        self, phase2_dir: Path, tmp_path: Path
+    ) -> None:
+        base_dir = tmp_path / "base"
+        base_dir.mkdir()
+        inside_data_dir = base_dir / "phase_2"
+        self._copy_dataset(phase2_dir, inside_data_dir)
+        outside_out_dir = tmp_path / "outside_gallery"
+        with pytest.raises(ValueError, match="Path escapes base_dir"):
+            export_gallery(
+                data_dir=inside_data_dir,
+                count=1,
+                output_dir=outside_out_dir,
+                base_dir=base_dir,
+            )
+
+    def test_export_batch_allows_output_dir_equal_to_base_dir(
+        self, phase2_dir: Path, tmp_path: Path
+    ) -> None:
+        base_dir = tmp_path / "base"
+        base_dir.mkdir()
+        self._copy_dataset(phase2_dir, base_dir)
+        export_batch(data_dir=base_dir, top_n=1, output_dir=base_dir, base_dir=base_dir)
+        assert len(list(base_dir.glob("phase2_rs*.json"))) == 1
+
+    def test_export_single_rejects_symlink_escape_output(
+        self, phase2_dir: Path, tmp_path: Path
+    ) -> None:
+        base_dir = tmp_path / "base"
+        base_dir.mkdir()
+        inside_data_dir = base_dir / "phase_2"
+        self._copy_dataset(phase2_dir, inside_data_dir)
+        outside_dir = tmp_path / "outside_dir"
+        outside_dir.mkdir()
+        symlink_path = base_dir / "escape"
+        symlink_path.symlink_to(outside_dir, target_is_directory=True)
+        escaped_output = symlink_path / "payload.json"
+        with pytest.raises(ValueError, match="Path escapes base_dir"):
+            export_single(
+                data_dir=inside_data_dir,
+                rule_id="phase2_rs0_ss0",
+                output=escaped_output,
+                base_dir=base_dir,
+            )
