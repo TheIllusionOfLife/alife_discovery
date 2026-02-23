@@ -302,3 +302,28 @@ class TestDegenerate:
 
         json_files = list(out_dir.glob("*.json"))
         assert len(json_files) == 0
+
+
+class TestPathSecurity:
+    def test_export_single_rejects_output_outside_base_dir(
+        self, phase2_dir: Path, tmp_path: Path
+    ) -> None:
+        base_dir = tmp_path / "base"
+        base_dir.mkdir()
+        out_file = tmp_path / "outside.json"
+        with pytest.raises(ValueError, match="Path escapes base_dir"):
+            export_single(
+                data_dir=phase2_dir,
+                rule_id="phase2_rs0_ss0",
+                output=out_file,
+                base_dir=base_dir,
+            )
+
+    def test_export_batch_accepts_paths_within_base_dir(
+        self, phase2_dir: Path, tmp_path: Path
+    ) -> None:
+        base_dir = tmp_path / "base"
+        base_dir.mkdir()
+        out_dir = base_dir / "batch_out"
+        export_batch(data_dir=phase2_dir, top_n=1, output_dir=out_dir, base_dir=tmp_path)
+        assert len(list(out_dir.glob("*.json"))) == 1

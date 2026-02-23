@@ -40,7 +40,7 @@ Across 5{,}000 rules per condition, agents with state-profile observation
 achieve nonzero median $\Delta\mathrm{MI}$ (MI calibrated by a permutation-based shuffle
 null that controls for pair-count bias) while
 density-only and control agents remain at zero
-(Cliff's $\delta = 0.355$; median-difference bootstrap 95\% CI $[0.078, 0.111]$; Table~\ref{tab:stats}),
+(Cliff's $\delta = -0.355$ for P1 vs.\ P2; median-difference bootstrap 95\% CI $[0.078, 0.111]$; Table~\ref{tab:stats}),
 and the ordering Control $\leq$ Phase~1 $<$ Phase~2 holds across all
 rule-based comparisons.
 A Miller-Madow bias-corrected estimator is used throughout, and a shuffle null
@@ -383,7 +383,7 @@ observation content, so correction is applied per comparison rather than
 globally across all stages. Effect sizes are reported as Cliff's
 $\delta$~\citep{cliff1993dominance} (equivalent to rank-biserial correlation
 for Mann-Whitney $U$):
-$\delta = 1 - 2U_A/(n_1 n_2)$, where $U_A$ is the $U$ statistic for
+$\delta = 2U_A/(n_1 n_2) - 1$, where $U_A$ is the $U$ statistic for
 the first-listed group. To replace extreme $p$-values with more informative
 measures, we report bootstrap 95\% confidence intervals~\citep{efron1979bootstrap} for
 the median difference (10{,}000 resamples, percentile method) as the primary
@@ -404,7 +404,7 @@ Table~\ref{tab:mi_summary} and Figure~\ref{fig:mi_distribution} present the
 neighbor mutual information across all four conditions. Among the three
 rule-based conditions, Phase~2 separates clearly from both baselines.
 A smaller but statistically detectable shift also holds between Phase~1 and
-Control (Cliff's $\delta = 0.124$; see Table~\ref{tab:stats}), though both
+Control (Cliff's $\delta = -0.124$ for Ctrl vs.\ P1; see Table~\ref{tab:stats}), though both
 share median $\Delta\mathrm{MI} = 0$ and the practical coordination difference
 is negligible.  The ordering is:
 
@@ -628,10 +628,11 @@ Cliff's $\delta$ measures effect size (= rank-biserial $r$); bootstrap
 95\% CIs for the median difference (10{,}000 resamples) are the
 primary effect-size statistic; $p$-values (Holm-Bonferroni corrected) are
 secondary.  Note that Cliff's $\delta$ measures stochastic dominance
-(probability that a random draw from one group exceeds the other), whereas
+(here, positive means first-listed group $>$ second-listed group), whereas
 the bootstrap CI estimates the location shift of the median difference.
-Effect-size interpretation: $\delta = 0.355$ (P1 vs.\ P2) is moderate-to-large;
-$\delta = 0.124$ (Ctrl vs.\ P1) is small but statistically reliable with $n > 2000$;
+Effect-size interpretation: $\delta = -0.355$ (P1 vs.\ P2) is moderate-to-large in
+magnitude and indicates P2 $>$ P1; $\delta = -0.124$ (Ctrl vs.\ P1) is small but
+statistically reliable with $n > 2000$;
 median differences for Ctrl vs.\ P1 are $<\!0.001$~bits, indicating practical
 equivalence in coordination level despite statistical detectability.}
 \label{tab:stats}
@@ -639,9 +640,9 @@ equivalence in coordination level despite statistical detectability.}
 \toprule
 Comparison & Direction & $n_1$ & $n_2$ & Cliff's $\delta$ & Median diff 95\% CI & $p$-value \\
 \midrule
-P1 vs.\ P2      & P2 $>$ P1   & 3570 & 3735 & 0.355 & [0.078, 0.111] & $< 10^{-252}$ \\
-Ctrl vs.\ P1    & P1 $>$ Ctrl & 2225 & 3570 & 0.124 & [$< 0.001$, $< 0.001$] & $< 10^{-50}$ \\
-Ctrl vs.\ P2    & P2 $>$ Ctrl & 2225 & 3735 & 0.423 & [0.078, 0.111] & $\approx 0$ \\
+P1 vs.\ P2      & P2 $>$ P1   & 3570 & 3735 & -0.355 & [0.078, 0.111] & $< 10^{-252}$ \\
+Ctrl vs.\ P1    & P1 $>$ Ctrl & 2225 & 3570 & -0.124 & [$< 0.001$, $< 0.001$] & $< 10^{-50}$ \\
+Ctrl vs.\ P2    & P2 $>$ Ctrl & 2225 & 3735 & -0.423 & [0.078, 0.111] & $\approx 0$ \\
 \bottomrule
 \end{tabular}
 \end{table*}

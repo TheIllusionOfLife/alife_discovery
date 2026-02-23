@@ -534,6 +534,22 @@ class TestPhaseComparisonCiAndCliffsDelta:
         assert "median_diff_ci_upper" in entry
         assert entry["median_diff_ci_lower"] <= entry["median_diff_ci_upper"]
 
+    def test_cliffs_delta_is_negative_when_second_distribution_is_larger(self) -> None:
+        p1 = self._make_table([0.1, 0.2, 0.3, 0.4])
+        p2 = self._make_table([0.8, 0.9, 1.0, 1.1])
+        result = phase_comparison_tests(p1, p2, ["neighbor_mutual_information"])
+        entry = result["neighbor_mutual_information"]
+        assert entry["cliffs_delta"] < 0.0
+        assert entry["effect_size_r"] < 0.0
+
+    def test_cliffs_delta_is_positive_when_first_distribution_is_larger(self) -> None:
+        p1 = self._make_table([0.8, 0.9, 1.0, 1.1])
+        p2 = self._make_table([0.1, 0.2, 0.3, 0.4])
+        result = phase_comparison_tests(p1, p2, ["neighbor_mutual_information"])
+        entry = result["neighbor_mutual_information"]
+        assert entry["cliffs_delta"] > 0.0
+        assert entry["effect_size_r"] > 0.0
+
 
 class TestStatsMainPairwise:
     def _setup_dir(self, base: Path, label: str, n: int, mi_base: float, surv_frac: float) -> Path:

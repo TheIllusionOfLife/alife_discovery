@@ -110,6 +110,27 @@ uv run python -m objectless_alife.stats --data-dir data/stage_b
 uv run python -m objectless_alife.stats --pairwise --dir-a data/stage_b --dir-b data/stage_c
 ```
 
+Effect-size sign convention in stats outputs:
+- `cliffs_delta` / `effect_size_r` are oriented as first-listed group minus second-listed group.
+- Positive means first-listed group tends larger; negative means second-listed group tends larger.
+
+Export web-ready JSON payloads (with optional path boundary guard via `--base-dir`):
+
+```bash
+uv run python -m objectless_alife.export_web single \
+  --data-dir data/stage_d/phase_2 \
+  --rule-id phase2_rs0_ss0 \
+  --output output/web/single.json \
+  --base-dir .
+
+uv run python -m objectless_alife.export_web paired \
+  --phase2-dir data/stage_d/phase_2 \
+  --control-dir data/stage_d/control \
+  --sim-seed 42 \
+  --output output/web/paired.json \
+  --base-dir .
+```
+
 Run follow-up heavy-compute analyses from PR #26:
 
 ```bash
@@ -209,6 +230,10 @@ uv run python -m objectless_alife.run_search \
   --no-enable-viability-filters \
   --out-dir data
 ```
+
+Configuration validation is strict and fail-fast:
+- invalid values (for example, non-positive `steps`, invalid filter windows/ratios)
+  raise `ValueError` at config construction/CLI parse time.
 
 ## Documentation Map
 

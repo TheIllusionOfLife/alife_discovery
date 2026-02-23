@@ -216,7 +216,7 @@ top-50 rules either survive to completion or halt well within the first
 \caption{Survival rates with Wilson score 95\% confidence intervals
 (5{,}000 rules per condition).}
 \label{tab:survival_ci}
-\begin{tabular}{lccc}
+\resizebox{\linewidth}{!}{\begin{tabular}{lccc}
 \toprule
 Condition & Survived / Total & Rate & 95\% CI \\
 \midrule
@@ -225,7 +225,7 @@ Control     & 2227/5000 & 44.5\%  & [43.1, 45.9]\% \\
 Phase 1     & 3571/5000 & 71.4\%  & [70.1, 72.7]\% \\
 Phase 2     & 3735/5000 & 74.7\%  & [73.5, 75.9]\% \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \end{table}
 
 %% =========================================================================
@@ -426,7 +426,8 @@ $p < 0.001$ for every metric.
 \caption{Cross-condition metric profiles (surviving rules, final-step
 values).  Median [Q1, Q3] reported.  All pairwise Mann-Whitney $U$
 tests (Holm-Bonferroni corrected) are significant at $p < 0.001$;
-effect sizes are reported in the text as Cliff's $|\delta|$.}
+effect sizes are reported in the text as signed Cliff's $\delta$
+(positive means first-listed group $>$ second-listed group).}
 \label{tab:metric_profiles}
 \begin{tabular}{lcccc}
 \toprule
@@ -459,7 +460,7 @@ emergent role differentiation.  Phase~2 exhibits the highest action
 entropy variance (median 0.190), followed by Phase~1 (0.152), while
 Control (0.020) and Random Walk ($< 0.001$) show minimal differentiation.
 The Phase~1 vs.\ Phase~2 difference is significant (Cliff's
-$|\delta| = 0.185$, $p < 10^{-42}$), confirming that richer
+$\delta = -0.185$, $p < 10^{-42}$), confirming that richer
 observations support greater role specialization.
 
 \paragraph{Temporal signatures.}
@@ -473,7 +474,7 @@ without genuine spatial coordination ($\mathrm{MI}_{\mathrm{excess}}
 \approx 0$).  Phase~1 and Phase~2 show low quasi-periodicity,
 consistent with their spatially structured but temporally stable
 dynamics.  The Phase~1 vs.\ Phase~2 difference in $\max \Delta$ is
-significant (Cliff's $|\delta| = 0.119$, $p < 10^{-18}$), suggesting
+significant (Cliff's $\delta = -0.119$, $p < 10^{-18}$), suggesting
 that Phase~2's richer observations produce slightly more dynamic
 temporal trajectories.
 
@@ -501,7 +502,7 @@ Table~\ref{tab:cascade_survival} reports the cascade survival counts.
 refine the survivor pool while the observation-richness ordering
 (Control $<$ P1 $<$ P2) persists.}
 \label{tab:cascade_survival}
-\begin{tabular}{lccc}
+\resizebox{\linewidth}{!}{\begin{tabular}{lccc}
 \toprule
 Condition & Weak Only & Weak+Medium & $\Delta$ \\
 \midrule
@@ -509,7 +510,7 @@ Phase~1 & 3{,}571 (71.4\%) & 2{,}812 (56.2\%) & $-759$ \\
 Phase~2 & 3{,}735 (74.7\%) & 2{,}906 (58.1\%) & $-829$ \\
 Control & 2{,}226 (44.5\%) & 1{,}915 (38.3\%) & $-311$ \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \end{table}
 
 Medium filters remove an additional 15--17\% of rules in Phase~1 and

@@ -113,6 +113,26 @@ def _compute_step_metrics(
 _UNSET: object = object()
 """Sentinel indicating a parameter was not explicitly provided."""
 
+_SIM_LOG_FLUSH_ROW_THRESHOLD = 8_192
+"""Flush simulation log rows to parquet once this in-memory row count is reached."""
+
+
+def _flush_sim_columns(
+    sim_columns: dict[str, list[int | str]],
+    simulation_log_path: Path,
+    sim_writer: pq.ParquetWriter | None,
+) -> pq.ParquetWriter | None:
+    """Write accumulated simulation rows and clear in-memory buffers."""
+    if not sim_columns["rule_id"]:
+        return sim_writer
+    sim_table = pa.Table.from_pydict(sim_columns, schema=SIMULATION_SCHEMA)
+    if sim_writer is None:
+        sim_writer = pq.ParquetWriter(simulation_log_path, SIMULATION_SCHEMA)
+    sim_writer.write_table(sim_table)
+    for values in sim_columns.values():
+        values.clear()
+    return sim_writer
+
 
 # ---------------------------------------------------------------------------
 # Main simulation loop
@@ -311,6 +331,12 @@ def run_batch_search(
                     sim_columns["y"].append(y)
                     sim_columns["state"].append(state)
                     sim_columns["action"].append(actions[agent_id])
+                if len(sim_columns["rule_id"]) >= _SIM_LOG_FLUSH_ROW_THRESHOLD:
+                    sim_writer = _flush_sim_columns(
+                        sim_columns=sim_columns,
+                        simulation_log_path=simulation_log_path,
+                        sim_writer=sim_writer,
+                    )
 
                 halt_triggered = halt_detector.observe(snapshot)
                 uniform_triggered = uniform_detector.observe(states)
@@ -363,13 +389,14 @@ def run_batch_search(
                 )
             metric_columns["mi_shuffle_null"] = [mi_null] * len(metric_columns["step"])
 
-            sim_table = pa.Table.from_pydict(sim_columns, schema=SIMULATION_SCHEMA)
+            sim_writer = _flush_sim_columns(
+                sim_columns=sim_columns,
+                simulation_log_path=simulation_log_path,
+                sim_writer=sim_writer,
+            )
             metric_table = pa.Table.from_pydict(metric_columns, schema=METRICS_SCHEMA)
-            if sim_writer is None:
-                sim_writer = pq.ParquetWriter(simulation_log_path, SIMULATION_SCHEMA)
             if metric_writer is None:
                 metric_writer = pq.ParquetWriter(metrics_summary_path, METRICS_SCHEMA)
-            sim_writer.write_table(sim_table)
             metric_writer.write_table(metric_table)
 
             survived = termination_reason is None

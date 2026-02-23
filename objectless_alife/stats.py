@@ -146,6 +146,14 @@ def phase_comparison_tests(
     """
     results: dict[str, dict] = {}
 
+    def _cliffs_delta_from_u(u_stat: float, n1: int, n2: int) -> float:
+        """Return Cliff's delta with first-minus-second orientation.
+
+        For Mann-Whitney U computed as ``mannwhitneyu(sample1, sample2)``,
+        positive delta means sample1 tends larger than sample2.
+        """
+        return (2.0 * u_stat) / (n1 * n2) - 1.0
+
     def _finite_values(col: pa.ChunkedArray) -> list[float]:
         col_f64 = pc.cast(col, pa.float64(), safe=False)
         finite_mask = pc.and_(pc.is_valid(col_f64), pc.is_finite(col_f64))
@@ -166,8 +174,9 @@ def phase_comparison_tests(
 
         u_stat, p_value = mannwhitneyu(vals1, vals2, alternative="two-sided")
         n1, n2 = len(vals1), len(vals2)
-        # Rank-biserial correlation: r = 1 - (2U)/(n1*n2)
-        effect_size_r = 1.0 - (2.0 * u_stat) / (n1 * n2)
+        # Rank-biserial correlation (equivalent to Cliff's delta for two groups).
+        # Orientation is first-minus-second.
+        effect_size_r = _cliffs_delta_from_u(float(u_stat), n1, n2)
 
         ci_lo, ci_hi = bootstrap_median_ci(
             vals1, vals2, n_bootstrap=10000, rng=random.Random(zlib.adler32(metric.encode()))

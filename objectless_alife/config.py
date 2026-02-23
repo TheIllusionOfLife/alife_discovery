@@ -62,6 +62,12 @@ class RuntimeConfig:
     update_mode: UpdateMode = UpdateMode.SEQUENTIAL
     state_uniform_mode: StateUniformMode = StateUniformMode.TERMINAL
 
+    def __post_init__(self) -> None:
+        if self.steps < 1:
+            raise ValueError("steps must be >= 1")
+        if self.halt_window < 1:
+            raise ValueError("halt_window must be >= 1")
+
 
 @dataclass(frozen=True)
 class FilterConfig:
@@ -74,6 +80,18 @@ class FilterConfig:
     low_activity_window: int = 5
     low_activity_min_unique_ratio: float = 0.2
 
+    def __post_init__(self) -> None:
+        if self.short_period_max_period < 1:
+            raise ValueError("short_period_max_period must be >= 1")
+        if self.short_period_history_size < 1:
+            raise ValueError("short_period_history_size must be >= 1")
+        if self.short_period_history_size < self.short_period_max_period * 2:
+            raise ValueError("short_period_history_size must be >= 2 * short_period_max_period")
+        if self.low_activity_window < 1:
+            raise ValueError("low_activity_window must be >= 1")
+        if not 0.0 <= self.low_activity_min_unique_ratio <= 1.0:
+            raise ValueError("low_activity_min_unique_ratio must be in [0.0, 1.0]")
+
 
 @dataclass(frozen=True)
 class MetricComputeConfig:
@@ -82,6 +100,12 @@ class MetricComputeConfig:
     block_ncd_window: int = 10
     shuffle_null_n_shuffles: int = 200
     skip_null_models: bool = False
+
+    def __post_init__(self) -> None:
+        if self.block_ncd_window < 0:
+            raise ValueError("block_ncd_window must be >= 0")
+        if self.shuffle_null_n_shuffles < 1:
+            raise ValueError("shuffle_null_n_shuffles must be >= 1")
 
 
 @dataclass(frozen=True)
@@ -102,6 +126,28 @@ class SearchConfig:
     block_ncd_window: int = 10
     shuffle_null_n_shuffles: int = 200
     skip_null_models: bool = False
+
+    def __post_init__(self) -> None:
+        RuntimeConfig(
+            steps=self.steps,
+            halt_window=self.halt_window,
+            enable_viability_filters=self.enable_viability_filters,
+            update_mode=self.update_mode,
+            state_uniform_mode=self.state_uniform_mode,
+        )
+        FilterConfig(
+            filter_short_period=self.filter_short_period,
+            short_period_max_period=self.short_period_max_period,
+            short_period_history_size=self.short_period_history_size,
+            filter_low_activity=self.filter_low_activity,
+            low_activity_window=self.low_activity_window,
+            low_activity_min_unique_ratio=self.low_activity_min_unique_ratio,
+        )
+        MetricComputeConfig(
+            block_ncd_window=self.block_ncd_window,
+            shuffle_null_n_shuffles=self.shuffle_null_n_shuffles,
+            skip_null_models=self.skip_null_models,
+        )
 
     @classmethod
     def from_components(
