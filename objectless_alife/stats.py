@@ -23,6 +23,15 @@ from scipy.stats import chi2_contingency, mannwhitneyu, pointbiserialr
 from objectless_alife.schemas import METRICS_SCHEMA, PHASE_SUMMARY_METRIC_NAMES
 
 
+def _cliffs_delta_from_u(u_stat: float, n1: int, n2: int) -> float:
+    """Return Cliff's delta with first-minus-second orientation.
+
+    For Mann-Whitney U computed as ``mannwhitneyu(sample1, sample2)``,
+    positive delta means sample1 tends larger than sample2.
+    """
+    return (2.0 * u_stat) / (n1 * n2) - 1.0
+
+
 def wilson_score_ci(
     successes: int,
     total: int,
@@ -165,20 +174,25 @@ def phase_comparison_tests(
 
         u_stat, p_value = mannwhitneyu(vals1, vals2, alternative="two-sided")
         n1, n2 = len(vals1), len(vals2)
-        # Rank-biserial correlation: r = 1 - (2U)/(n1*n2)
-        effect_size_r = 1.0 - (2.0 * u_stat) / (n1 * n2)
+        # Rank-biserial correlation (equivalent to Cliff's delta for two groups).
+        # Orientation is first-minus-second.
+        effect_size_r = _cliffs_delta_from_u(float(u_stat), n1, n2)
 
         ci_lo, ci_hi = bootstrap_median_ci(
             vals1, vals2, n_bootstrap=10000, rng=random.Random(zlib.adler32(metric.encode()))
         )
+        # bootstrap_median_ci returns median(sample2) - median(sample1);
+        # re-orient to median(sample1) - median(sample2) to match cliffs_delta.
+        ci_oriented_lo = -ci_hi
+        ci_oriented_hi = -ci_lo
 
         results[metric] = {
             "u_statistic": float(u_stat),
             "p_value": float(p_value),
             "effect_size_r": float(effect_size_r),
             "cliffs_delta": float(effect_size_r),
-            "median_diff_ci_lower": float(ci_lo),
-            "median_diff_ci_upper": float(ci_hi),
+            "median_diff_ci_lower": float(ci_oriented_lo),
+            "median_diff_ci_upper": float(ci_oriented_hi),
             "n_phase1": n1,
             "n_phase2": n2,
             "phase1_median": float(statistics.median(vals1)),

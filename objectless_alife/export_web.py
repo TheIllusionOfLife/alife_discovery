@@ -23,6 +23,16 @@ DEFAULT_GRID_HEIGHT = 20
 _SAFE_NAME_RE = re.compile(r"^[A-Za-z0-9_\-]+$")
 
 
+def _resolve_within_base(path: Path, base_dir: Path) -> Path:
+    """Resolve path and ensure it stays within the trusted base directory."""
+    candidate = path if path.is_absolute() else base_dir / path
+    resolved = candidate.resolve()
+    base_resolved = base_dir.resolve()
+    if resolved != base_resolved and base_resolved not in resolved.parents:
+        raise ValueError(f"Path escapes base_dir: {path}")
+    return resolved
+
+
 def _load_rule_json(data_dir: Path, rule_id: str) -> dict:
     """Load a rule JSON file and return its metadata."""
     if not _SAFE_NAME_RE.match(rule_id):
@@ -185,10 +195,15 @@ def _get_surviving_rules_ranked_by_mi(data_dir: Path) -> list[tuple[str, float]]
 # --------------------------------------------------------------------------
 
 
-def export_single(data_dir: Path, rule_id: str, output: Path) -> None:
+def export_single(data_dir: Path, rule_id: str, output: Path, base_dir: Path | None = None) -> None:
     """Export one rule's trajectory as web-ready JSON."""
-    data_dir = Path(data_dir)
-    output = Path(output)
+    if base_dir is None:
+        data_dir = Path(data_dir).resolve()
+        output = Path(output).resolve()
+    else:
+        base = Path(base_dir).resolve()
+        data_dir = _resolve_within_base(Path(data_dir), base)
+        output = _resolve_within_base(Path(output), base)
     payload = _build_single_payload(data_dir, rule_id)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(payload, ensure_ascii=False, separators=(",", ":")))
@@ -199,11 +214,18 @@ def export_paired(
     control_dir: Path,
     sim_seed: int,
     output: Path,
+    base_dir: Path | None = None,
 ) -> None:
     """Export Phase 2 + Control pair (matched sim_seed) as web-ready JSON."""
-    phase2_dir = Path(phase2_dir)
-    control_dir = Path(control_dir)
-    output = Path(output)
+    if base_dir is None:
+        phase2_dir = Path(phase2_dir).resolve()
+        control_dir = Path(control_dir).resolve()
+        output = Path(output).resolve()
+    else:
+        base = Path(base_dir).resolve()
+        phase2_dir = _resolve_within_base(Path(phase2_dir), base)
+        control_dir = _resolve_within_base(Path(control_dir), base)
+        output = _resolve_within_base(Path(output), base)
 
     p2_rule_id = _find_rule_id_by_sim_seed(phase2_dir, sim_seed)
     if p2_rule_id is None:
@@ -230,27 +252,44 @@ def export_paired(
     output.write_text(json.dumps(paired, ensure_ascii=False, separators=(",", ":")))
 
 
-def export_batch(data_dir: Path, top_n: int, output_dir: Path) -> None:
+def export_batch(
+    data_dir: Path, top_n: int, output_dir: Path, base_dir: Path | None = None
+) -> None:
     """Export top-N rules by final MI as individual web-ready JSON files."""
-    data_dir = Path(data_dir)
-    output_dir = Path(output_dir)
+    if base_dir is None:
+        data_dir = Path(data_dir).resolve()
+        output_dir = Path(output_dir).resolve()
+    else:
+        base = Path(base_dir).resolve()
+        data_dir = _resolve_within_base(Path(data_dir), base)
+        output_dir = _resolve_within_base(Path(output_dir), base)
     output_dir.mkdir(parents=True, exist_ok=True)
 
     ranked = _get_surviving_rules_ranked_by_mi(data_dir)
     for rule_id, _ in ranked[:top_n]:
-        payload = _build_single_payload(data_dir, rule_id)
-        out_file = output_dir / f"{rule_id}.json"
+        safe_rule_id = Path(rule_id).name
+        if not _SAFE_NAME_RE.match(safe_rule_id):
+            raise ValueError(f"Unsafe rule_id for filename: {rule_id!r}")
+        payload = _build_single_payload(data_dir, safe_rule_id)
+        out_file = output_dir / f"{safe_rule_id}.json"
         out_file.write_text(json.dumps(payload, ensure_ascii=False, separators=(",", ":")))
 
 
-def export_gallery(data_dir: Path, count: int, output_dir: Path) -> None:
+def export_gallery(
+    data_dir: Path, count: int, output_dir: Path, base_dir: Path | None = None
+) -> None:
     """Export a diverse set of rules spread across the MI range.
 
     Selects rules at evenly-spaced quantile positions from the ranked
     MI list to showcase pattern diversity.
     """
-    data_dir = Path(data_dir)
-    output_dir = Path(output_dir)
+    if base_dir is None:
+        data_dir = Path(data_dir).resolve()
+        output_dir = Path(output_dir).resolve()
+    else:
+        base = Path(base_dir).resolve()
+        data_dir = _resolve_within_base(Path(data_dir), base)
+        output_dir = _resolve_within_base(Path(output_dir), base)
     output_dir.mkdir(parents=True, exist_ok=True)
 
     ranked = _get_surviving_rules_ranked_by_mi(data_dir)
@@ -267,8 +306,11 @@ def export_gallery(data_dir: Path, count: int, output_dir: Path) -> None:
 
     selected = [ranked[i] for i in indices]
     for rule_id, _ in selected:
-        payload = _build_single_payload(data_dir, rule_id)
-        out_file = output_dir / f"{rule_id}.json"
+        safe_rule_id = Path(rule_id).name
+        if not _SAFE_NAME_RE.match(safe_rule_id):
+            raise ValueError(f"Unsafe rule_id for filename: {rule_id!r}")
+        payload = _build_single_payload(data_dir, safe_rule_id)
+        out_file = output_dir / f"{safe_rule_id}.json"
         out_file.write_text(json.dumps(payload, ensure_ascii=False, separators=(",", ":")))
 
 
@@ -287,6 +329,7 @@ def main(argv: list[str] | None = None) -> None:
     p_single.add_argument("--data-dir", type=Path, required=True)
     p_single.add_argument("--rule-id", type=str, required=True)
     p_single.add_argument("--output", type=Path, required=True)
+    p_single.add_argument("--base-dir", type=Path, default=None)
 
     # paired
     p_paired = sub.add_parser("paired", help="Export Phase 2 + Control pair")
@@ -294,34 +337,53 @@ def main(argv: list[str] | None = None) -> None:
     p_paired.add_argument("--control-dir", type=Path, required=True)
     p_paired.add_argument("--sim-seed", type=int, required=True)
     p_paired.add_argument("--output", type=Path, required=True)
+    p_paired.add_argument("--base-dir", type=Path, default=None)
 
     # batch
     p_batch = sub.add_parser("batch", help="Export top-N rules by MI")
     p_batch.add_argument("--data-dir", type=Path, required=True)
     p_batch.add_argument("--top-n", type=int, default=5)
     p_batch.add_argument("--output-dir", type=Path, required=True)
+    p_batch.add_argument("--base-dir", type=Path, default=None)
 
     # gallery
     p_gallery = sub.add_parser("gallery", help="Export diverse set of rules")
     p_gallery.add_argument("--data-dir", type=Path, required=True)
     p_gallery.add_argument("--count", type=int, default=9)
     p_gallery.add_argument("--output-dir", type=Path, required=True)
+    p_gallery.add_argument("--base-dir", type=Path, default=None)
 
     args = parser.parse_args(argv)
 
     if args.command == "single":
-        export_single(data_dir=args.data_dir, rule_id=args.rule_id, output=args.output)
+        export_single(
+            data_dir=args.data_dir,
+            rule_id=args.rule_id,
+            output=args.output,
+            base_dir=args.base_dir,
+        )
     elif args.command == "paired":
         export_paired(
             phase2_dir=args.phase2_dir,
             control_dir=args.control_dir,
             sim_seed=args.sim_seed,
             output=args.output,
+            base_dir=args.base_dir,
         )
     elif args.command == "batch":
-        export_batch(data_dir=args.data_dir, top_n=args.top_n, output_dir=args.output_dir)
+        export_batch(
+            data_dir=args.data_dir,
+            top_n=args.top_n,
+            output_dir=args.output_dir,
+            base_dir=args.base_dir,
+        )
     elif args.command == "gallery":
-        export_gallery(data_dir=args.data_dir, count=args.count, output_dir=args.output_dir)
+        export_gallery(
+            data_dir=args.data_dir,
+            count=args.count,
+            output_dir=args.output_dir,
+            base_dir=args.base_dir,
+        )
 
 
 if __name__ == "__main__":

@@ -36,6 +36,8 @@ This document maps manuscript outputs to canonical artifact paths.
 
 - `data/` is generated and intentionally untracked.
 - Commands in `README.md` and `AGENTS.md` are the source of truth for rerunning pipelines.
+- Statistical effect-size reporting uses first-listed minus second-listed orientation
+  (positive: first listed tends larger, negative: second listed tends larger).
 
 ## PR26 Follow-Up Archive
 
