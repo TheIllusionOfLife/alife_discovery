@@ -9,7 +9,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
 
-from objectless_alife.run_search import METRICS_SCHEMA, PHASE_SUMMARY_METRIC_NAMES
+from objectless_alife.schemas import METRICS_SCHEMA, PHASE_SUMMARY_METRIC_NAMES
 from objectless_alife.stats import (
     _cliffs_delta_from_u,
     _holm_bonferroni,

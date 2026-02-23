@@ -5,9 +5,9 @@ from pathlib import Path
 import pyarrow as pa
 
 import scripts.viability_filter_ablation as viability_ablation_module
+from objectless_alife.aggregation import run_experiment
 from objectless_alife.config import ExperimentConfig
 from objectless_alife.rules import ObservationPhase
-from objectless_alife.run_search import run_experiment
 from scripts.no_filter_analysis import main as no_filter_main
 from scripts.phenotype_taxonomy import main as taxonomy_main
 from scripts.pr26_followups_manifest_paths import collect_manifest_output_paths

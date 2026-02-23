@@ -17,8 +17,8 @@ from pathlib import Path
 
 import pyarrow.parquet as pq
 
+from objectless_alife.aggregation import select_top_rules_by_delta_mi
 from objectless_alife.metrics import neighbor_transfer_entropy, transfer_entropy_shuffle_null
-from objectless_alife.run_search import select_top_rules_by_delta_mi
 from objectless_alife.world import WorldConfig
 
 _DEFAULT_WORLD = WorldConfig()

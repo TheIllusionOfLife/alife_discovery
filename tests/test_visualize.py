@@ -9,7 +9,7 @@ import pyarrow.parquet as pq
 import pytest
 
 from objectless_alife.rules import ObservationPhase
-from objectless_alife.run_search import run_batch_search
+from objectless_alife.simulation import run_batch_search
 from objectless_alife.visualize import (
     _build_grid_array,
     _state_cmap,

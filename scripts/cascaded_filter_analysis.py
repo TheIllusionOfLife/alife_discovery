@@ -20,12 +20,9 @@ import pyarrow.parquet as pq
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
+from objectless_alife.config import SearchConfig, SimulationResult  # noqa: E402
 from objectless_alife.rules import ObservationPhase  # noqa: E402
-from objectless_alife.run_search import (  # noqa: E402
-    SearchConfig,
-    SimulationResult,
-    run_batch_search,
-)
+from objectless_alife.simulation import run_batch_search  # noqa: E402
 
 DATA_DIR = PROJECT_ROOT / "data" / "stage_d"
 

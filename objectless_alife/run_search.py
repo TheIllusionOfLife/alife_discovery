@@ -7,9 +7,6 @@ and mode dispatch.  All domain logic lives in the extracted modules:
 - ``objectless_alife.config``       – configuration dataclasses
 - ``objectless_alife.simulation``   – ``run_batch_search`` engine
 - ``objectless_alife.aggregation``  – experiment / density-sweep / multi-seed orchestration
-
-For backward compatibility every public symbol is re-exported here so
-that existing ``from objectless_alife.run_search import X`` imports keep working.
 """
 
 from __future__ import annotations
@@ -18,47 +15,19 @@ import argparse
 import json
 from pathlib import Path
 
-# ---------------------------------------------------------------------------
-# Re-exports for backward compatibility
-# ---------------------------------------------------------------------------
-from objectless_alife.aggregation import (  # noqa: F401
-    _build_phase_comparison,
-    _build_phase_summary,
-    _collect_final_metric_rows,
+from objectless_alife.aggregation import (
     run_density_sweep,
     run_experiment,
-    run_halt_window_sweep,
-    run_multi_seed_robustness,
-    select_top_rules_by_delta_mi,
 )
-from objectless_alife.config import (  # noqa: F401
-    MAX_EXPERIMENT_WORK_UNITS,
+from objectless_alife.config import (
     DensitySweepConfig,
     ExperimentConfig,
-    FilterConfig,
-    HaltWindowSweepConfig,
-    MetricComputeConfig,
-    MultiSeedConfig,
-    RuntimeConfig,
     SearchConfig,
-    SimulationResult,
     StateUniformMode,
     UpdateMode,
 )
 from objectless_alife.rules import ObservationPhase
-from objectless_alife.schemas import (  # noqa: F401
-    AGGREGATE_SCHEMA_VERSION,
-    DENSITY_PHASE_COMPARISON_SCHEMA,
-    DENSITY_PHASE_SUMMARY_SCHEMA,
-    DENSITY_SWEEP_RUNS_SCHEMA,
-    DENSITY_SWEEP_SCHEMA_VERSION,
-    HALT_WINDOW_SWEEP_SCHEMA,
-    METRICS_SCHEMA,
-    MULTI_SEED_SCHEMA,
-    PHASE_SUMMARY_METRIC_NAMES,
-    SIMULATION_SCHEMA,
-)
-from objectless_alife.simulation import _entropy_from_action_counts, run_batch_search  # noqa: F401
+from objectless_alife.simulation import run_batch_search
 
 # ---------------------------------------------------------------------------
 # CLI parsing helpers

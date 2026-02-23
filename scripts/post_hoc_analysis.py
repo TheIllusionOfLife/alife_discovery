@@ -26,6 +26,11 @@ import pyarrow.parquet as pq
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
+from objectless_alife.aggregation import (  # noqa: E402
+    run_halt_window_sweep,
+    select_top_rules_by_delta_mi,
+)
+from objectless_alife.config import HaltWindowSweepConfig  # noqa: E402
 from objectless_alife.metrics import (  # noqa: E402
     block_shuffle_null_mi,
     fixed_marginal_null_mi,
@@ -33,11 +38,6 @@ from objectless_alife.metrics import (  # noqa: E402
     neighbor_transfer_entropy,
     shuffle_null_mi,
     spatial_scramble_mi,
-)
-from objectless_alife.run_search import (  # noqa: E402
-    HaltWindowSweepConfig,
-    run_halt_window_sweep,
-    select_top_rules_by_delta_mi,
 )
 
 # ---------------------------------------------------------------------------
@@ -290,11 +290,9 @@ def run_capacity_matched_analysis() -> dict[str, dict[str, float]]:
     """Run Phase 5 and 6 experiments; compare to P1/P2 from stage_d."""
     print("\n=== Capacity-Matched Controls ===")
 
+    from objectless_alife.aggregation import _collect_final_metric_rows  # noqa: E402
     from objectless_alife.rules import ObservationPhase  # noqa: E402
-    from objectless_alife.run_search import (  # noqa: E402
-        _collect_final_metric_rows,
-        run_batch_search,
-    )
+    from objectless_alife.simulation import run_batch_search  # noqa: E402
 
     # Run Phase 5 (Capacity-matched Phase 1)
     print("  Running Phase 5 (capacity-matched P1) — 5000 rules...")

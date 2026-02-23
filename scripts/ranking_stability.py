@@ -20,7 +20,7 @@ from scipy.stats import kendalltau
 
 from objectless_alife.config import SearchConfig
 from objectless_alife.rules import ObservationPhase
-from objectless_alife.run_search import run_batch_search
+from objectless_alife.simulation import run_batch_search
 from objectless_alife.stats import load_final_step_metrics
 
 RULE_ID_SEED_RE = re.compile(r"^phase\d+_rs(?P<rule_seed>\d+)_ss\d+$")
