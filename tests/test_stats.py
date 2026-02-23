@@ -11,6 +11,7 @@ import pytest
 
 from objectless_alife.run_search import METRICS_SCHEMA, PHASE_SUMMARY_METRIC_NAMES
 from objectless_alife.stats import (
+    _cliffs_delta_from_u,
     _holm_bonferroni,
     bootstrap_median_ci,
     filter_metric_independence,
@@ -533,6 +534,37 @@ class TestPhaseComparisonCiAndCliffsDelta:
         assert "median_diff_ci_lower" in entry
         assert "median_diff_ci_upper" in entry
         assert entry["median_diff_ci_lower"] <= entry["median_diff_ci_upper"]
+
+    def test_cliffs_delta_is_negative_when_second_distribution_is_larger(self) -> None:
+        p1 = self._make_table([0.1, 0.2, 0.3, 0.4])
+        p2 = self._make_table([0.8, 0.9, 1.0, 1.1])
+        result = phase_comparison_tests(p1, p2, ["neighbor_mutual_information"])
+        entry = result["neighbor_mutual_information"]
+        assert entry["cliffs_delta"] < 0.0
+        assert entry["effect_size_r"] < 0.0
+        assert entry["median_diff_ci_lower"] < 0.0
+        assert entry["median_diff_ci_upper"] < 0.0
+
+    def test_cliffs_delta_is_positive_when_first_distribution_is_larger(self) -> None:
+        p1 = self._make_table([0.8, 0.9, 1.0, 1.1])
+        p2 = self._make_table([0.1, 0.2, 0.3, 0.4])
+        result = phase_comparison_tests(p1, p2, ["neighbor_mutual_information"])
+        entry = result["neighbor_mutual_information"]
+        assert entry["cliffs_delta"] > 0.0
+        assert entry["effect_size_r"] > 0.0
+        assert entry["median_diff_ci_lower"] > 0.0
+        assert entry["median_diff_ci_upper"] > 0.0
+
+
+class TestCliffsDeltaFromU:
+    def test_u_zero_gives_negative_one(self) -> None:
+        assert _cliffs_delta_from_u(0.0, 4, 5) == pytest.approx(-1.0)
+
+    def test_u_max_gives_positive_one(self) -> None:
+        assert _cliffs_delta_from_u(20.0, 4, 5) == pytest.approx(1.0)
+
+    def test_u_midpoint_gives_zero(self) -> None:
+        assert _cliffs_delta_from_u(10.0, 4, 5) == pytest.approx(0.0)
 
 
 class TestStatsMainPairwise:

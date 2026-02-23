@@ -95,27 +95,30 @@ Both differences are highly significant.
 
 ### 4.3 Pairwise Statistical Tests (Mann-Whitney U, Holm-Bonferroni corrected)
 
+Sign convention note: effect sizes (`r`) are reported as first-listed group minus second-listed group.
+Positive means the first-listed group tends larger; negative means the second-listed group tends larger.
+
 **Phase 1 vs Control:**
 
 | Metric | Effect size (r) | p-value (corrected) | Direction |
 |--------|----------------|---------------------|-----------|
-| Neighbor MI | -0.331 | 2.1e-223 | P1 > Control |
-| State entropy | -0.485 | 0.0 | P1 > Control |
-| Action entropy (mean) | 0.996 | 0.0 | Control >> P1 |
-| Action entropy (variance) | -0.638 | 0.0 | P1 > Control |
-| Predictability (hamming) | 0.645 | 0.0 | Control > P1 |
-| Block NCD | 0.517 | 0.0 | Control > P1 |
+| Neighbor MI | 0.331 | 2.1e-223 | P1 > Control |
+| State entropy | 0.485 | 0.0 | P1 > Control |
+| Action entropy (mean) | -0.996 | 0.0 | Control >> P1 |
+| Action entropy (variance) | 0.638 | 0.0 | P1 > Control |
+| Predictability (hamming) | -0.645 | 0.0 | Control > P1 |
+| Block NCD | -0.517 | 0.0 | Control > P1 |
 
 **Control vs Phase 2:**
 
 | Metric | Effect size (r) | p-value (corrected) | Direction |
 |--------|----------------|---------------------|-----------|
-| Neighbor MI | 0.502 | 0.0 | P2 >> Control |
-| State entropy | 0.587 | 0.0 | P2 >> Control |
-| Action entropy (mean) | -0.980 | 0.0 | Control >> P2 |
-| Action entropy (variance) | 0.756 | 0.0 | P2 > Control |
-| Predictability (hamming) | -0.674 | 0.0 | Control > P2 |
-| Block NCD | -0.566 | 0.0 | Control > P2 |
+| Neighbor MI | -0.502 | 0.0 | P2 >> Control |
+| State entropy | -0.587 | 0.0 | P2 >> Control |
+| Action entropy (mean) | 0.980 | 0.0 | Control >> P2 |
+| Action entropy (variance) | -0.756 | 0.0 | P2 > Control |
+| Predictability (hamming) | 0.674 | 0.0 | Control > P2 |
+| Block NCD | 0.566 | 0.0 | Control > P2 |
 
 All comparisons are significant at p < 0.001 after Holm-Bonferroni correction.
 
