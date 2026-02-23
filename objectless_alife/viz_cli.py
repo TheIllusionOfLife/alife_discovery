@@ -126,22 +126,21 @@ def _handle_figure(args: argparse.Namespace) -> None:
         ("P2", p2_dir),
     ]
 
-    top_rules: dict[str, list[str]] = {}
-    for label, pdir in phases:
-        metrics_path = pdir / "logs" / "metrics_summary.parquet"
-        top_rules[label] = select_top_rules(metrics_path, top_n=args.top_n)
+    top_rules: dict[str, list[str]] = {
+        label: select_top_rules(pdir / "logs" / "metrics_summary.parquet", top_n=args.top_n)
+        for label, pdir in phases
+    }
 
-    snapshot_configs = []
-    for label, pdir in phases:
-        if top_rules[label]:
-            snapshot_configs.append(
-                (
-                    label,
-                    pdir / "logs" / "simulation_log.parquet",
-                    pdir / "logs" / "metrics_summary.parquet",
-                    top_rules[label][0],
-                )
-            )
+    snapshot_configs = [
+        (
+            label,
+            pdir / "logs" / "simulation_log.parquet",
+            pdir / "logs" / "metrics_summary.parquet",
+            top_rules[label][0],
+        )
+        for label, pdir in phases
+        if top_rules[label]
+    ]
     render_snapshot_grid(
         phase_configs=snapshot_configs,
         snapshot_steps=[0, 25, 50, 75, 100],
