@@ -34,11 +34,13 @@ def load_data(in_file: Path) -> dict[str, np.ndarray]:
     """Load entity log parquet; return numpy arrays for the three key columns."""
     table = pq.read_table(in_file, columns=["assembly_index", "copy_number_at_step", "entity_size"])
     return {
-        "assembly_index": np.array(table.column("assembly_index").to_pylist(), dtype=np.int64),
-        "copy_number_at_step": np.array(
-            table.column("copy_number_at_step").to_pylist(), dtype=np.int64
-        ),
-        "entity_size": np.array(table.column("entity_size").to_pylist(), dtype=np.int64),
+        "assembly_index": table.column("assembly_index")
+        .to_numpy(zero_copy_only=False)
+        .astype(np.int64),
+        "copy_number_at_step": table.column("copy_number_at_step")
+        .to_numpy(zero_copy_only=False)
+        .astype(np.int64),
+        "entity_size": table.column("entity_size").to_numpy(zero_copy_only=False).astype(np.int64),
     }
 
 
@@ -57,10 +59,13 @@ def plot_scatter(
     cn = data["copy_number_at_step"]
     sz = data["entity_size"]
 
+    # Clip to >= 1 so log y-axis never receives non-positive values
+    cn_plot = np.maximum(cn, 1)
+
     fig, ax = plt.subplots(figsize=(7, 5))
     sc = ax.scatter(
         ai,
-        cn,
+        cn_plot,
         c=sz,
         cmap="viridis",
         alpha=0.4,
@@ -73,12 +78,13 @@ def plot_scatter(
     ax.set_xlabel("Assembly Index ($a_i$)")
     ax.set_ylabel("Copy Number ($n_i$)")
     ax.set_yscale("log")
+    ax.set_ylim(bottom=0.9)
     ax.set_xlim(left=0)
     ax.set_title(title or f"Entity discovery landscape ($N={len(ai):,}$ observations)")
 
     fig.tight_layout()
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path)
+    fig.savefig(out_path, bbox_inches="tight")
     plt.close(fig)
     print(f"Saved scatter:          {out_path}")
 
@@ -129,7 +135,7 @@ def plot_heatmap(
         xedges,
         yedges,
         counts.T,
-        norm=mcolors.LogNorm(vmin=1),
+        norm=mcolors.LogNorm(vmin=1, vmax=max(float(counts.max()), 1.0)),
         cmap="plasma",
     )
     ax_main.set_xlabel("Assembly Index ($a_i$)")
@@ -203,7 +209,7 @@ def plot_size_dist(
 
     fig.tight_layout()
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path)
+    fig.savefig(out_path, bbox_inches="tight")
     plt.close(fig)
     print(f"Saved size distribution: {out_path}")
 
@@ -233,7 +239,7 @@ def parse_args() -> argparse.Namespace:
         "--title",
         type=str,
         default=None,
-        help="Optional title prefix added to all figures",
+        help="Optional title for all figures",
     )
     return p.parse_args()
 
