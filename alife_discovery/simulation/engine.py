@@ -12,7 +12,12 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 
 from alife_discovery.config.constants import ACTION_SPACE_SIZE, FLUSH_THRESHOLD
-from alife_discovery.config.types import SearchConfig, SimulationResult, StateUniformMode
+from alife_discovery.config.types import (
+    BlockWorldConfig,
+    SearchConfig,
+    SimulationResult,
+    StateUniformMode,
+)
 from alife_discovery.domain.filters import (
     HaltDetector,
     LowActivityDetector,
@@ -356,3 +361,80 @@ def run_batch_search(
             metric_writer.close()
 
     return results
+
+
+def run_block_world_search(
+    n_rules: int,
+    out_dir: Path,
+    config: BlockWorldConfig | None = None,
+) -> list[dict]:
+    """Run seeded batch block-world simulations, detect entities, compute AT metrics.
+
+    At each ENTITY_SNAPSHOT_INTERVAL steps:
+    - detect_entities(world)
+    - canonicalize each entity
+    - compute assembly_index
+    - accumulate entity records
+
+    Writes entity_log.parquet to out_dir/logs/entity_log.parquet.
+    Returns list of run summary dicts.
+    """
+    from alife_discovery.config.constants import ENTITY_SNAPSHOT_INTERVAL
+    from alife_discovery.domain.block_world import BlockWorld, generate_block_rule_table
+    from alife_discovery.domain.entity import detect_entities
+    from alife_discovery.io.schemas import ENTITY_LOG_SCHEMA
+    from alife_discovery.metrics.assembly import compute_entity_metrics
+
+    cfg = config or BlockWorldConfig()
+    logs_dir = Path(out_dir) / "logs"
+    logs_dir.mkdir(parents=True, exist_ok=True)
+    entity_log_path = logs_dir / "entity_log.parquet"
+
+    all_entity_records: list[dict] = []
+    summaries: list[dict] = []
+
+    for i in range(n_rules):
+        rule_seed = cfg.rule_seed + i
+        sim_seed = cfg.sim_seed + i
+        run_id = f"bw_rs{rule_seed}_ss{sim_seed}"
+
+        rule_table = generate_block_rule_table(rule_seed)
+        rng = random.Random(sim_seed)
+        world = BlockWorld.create(cfg, rng)
+
+        for step in range(cfg.steps):
+            world.step(rule_table, cfg.noise_level, rng)
+
+            if (step + 1) % ENTITY_SNAPSHOT_INTERVAL == 0 or step == cfg.steps - 1:
+                entities = detect_entities(world)
+                records = compute_entity_metrics(entities, step=step, run_id=run_id)
+                all_entity_records.extend(records)
+
+        # Final snapshot summary
+        final_entities = detect_entities(world)
+        summaries.append(
+            {
+                "run_id": run_id,
+                "rule_seed": rule_seed,
+                "sim_seed": sim_seed,
+                "n_entities_final": len(final_entities),
+                "n_bonds_final": len(world.bonds),
+            }
+        )
+
+    # Write entity log
+    entity_writer: pq.ParquetWriter | None = None
+    try:
+        if all_entity_records:
+            columns: dict[str, list] = {f.name: [] for f in ENTITY_LOG_SCHEMA}
+            for rec in all_entity_records:
+                for col_name in columns:
+                    columns[col_name].append(rec[col_name])
+            table = pa.Table.from_pydict(columns, schema=ENTITY_LOG_SCHEMA)
+            entity_writer = pq.ParquetWriter(entity_log_path, ENTITY_LOG_SCHEMA)
+            entity_writer.write_table(table)
+    finally:
+        if entity_writer is not None:
+            entity_writer.close()
+
+    return summaries
