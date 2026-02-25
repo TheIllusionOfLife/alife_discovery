@@ -24,7 +24,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import pyarrow.parquet as pq  # noqa: E402
 
-from objectless_alife.metrics import (  # noqa: E402
+from alife_discovery.metrics import (  # noqa: E402
     neighbor_mutual_information,
     shuffle_null_mi,
 )

@@ -15,12 +15,12 @@ from pathlib import Path
 
 import pyarrow.parquet as pq
 
-from objectless_alife.aggregation import (
+from alife_discovery.aggregation import (
     run_multi_seed_robustness,
     select_top_rules_by_delta_mi,
 )
-from objectless_alife.config import MultiSeedConfig
-from objectless_alife.rules import ObservationPhase
+from alife_discovery.config import MultiSeedConfig
+from alife_discovery.rules import ObservationPhase
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = PROJECT_ROOT / "data" / "stage_d"

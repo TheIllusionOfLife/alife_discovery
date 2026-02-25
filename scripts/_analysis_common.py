@@ -6,7 +6,7 @@ import csv
 import json
 from pathlib import Path
 
-from objectless_alife.stats import run_pairwise_analysis
+from alife_discovery.stats import run_pairwise_analysis
 
 PHASE_KEYS = ("phase_1", "phase_2", "phase_3")
 

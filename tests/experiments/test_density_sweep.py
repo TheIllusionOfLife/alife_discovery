@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from objectless_alife.config.types import DensitySweepConfig
-from objectless_alife.experiments.density_sweep import _validate_density_sweep_config
+from alife_discovery.config.types import DensitySweepConfig
+from alife_discovery.experiments.density_sweep import _validate_density_sweep_config
 
 
 def _make_config(**overrides: object) -> DensitySweepConfig:

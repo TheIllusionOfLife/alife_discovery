@@ -18,10 +18,10 @@ import pyarrow as pa
 import pyarrow.compute as pc
 from scipy.stats import kendalltau
 
-from objectless_alife.config import SearchConfig
-from objectless_alife.rules import ObservationPhase
-from objectless_alife.simulation import run_batch_search
-from objectless_alife.stats import load_final_step_metrics
+from alife_discovery.config import SearchConfig
+from alife_discovery.rules import ObservationPhase
+from alife_discovery.simulation import run_batch_search
+from alife_discovery.stats import load_final_step_metrics
 
 RULE_ID_SEED_RE = re.compile(r"^phase\d+_rs(?P<rule_seed>\d+)_ss\d+$")
 # Prevent seed-range overlap across batches when deriving per-batch base_sim_seed.

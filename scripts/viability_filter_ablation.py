@@ -11,10 +11,10 @@ import pyarrow as pa
 import pyarrow.compute as pc
 import pyarrow.parquet as pq
 
-from objectless_alife.aggregation import run_experiment
-from objectless_alife.config import ExperimentConfig, StateUniformMode
-from objectless_alife.rules import ObservationPhase
-from objectless_alife.stats import load_final_step_metrics
+from alife_discovery.aggregation import run_experiment
+from alife_discovery.config import ExperimentConfig, StateUniformMode
+from alife_discovery.rules import ObservationPhase
+from alife_discovery.stats import load_final_step_metrics
 
 PHASE_LABELS = {
     1: "phase_1",

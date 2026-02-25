@@ -16,7 +16,7 @@ from pathlib import Path
 import pyarrow.compute as pc
 import pyarrow.parquet as pq
 
-from objectless_alife.stats import load_final_step_metrics
+from alife_discovery.stats import load_final_step_metrics
 
 DATA_DIR = Path("data/stage_d")
 OUTPUT_DIR = Path("data/post_hoc/termination_breakdown")

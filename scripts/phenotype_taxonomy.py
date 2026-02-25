@@ -21,7 +21,7 @@ import numpy as np
 import pyarrow as pa
 import pyarrow.compute as pc
 
-from objectless_alife.stats import load_final_step_metrics
+from alife_discovery.stats import load_final_step_metrics
 
 # Thresholds for deterministic phenotype taxonomy.
 MI_DELTA_POLARIZED = 0.12

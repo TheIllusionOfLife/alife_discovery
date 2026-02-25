@@ -8,13 +8,13 @@
 - `PRODUCT.md`: product intent and user/value framing
 - `TECH.md`: stack and constraints
 - `STRUCTURE.md`: this document
-- `run_search.py`: root-level shim → `objectless_alife.experiments.search.main`
-- `visualize.py`: root-level shim → `objectless_alife.viz.cli.main`
+- `run_search.py`: root-level shim → `alife_discovery.experiments.search.main`
+- `visualize.py`: root-level shim → `alife_discovery.viz.cli.main`
 - `docs/legacy/`: archived historical proposal/review docs
 - `docs/stage_b_results.md`: Stage B experimental results
 - `docs/stage_c_results.md`: Stage C experimental results
-- `paper/`: ALIFE conference paper draft (LaTeX) and figures
-- `objectless_alife/`: application source package (layered subpackages)
+- `legacy/`: archived material from the prior `objectless_alife` research direction
+- `alife_discovery/`: application source package (layered subpackages)
 - `tests/`: test modules
 - `.github/workflows/`: CI and automation workflows
 
@@ -23,29 +23,29 @@
 The package is organized into focused subpackages. Old flat modules remain as
 backward-compatible re-export shims.
 
-### `objectless_alife/config/`
+### `alife_discovery/config/`
 - `constants.py`: all domain constants (`GRID_WIDTH`, `NUM_AGENTS`, `CLOCK_PERIOD`, `ACTION_SPACE_SIZE`, `FLUSH_THRESHOLD`, etc.)
 - `types.py`: frozen configuration dataclasses (`SearchConfig`, `ExperimentConfig`, `WorldConfig`, `UpdateMode`, `StateUniformMode`, etc.)
 
-### `objectless_alife/domain/`
+### `alife_discovery/domain/`
 - `snapshot.py`: `AgentState` frozen dataclass + `Snapshot` type alias
 - `rules.py`: `ObservationPhase` enum, index computation functions, `generate_rule_table`
 - `filters.py`: `HaltDetector`, `StateUniformDetector`, `ShortPeriodDetector`, `LowActivityDetector`, `TerminationReason`
 - `world.py`: `World`, `WorldConfig`, `Agent` — toroidal grid simulation mechanics
 
-### `objectless_alife/metrics/`
+### `alife_discovery/metrics/`
 - `spatial.py`: `morans_i_occupied`, `cluster_count_by_state`, `same_state_adjacency_fraction`, `neighbor_pair_count`
 - `temporal.py`: `quasi_periodicity_peak_count`, `phase_transition_max_delta`, `action_entropy`, `action_entropy_variance`
 - `information.py`: `state_entropy`, `compression_ratio`, `neighbor_mutual_information`, `shuffle_null_mi`, `block_ncd`, transfer entropy variants, and null-model helpers
 
-### `objectless_alife/io/`
+### `alife_discovery/io/`
 - `schemas.py`: Parquet schemas, schema version constants, `PHASE_SUMMARY_METRIC_NAMES` (single source of truth)
 - `paths.py`: path construction helpers for experiment output directories
 
-### `objectless_alife/analysis/`
+### `alife_discovery/analysis/`
 - `stats.py`: Mann-Whitney U, bootstrap CI, Holm-Bonferroni, point-biserial, `load_final_step_metrics`, `run_statistical_analysis`
 
-### `objectless_alife/experiments/`
+### `alife_discovery/experiments/`
 - `summaries.py`: `collect_final_metric_rows`, phase summary/comparison builders
 - `selection.py`: `select_top_rules_by_delta_mi`
 - `experiment.py`: `run_experiment` orchestration
@@ -53,12 +53,12 @@ backward-compatible re-export shims.
 - `robustness.py`: `run_multi_seed_robustness`, `run_halt_window_sweep`
 - `search.py`: CLI argument parsing and `main()` entrypoint
 
-### `objectless_alife/simulation/`
+### `alife_discovery/simulation/`
 - `engine.py`: `run_batch_search` — orchestrates the simulation loop
 - `step.py`: per-step metric computation helpers (`compute_step_metrics`, `entropy_from_action_counts`, `mean_and_pvariance`)
 - `persistence.py`: `flush_sim_columns` — Parquet writer helper
 
-### `objectless_alife/viz/`
+### `alife_discovery/viz/`
 - `theme.py`: `Theme` frozen dataclass, `DEFAULT_THEME`, `PAPER_THEME`, `get_theme`
 - `render.py`: Matplotlib rendering functions (`render_rule_animation`, `render_batch`, `render_snapshot_grid`, `render_metric_distribution`, `render_metric_timeseries`, `render_filmstrip`)
 - `cli.py`: CLI argument parsing and subcommand dispatch (`main`, handler functions)
@@ -84,7 +84,7 @@ The following flat files are retained as re-export shims for existing import pat
 
 ## Import And Dependency Patterns
 
-- Import from subpackage modules directly (e.g., `from objectless_alife.domain.rules import ObservationPhase`)
+- Import from subpackage modules directly (e.g., `from alife_discovery.domain.rules import ObservationPhase`)
 - All domain constants live in `config/constants.py` — never define them inline
 - Schemas and metric-name lists are the single source of truth in `io/schemas.py`
 - Old flat module paths still work via re-export shims; prefer new subpackage paths in new code

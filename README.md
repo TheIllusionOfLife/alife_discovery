@@ -1,6 +1,6 @@
-# objectless_alife
+# alife_discovery
 
-Objective-free artificial life (ALife) proof-of-concept for exploring emergent structure without optimization targets.
+Objective-free artificial life (ALife) research integrating Assembly Theory (AT) to study emergent structure without optimization targets.
 
 ## What This Repository Contains
 
@@ -17,7 +17,6 @@ The implementation source of truth is `spec.md`.
 Requirements:
 - Python 3.11+
 - `uv`
-- `tectonic` (for paper compilation)
 
 Setup:
 
@@ -34,25 +33,18 @@ uv run ruff format . --check
 uv run pytest -q
 ```
 
-Compile the paper:
-
-```bash
-tectonic paper/main.tex
-tectonic paper/supplementary.tex
-```
-
 ## Common Commands
 
 Run a single-phase batch search:
 
 ```bash
-uv run python -m objectless_alife.run_search --phase 1 --n-rules 100 --out-dir data
+uv run python -m alife_discovery.run_search --phase 1 --n-rules 100 --out-dir data
 ```
 
 Run a two-phase experiment comparison:
 
 ```bash
-uv run python -m objectless_alife.run_search \
+uv run python -m alife_discovery.run_search \
   --experiment \
   --phases 1,2 \
   --seed-batches 3 \
@@ -64,7 +56,7 @@ uv run python -m objectless_alife.run_search \
 Run a density sweep across explicit grid/agent points (both phases):
 
 ```bash
-uv run python -m objectless_alife.run_search \
+uv run python -m alife_discovery.run_search \
   --density-sweep \
   --grid-sizes 20x20,30x30 \
   --agent-counts 30,60 \
@@ -77,26 +69,26 @@ uv run python -m objectless_alife.run_search \
 Render visualizations (subcommands: `single`, `batch`, `figure`, `filmstrip`):
 
 ```bash
-uv run python -m objectless_alife.visualize single \
+uv run python -m alife_discovery.visualize single \
   --simulation-log data/logs/simulation_log.parquet \
   --metrics-summary data/logs/metrics_summary.parquet \
   --rule-json data/rules/<rule_id>.json \
   --output output/preview.gif \
   --fps 8
 
-uv run python -m objectless_alife.visualize batch \
+uv run python -m alife_discovery.visualize batch \
   --phase-dir P1=data/stage_b/phase_1 \
   --phase-dir P2=data/stage_b/phase_2 \
   --top-n 5 \
   --output-dir output/batch
 
-uv run python -m objectless_alife.visualize figure \
+uv run python -m alife_discovery.visualize figure \
   --p1-dir data/stage_b/phase_1 \
   --p2-dir data/stage_b/phase_2 \
   --control-dir data/stage_c/control \
   --output-dir output/figures
 
-uv run python -m objectless_alife.visualize filmstrip \
+uv run python -m alife_discovery.visualize filmstrip \
   --simulation-log data/logs/simulation_log.parquet \
   --rule-json data/rules/<rule_id>.json \
   --output output/filmstrip.png \
@@ -106,8 +98,8 @@ uv run python -m objectless_alife.visualize filmstrip \
 Run statistical significance tests:
 
 ```bash
-uv run python -m objectless_alife.stats --data-dir data/stage_b
-uv run python -m objectless_alife.stats --pairwise --dir-a data/stage_b --dir-b data/stage_c
+uv run python -m alife_discovery.stats --data-dir data/stage_b
+uv run python -m alife_discovery.stats --pairwise --dir-a data/stage_b --dir-b data/stage_c
 ```
 
 Effect-size sign convention in stats outputs:
@@ -117,13 +109,13 @@ Effect-size sign convention in stats outputs:
 Export web-ready JSON payloads (with optional path boundary guard via `--base-dir`):
 
 ```bash
-uv run python -m objectless_alife.export_web single \
+uv run python -m alife_discovery.export_web single \
   --data-dir data/stage_d/phase_2 \
   --rule-id phase2_rs0_ss0 \
   --output output/web/single.json \
   --base-dir .
 
-uv run python -m objectless_alife.export_web paired \
+uv run python -m alife_discovery.export_web paired \
   --phase2-dir data/stage_d/phase_2 \
   --control-dir data/stage_d/control \
   --sim-seed 42 \
@@ -131,99 +123,10 @@ uv run python -m objectless_alife.export_web paired \
   --base-dir .
 ```
 
-Run follow-up heavy-compute analyses from PR #26:
-
-```bash
-uv run python scripts/no_filter_analysis.py --out-dir data/post_hoc/no_filter
-uv run python scripts/synchronous_ablation.py --out-dir data/post_hoc/synchronous_ablation
-uv run python scripts/ranking_stability.py --out-dir data/post_hoc/ranking_stability
-uv run python scripts/te_null_analysis.py --data-dir data/stage_d --out-dir data/post_hoc/te_null
-uv run python scripts/phenotype_taxonomy.py --data-dir data/stage_d --out-dir data/post_hoc/phenotypes
-uv run python scripts/viability_filter_ablation.py --data-dir data/stage_d --out-dir data/post_hoc/viability_ablation
-```
-
-Run all PR #26 follow-ups in one command (writes `manifest.json`):
-
-```bash
-uv run python scripts/run_pr26_followups.py \
-  --data-dir data/stage_d \
-  --out-dir data/post_hoc/pr26_followups
-```
-
-Publish lightweight follow-up bundle metadata to Zenodo and update manifest:
-
-```bash
-ZENODO_TOKEN=... uv run python scripts/publish_pr26_followups_zenodo.py \
-  --followup-dir data/post_hoc/pr26_followups \
-  --manifest data/post_hoc/pr26_followups/manifest.json \
-  --publish
-```
-
-Render supplementary-ready TeX macros from follow-up outputs:
-
-```bash
-uv run python scripts/render_pr26_followups_tex.py \
-  --followup-dir data/post_hoc/pr26_followups \
-  --output paper/generated/pr26_followups.tex
-```
-
-Verify lightweight bundle integrity (manifest/checksums/summary outputs):
-
-```bash
-uv run python scripts/verify_pr26_followups_bundle.py \
-  --followup-dir data/post_hoc/pr26_followups
-```
-
-Run the full PR26 reproducibility pipeline in one command:
-
-```bash
-uv run python scripts/reproduce_pr26_followups.py \
-  --mode full \
-  --data-dir data/stage_d \
-  --followup-dir data/post_hoc/pr26_followups \
-  --with-paper
-```
-
-`paper/supplementary.tex` automatically loads `paper/generated/pr26_followups.tex` when present,
-and falls back to `paper/generated/pr26_followups.defaults.tex` otherwise.
-
-Quick sanity mode for all follow-ups:
-
-```bash
-uv run python scripts/run_pr26_followups.py \
-  --data-dir data/stage_d \
-  --out-dir data/post_hoc/pr26_followups_quick \
-  --quick
-```
-
-Expected outputs and rough runtime guidance:
-- `scripts/no_filter_analysis.py`:
-  outputs `summary.json`, `summary.csv`; quick: minutes, paper-scale: hours.
-- `scripts/synchronous_ablation.py`:
-  outputs `summary.json`, `summary.csv`; quick: minutes, paper-scale: hours.
-- `scripts/ranking_stability.py`:
-  outputs `summary.json`, `summary.csv`; quick: minutes, paper-scale: hours.
-  Default ranking alignment is `rule_seed` (`--alignment-key rule_seed|rule_id`).
-- `scripts/te_null_analysis.py`:
-  outputs `summary.json`, `summary.csv`; quick: minutes, paper-scale depends on `top-k` and `n-shuffles`.
-- `scripts/phenotype_taxonomy.py`:
-  outputs `taxonomy.json`, `taxonomy.csv`; quick: seconds to minutes.
-- `scripts/viability_filter_ablation.py`:
-  outputs baseline filter-shift summary JSON/Parquet; optional rerun ablation compares
-  `state_uniform_mode=terminal` vs `tag_only`.
-
-`scripts/run_pr26_followups.py` manifest includes reproducibility/provenance fields:
-- `schema_version`, `generated_at_utc`, `git_commit`, `git_branch`
-- `command_line`, `quick`, `python_version`, `uv_version`, `platform`
-- `commands`, `outputs`, `analysis_status`, `zenodo`
-
-The orchestrator also writes `checksums.sha256` for manifest + summary JSON/CSV files.
-Large raw artifacts should be stored in Zenodo; keep only lightweight summaries/manifests in-repo.
-
 Switch update dynamics and viability filtering directly from CLI:
 
 ```bash
-uv run python -m objectless_alife.run_search \
+uv run python -m alife_discovery.run_search \
   --phase 2 \
   --n-rules 100 \
   --update-mode synchronous \
@@ -242,23 +145,22 @@ Configuration validation is strict and fail-fast:
 - `PRODUCT.md`: product intent and research goals
 - `TECH.md`: stack and technical constraints
 - `STRUCTURE.md`: codebase layout and conventions
-- `docs/stage_b_results.md`: Stage B experimental results
-- `docs/stage_c_results.md`: Stage C experimental results
+- `docs/new_research_plan.md`: Assembly Theory research direction
 - `docs/legacy/`: archived context/review docs kept for traceability
-- `paper/`: ALIFE conference paper draft (LaTeX) and figures
+- `legacy/`: archived material from the prior `objectless_alife` research direction
 
 ## High-Level Architecture
 
-- `objectless_alife/world.py`: toroidal world model, agent state, collision/movement semantics
-- `objectless_alife/rules.py`: observation phases, indexing logic, seeded rule-table generation
-- `objectless_alife/filters.py`: termination and optional dynamic filter detectors
-- `objectless_alife/metrics.py`: post-step analysis metrics
-- `objectless_alife/run_search.py`: batch/experiment runner + artifact persistence
-- `objectless_alife/stats.py`: statistical significance testing (Mann-Whitney U, chi-squared, effect sizes)
-- `objectless_alife/visualize.py`: visualization compatibility entrypoint (`python -m objectless_alife.visualize`)
-- `objectless_alife/viz_cli.py`: visualization CLI parsing and subcommand dispatch
-- `objectless_alife/viz_render.py`: visualization rendering and figure generation logic
-- `objectless_alife/export_web.py`: web export utility for paired/single visualization payloads
+- `alife_discovery/world.py`: toroidal world model, agent state, collision/movement semantics
+- `alife_discovery/rules.py`: observation phases, indexing logic, seeded rule-table generation
+- `alife_discovery/filters.py`: termination and optional dynamic filter detectors
+- `alife_discovery/metrics.py`: post-step analysis metrics
+- `alife_discovery/run_search.py`: batch/experiment runner + artifact persistence
+- `alife_discovery/stats.py`: statistical significance testing (Mann-Whitney U, chi-squared, effect sizes)
+- `alife_discovery/visualize.py`: visualization compatibility entrypoint (`python -m alife_discovery.visualize`)
+- `alife_discovery/viz_cli.py`: visualization CLI parsing and subcommand dispatch
+- `alife_discovery/viz_render.py`: visualization rendering and figure generation logic
+- `alife_discovery/export_web.py`: web export utility for paired/single visualization payloads
 
 ## Data Outputs
 

@@ -21,8 +21,8 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
-from objectless_alife.metrics import neighbor_pair_count  # noqa: E402
-from objectless_alife.stats import load_final_step_metrics  # noqa: E402
+from alife_discovery.metrics import neighbor_pair_count  # noqa: E402
+from alife_discovery.stats import load_final_step_metrics  # noqa: E402
 from scripts._common import load_final_snapshots  # noqa: E402
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent

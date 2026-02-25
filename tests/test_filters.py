@@ -1,4 +1,4 @@
-from objectless_alife.filters import (
+from alife_discovery.filters import (
     HaltDetector,
     LowActivityDetector,
     ShortPeriodDetector,

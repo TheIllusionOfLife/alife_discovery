@@ -21,8 +21,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import pyarrow.parquet as pq  # noqa: E402
 
-from objectless_alife.aggregation import select_top_rules_by_delta_mi  # noqa: E402
-from objectless_alife.metrics import shuffle_null_mi  # noqa: E402
+from alife_discovery.aggregation import select_top_rules_by_delta_mi  # noqa: E402
+from alife_discovery.metrics import shuffle_null_mi  # noqa: E402
 from scripts._common import load_final_snapshots  # noqa: E402
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent

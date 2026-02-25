@@ -8,7 +8,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
 
-from objectless_alife.schemas import METRICS_SCHEMA
+from alife_discovery.schemas import METRICS_SCHEMA
 
 
 def _make_metric_row(
