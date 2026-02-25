@@ -52,21 +52,22 @@ class BlockWorld:
         positions = rng.sample(all_positions, config.n_blocks)
 
         # Compute block type counts from fractions
+        n_types = len(BLOCK_TYPES)
         fractions = config.block_type_fractions
-        raw_counts = [fractions[i] * config.n_blocks for i in range(3)]
+        raw_counts = [fractions[i] * config.n_blocks for i in range(n_types)]
         counts = [int(round(c)) for c in raw_counts]
         # Adjust rounding errors to match n_blocks exactly
         diff = config.n_blocks - sum(counts)
         if diff > 0:
             # Add to the largest fractional remainder
-            remainders = [raw_counts[i] - int(raw_counts[i]) for i in range(3)]
+            remainders = [raw_counts[i] - int(raw_counts[i]) for i in range(n_types)]
             for _ in range(diff):
                 idx = remainders.index(max(remainders))
                 counts[idx] += 1
                 remainders[idx] = -1.0  # don't pick again
         elif diff < 0:
             # Remove from the smallest fractional remainder
-            remainders = [raw_counts[i] - int(raw_counts[i]) for i in range(3)]
+            remainders = [raw_counts[i] - int(raw_counts[i]) for i in range(n_types)]
             for _ in range(-diff):
                 idx = remainders.index(min(remainders))
                 counts[idx] -= 1
@@ -74,7 +75,7 @@ class BlockWorld:
 
         # Build type list
         type_list: list[BlockType] = []
-        for i, bt in enumerate(("M", "C", "K")):
+        for i, bt in enumerate(BLOCK_TYPES):
             type_list.extend([bt] * counts[i])  # type: ignore[list-item]
         rng.shuffle(type_list)
 
@@ -113,14 +114,79 @@ class BlockWorld:
             ((x + 1) % self.grid_width, y),
         ]
 
-    def step(self, rule_table: BlockRuleTable, noise_level: float, rng: Random) -> None:
-        """Advance one simulation step (random sequential order)."""
+    def step(
+        self,
+        rule_table: BlockRuleTable,
+        noise_level: float,
+        rng: Random,
+        update_mode: object = None,
+    ) -> None:
+        """Advance one simulation step.
+
+        Sequential mode (default): process one block at a time in shuffled order.
+        Synchronous mode: compute all drift targets from frozen positions, apply
+        simultaneously, then compute bonds from new positions.
+        """
+        from alife_discovery.config.types import UpdateMode
+
+        mode = update_mode if update_mode is not None else UpdateMode.SEQUENTIAL
+        if mode == UpdateMode.SYNCHRONOUS:
+            self._step_synchronous(rule_table, noise_level, rng)
+        else:
+            self._step_sequential(rule_table, noise_level, rng)
+
+    def _step_sequential(self, rule_table: BlockRuleTable, noise_level: float, rng: Random) -> None:
+        """Random-sequential update: one block at a time."""
         order = list(self.blocks.keys())
         rng.shuffle(order)
         for block_id in order:
             self._try_drift(block_id, rng)
             self._try_bond_form(block_id, rule_table, rng)
-            self._try_bond_break(block_id, noise_level, rng)
+        self._step_bond_break(noise_level, rng)
+
+    def _step_synchronous(
+        self, rule_table: BlockRuleTable, noise_level: float, rng: Random
+    ) -> None:
+        """Synchronous update: drift targets computed from frozen positions, then applied."""
+        order = list(self.blocks.keys())
+        rng.shuffle(order)
+        # Phase 1: compute drift targets from frozen occupancy snapshot
+        frozen_grid = dict(self.grid)
+        new_positions: dict[int, tuple[int, int]] = {}
+        claimed: dict[tuple[int, int], int] = {}  # target -> first claimant
+        for block_id in order:
+            block = self.blocks[block_id]
+            cells = self._von_neumann_cells(block.x, block.y)
+            rng.shuffle(cells)
+            moved = False
+            for nx_, ny_ in cells:
+                if (nx_, ny_) not in frozen_grid and (nx_, ny_) not in claimed:
+                    new_positions[block_id] = (nx_, ny_)
+                    claimed[(nx_, ny_)] = block_id
+                    moved = True
+                    break
+            if not moved:
+                new_positions[block_id] = (block.x, block.y)
+        # Phase 2: apply moves
+        self.grid.clear()
+        for block_id, (nx_, ny_) in new_positions.items():
+            block = self.blocks[block_id]
+            block.x = nx_
+            block.y = ny_
+            self.grid[(nx_, ny_)] = block_id
+        # Prune bonds no longer spatially adjacent
+        stale: set[frozenset[int]] = set()
+        for bond in self.bonds:
+            endpoints = list(bond)
+            a, b = self.blocks[endpoints[0]], self.blocks[endpoints[1]]
+            if abs(a.x - b.x) + abs(a.y - b.y) != 1:
+                stale.add(bond)
+        self.bonds -= stale
+        # Phase 3: bond formation then breaking (from new positions)
+        rng.shuffle(order)
+        for block_id in order:
+            self._try_bond_form(block_id, rule_table, rng)
+        self._step_bond_break(noise_level, rng)
 
     def _try_drift(self, block_id: int, rng: Random) -> None:
         """Attempt to move block to a random adjacent empty cell."""
@@ -171,13 +237,16 @@ class BlockWorld:
                 if rng.random() < prob:
                     self.bonds.add(bond)
 
-    def _try_bond_break(self, block_id: int, noise_level: float, rng: Random) -> None:
-        """Break existing bonds of this block with probability noise_level."""
+    def _step_bond_break(self, noise_level: float, rng: Random) -> None:
+        """Break each bond once per step with probability noise_level.
+
+        Called once per step (not per block) to prevent the double-break bug where
+        processing both endpoints of a bond would give effective rate 2p - p² instead of p.
+        """
         to_break: set[frozenset[int]] = set()
         for bond in self.bonds:
-            if block_id in bond:
-                if rng.random() < noise_level:
-                    to_break.add(bond)
+            if rng.random() < noise_level:
+                to_break.add(bond)
         self.bonds -= to_break
 
 

@@ -91,29 +91,12 @@ def canonicalize_entity(entity: Entity) -> CanonicalGraph:
 
 
 def entity_graph_hash(graph: CanonicalGraph) -> str:
-    """Return SHA-256 hex of a WL-style canonical string of the graph.
+    """Return SHA-256 hex of a canonical string for the labeled graph.
 
-    The canonical string encodes node labels and neighborhood structure.
-    Two rounds of WL refinement are sufficient for small typed graphs.
+    Uses networkx's converging WL implementation (more robust than a fixed
+    2-round hand-rolled version) combined with node/edge counts for
+    collision resistance.
     """
-    nodes = sorted(graph.nodes())
-
-    def node_signature(n: int) -> str:
-        bt = graph.nodes[n]["block_type"]
-        neighbor_types = sorted(graph.nodes[nb]["block_type"] for nb in graph.neighbors(n))
-        return f"{bt}:[{','.join(neighbor_types)}]"
-
-    # Iterative WL refinement (2 rounds sufficient for small graphs)
-    labels: dict[int, str] = {n: node_signature(n) for n in nodes}
-    for _ in range(2):
-        new_labels: dict[int, str] = {}
-        for n in nodes:
-            neighbor_labels = sorted(labels[nb] for nb in graph.neighbors(n))
-            new_labels[n] = (
-                f"{graph.nodes[n]['block_type']}|{labels[n]}|{','.join(neighbor_labels)}"
-            )
-        labels = new_labels
-
-    canonical_str = ";".join(sorted(labels.values()))
-    canonical_str += f"|n={graph.number_of_nodes()}|e={graph.number_of_edges()}"
+    wl_hash = nx.weisfeiler_lehman_graph_hash(graph, node_attr="block_type")
+    canonical_str = f"n={graph.number_of_nodes()}|e={graph.number_of_edges()}|{wl_hash}"
     return hashlib.sha256(canonical_str.encode()).hexdigest()

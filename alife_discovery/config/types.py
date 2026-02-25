@@ -471,8 +471,12 @@ class BlockWorldConfig:
             raise ValueError("n_blocks must be >= 1")
         if self.n_blocks > self.grid_width * self.grid_height:
             raise ValueError("n_blocks cannot exceed grid cells")
-        if len(self.block_type_fractions) != 3:
-            raise ValueError("block_type_fractions must have 3 elements (M, C, K)")
+        from alife_discovery.config.constants import BLOCK_TYPES as _BT
+
+        if len(self.block_type_fractions) != len(_BT):
+            raise ValueError(
+                f"block_type_fractions must have {len(_BT)} elements ({', '.join(_BT)})"
+            )
         total = sum(self.block_type_fractions)
         if abs(total - 1.0) > 1e-9:
             raise ValueError("block_type_fractions must sum to 1.0")

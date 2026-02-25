@@ -43,11 +43,15 @@ FORMAL ASSEMBLY GRAMMAR SPEC
    Two graphs are the same assembly type iff labeled-isomorphic.
 =============================================================================
 """
+
 from __future__ import annotations
 
+import hashlib
 from typing import Any
 
 import networkx as nx
+
+from alife_discovery.config.constants import BLOCK_TYPES
 
 # Global memoization cache: canonical_key -> assembly_index
 _ASSEMBLY_CACHE: dict[str, int] = {}
@@ -56,11 +60,20 @@ _ASSEMBLY_CACHE: dict[str, int] = {}
 def _canonical_key(graph: nx.Graph) -> str:
     """Canonical string for a labeled graph, used for memoization.
 
-    Uses networkx Weisfeiler-Leman graph hash with node attribute 'block_type'.
-    Includes node/edge count to reduce collisions.
+    Uses WL hash + sorted adjacency fingerprint for collision resistance.
+    The adjacency fingerprint encodes (node_label, sorted_neighbor_labels)
+    for every node, making it strongly discriminating for small labeled graphs.
     """
     wl = nx.weisfeiler_lehman_graph_hash(graph, node_attr="block_type")
-    return f"n{graph.number_of_nodes()}_e{graph.number_of_edges()}_{wl}"
+    adj_sig = sorted(
+        (
+            graph.nodes[n].get("block_type", "?"),
+            tuple(sorted(graph.nodes[nb].get("block_type", "?") for nb in graph.neighbors(n))),
+        )
+        for n in graph.nodes()
+    )
+    adj_hash = hashlib.sha256(str(adj_sig).encode()).hexdigest()[:16]
+    return f"n{graph.number_of_nodes()}_e{graph.number_of_edges()}_{wl}_{adj_hash}"
 
 
 def assembly_index_exact(graph: nx.Graph) -> int:
@@ -136,28 +149,26 @@ def compute_entity_metrics(
     records = []
     for h, g, _entity in entity_data:
         n_nodes = g.number_of_nodes()
-        a_idx = (
-            assembly_index_exact(g)
-            if n_nodes <= MAX_ENTITY_SIZE
-            else assembly_index_approx(g)
-        )
+        a_idx = assembly_index_exact(g) if n_nodes <= MAX_ENTITY_SIZE else assembly_index_approx(g)
 
-        type_counts: dict[str, int] = {"M": 0, "C": 0, "K": 0}
+        type_counts: dict[str, int] = {bt: 0 for bt in BLOCK_TYPES}
         for node in g.nodes():
-            bt = g.nodes[node].get("block_type", "M")
+            bt = g.nodes[node]["block_type"]  # fail-fast: missing attr is a bug
             if bt in type_counts:
                 type_counts[bt] += 1
 
-        records.append({
-            "run_id": run_id,
-            "step": step,
-            "entity_hash": h,
-            "assembly_index": a_idx,
-            "copy_number_at_step": hash_counts[h],
-            "entity_size": n_nodes,
-            "n_membrane": type_counts["M"],
-            "n_cytosol": type_counts["C"],
-            "n_catalyst": type_counts["K"],
-        })
+        records.append(
+            {
+                "run_id": run_id,
+                "step": step,
+                "entity_hash": h,
+                "assembly_index": a_idx,
+                "copy_number_at_step": hash_counts[h],
+                "entity_size": n_nodes,
+                "n_membrane": type_counts["M"],
+                "n_cytosol": type_counts["C"],
+                "n_catalyst": type_counts["K"],
+            }
+        )
 
     return records

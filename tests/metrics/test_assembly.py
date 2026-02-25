@@ -1,4 +1,5 @@
 """Tests for Assembly Theory assembly index computation (edge-removal DP)."""
+
 import networkx as nx
 
 from alife_discovery.metrics.assembly import (
@@ -17,6 +18,7 @@ def make_graph(nodes_with_types: list[tuple[int, str]], edges: list[tuple[int, i
 
 
 # ── Base cases ────────────────────────────────────────────────────────────────
+
 
 def test_single_node_is_zero():
     g = nx.Graph()
@@ -38,6 +40,7 @@ def test_p2_is_one():
 
 # ── Path graphs (no reuse possible) ──────────────────────────────────────────
 
+
 def test_p3_is_two():
     g = make_graph([(0, "M"), (1, "M"), (2, "M")], [(0, 1), (1, 2)])
     assert assembly_index_exact(g) == 2
@@ -49,6 +52,7 @@ def test_p4_is_three():
 
 
 # ── K_3 triangle ─────────────────────────────────────────────────────────────
+
 
 def test_k3_is_three():
     """K_3: remove any edge -> P_3 (a=2), so a(K_3) = 1 + 2 = 3.
@@ -62,6 +66,7 @@ def test_k3_is_three():
 
 
 # ── Label awareness ───────────────────────────────────────────────────────────
+
 
 def test_same_topology_different_labels_same_index():
     """Assembly index depends on topology, not labels."""
@@ -90,6 +95,7 @@ def test_canonical_key_different_for_different_topology():
 
 # ── Determinism and caching ───────────────────────────────────────────────────
 
+
 def test_assembly_index_exact_deterministic():
     g = make_graph([(0, "M"), (1, "M"), (2, "M")], [(0, 1), (1, 2)])
     r1 = assembly_index_exact(g)
@@ -98,6 +104,7 @@ def test_assembly_index_exact_deterministic():
 
 
 # ── Approx upper bound ────────────────────────────────────────────────────────
+
 
 def test_approx_ge_exact_for_small_graphs():
     g = make_graph([(0, "M"), (1, "M"), (2, "M")], [(0, 1), (1, 2)])

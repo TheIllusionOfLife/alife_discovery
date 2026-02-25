@@ -403,7 +403,7 @@ def run_block_world_search(
         world = BlockWorld.create(cfg, rng)
 
         for step in range(cfg.steps):
-            world.step(rule_table, cfg.noise_level, rng)
+            world.step(rule_table, cfg.noise_level, rng, update_mode=cfg.update_mode)
 
             if (step + 1) % ENTITY_SNAPSHOT_INTERVAL == 0 or step == cfg.steps - 1:
                 entities = detect_entities(world)
@@ -423,18 +423,9 @@ def run_block_world_search(
         )
 
     # Write entity log
-    entity_writer: pq.ParquetWriter | None = None
-    try:
-        if all_entity_records:
-            columns: dict[str, list] = {f.name: [] for f in ENTITY_LOG_SCHEMA}
-            for rec in all_entity_records:
-                for col_name in columns:
-                    columns[col_name].append(rec[col_name])
-            table = pa.Table.from_pydict(columns, schema=ENTITY_LOG_SCHEMA)
-            entity_writer = pq.ParquetWriter(entity_log_path, ENTITY_LOG_SCHEMA)
-            entity_writer.write_table(table)
-    finally:
-        if entity_writer is not None:
-            entity_writer.close()
+    if all_entity_records:
+        table = pa.Table.from_pylist(all_entity_records, schema=ENTITY_LOG_SCHEMA)
+        with pq.ParquetWriter(entity_log_path, ENTITY_LOG_SCHEMA) as writer:
+            writer.write_table(table)
 
     return summaries

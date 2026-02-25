@@ -70,7 +70,7 @@ def main() -> None:
             p_discovery = (
                 sum(
                     1
-                    for a, c in zip(ai, cn, strict=False)
+                    for a, c in zip(ai, cn, strict=True)
                     if a >= args.assembly_threshold and c >= args.copy_threshold
                 )
                 / n
