@@ -59,9 +59,7 @@ def run_at_benchmark(at_max_n: int, at_warn_ms: float) -> None:
     exponential DP cost makes larger graphs impractical to measure inline.
     """
     print("=== AT Timing Benchmark ===")
-    header = (
-        f"{'n':>3}  {'P_n a':>6}  {'P_n ms':>9}  {'K_n a':>6}  {'K_n ms':>9}"
-    )
+    header = f"{'n':>3}  {'P_n a':>6}  {'P_n ms':>9}  {'K_n a':>6}  {'K_n ms':>9}"
     print(header)
     print("-" * len(header))
 
@@ -196,21 +194,13 @@ def print_summary(
     )
 
     # P(discovery) estimate
-    n_discovered = sum(
-        1 for a, c in zip(ai_col, cn_col, strict=True) if a >= 2 and c >= 2
-    )
+    n_discovered = sum(1 for a, c in zip(ai_col, cn_col, strict=True) if a >= 2 and c >= 2)
     p_discovery = n_discovered / n
-    print(
-        f"P(discovery | a>=2, cn>=2) = {p_discovery:.3f}"
-        f"  ({n_discovered}/{n})"
-    )
+    print(f"P(discovery | a>=2, cn>=2) = {p_discovery:.3f}  ({n_discovered}/{n})")
 
     # Approx path usage
     n_approx = sum(1 for s in sizes if s > MAX_ENTITY_SIZE)
-    print(
-        f"Entities exceeding MAX_ENTITY_SIZE={MAX_ENTITY_SIZE}:"
-        f" {n_approx} (approx path used)"
-    )
+    print(f"Entities exceeding MAX_ENTITY_SIZE={MAX_ENTITY_SIZE}: {n_approx} (approx path used)")
     print()
 
 
@@ -220,31 +210,41 @@ def print_summary(
 
 
 def parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(
-        description="PR #4 Feasibility Pilot: AT benchmark + pilot run"
-    )
+    p = argparse.ArgumentParser(description="PR #4 Feasibility Pilot: AT benchmark + pilot run")
     p.add_argument(
-        "--n-rules", type=int, default=100,
+        "--n-rules",
+        type=int,
+        default=100,
         help="Rule table samples per seed (default: 100)",
     )
     p.add_argument(
-        "--seeds", type=int, default=2,
+        "--seeds",
+        type=int,
+        default=2,
         help="Number of sim seeds (default: 2)",
     )
     p.add_argument(
-        "--steps", type=int, default=200,
+        "--steps",
+        type=int,
+        default=200,
         help="Steps per simulation (default: 200)",
     )
     p.add_argument(
-        "--out-dir", type=Path, default=Path("data/pilot"),
+        "--out-dir",
+        type=Path,
+        default=Path("data/pilot"),
         help="Output directory (default: data/pilot)",
     )
     p.add_argument(
-        "--at-max-n", type=int, default=16,
+        "--at-max-n",
+        type=int,
+        default=16,
         help="Max graph size for AT timing benchmark (default: 16)",
     )
     p.add_argument(
-        "--at-warn-ms", type=float, default=1000.0,
+        "--at-warn-ms",
+        type=float,
+        default=1000.0,
         help="Warn if AT call exceeds this ms threshold (default: 1000)",
     )
     return p.parse_args()
