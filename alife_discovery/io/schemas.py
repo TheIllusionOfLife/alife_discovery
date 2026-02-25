@@ -166,3 +166,21 @@ HALT_WINDOW_SWEEP_SCHEMA = pa.schema(
         ("enable_viability_filters", pa.bool_()),
     ]
 )
+
+# ---------------------------------------------------------------------------
+# Block-world entity log schema
+# ---------------------------------------------------------------------------
+
+ENTITY_LOG_SCHEMA = pa.schema(
+    [
+        ("run_id", pa.string()),
+        ("step", pa.int64()),
+        ("entity_hash", pa.string()),
+        ("assembly_index", pa.int64()),
+        ("copy_number_at_step", pa.int64()),
+        ("entity_size", pa.int64()),
+        ("n_membrane", pa.int64()),
+        ("n_cytosol", pa.int64()),
+        ("n_catalyst", pa.int64()),
+    ]
+)
