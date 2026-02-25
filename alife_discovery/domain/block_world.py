@@ -119,19 +119,20 @@ class BlockWorld:
     def _manhattan_neighbors(self, x: int, y: int, radius: int) -> list[tuple[int, int]]:
         """Return all cells within Manhattan distance `radius` (toroidal, excluding origin).
 
+        Iterates only the diamond (not the enclosing square) for efficiency.
         Deduplicates wrapped cells, which can collide when radius > grid_dim/2.
         """
         seen: set[tuple[int, int]] = set()
         cells: list[tuple[int, int]] = []
         for dx in range(-radius, radius + 1):
-            for dy in range(-radius, radius + 1):
+            y_radius = radius - abs(dx)
+            for dy in range(-y_radius, y_radius + 1):
                 if dx == 0 and dy == 0:
                     continue
-                if abs(dx) + abs(dy) <= radius:
-                    cell = ((x + dx) % self.grid_width, (y + dy) % self.grid_height)
-                    if cell not in seen:
-                        seen.add(cell)
-                        cells.append(cell)
+                cell = ((x + dx) % self.grid_width, (y + dy) % self.grid_height)
+                if cell not in seen:
+                    seen.add(cell)
+                    cells.append(cell)
         return cells
 
     def _von_neumann_cells(self, x: int, y: int) -> list[tuple[int, int]]:

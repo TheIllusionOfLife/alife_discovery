@@ -217,6 +217,15 @@ class TestObservationRange:
         block.y = y
         world.grid[(x, y)] = bid
 
+    def _uniform_rule_table(self, prob: float) -> BlockRuleTable:
+        """Build a rule table with uniform bond probability across all keys."""
+        table: BlockRuleTable = {}
+        for st in BLOCK_TYPES:
+            for nc in range(5):
+                for dt in list(BLOCK_TYPES) + ["Empty"]:
+                    table[(st, nc, dt)] = prob
+        return table
+
     def test_bond_form_radius2_reaches_distance2_block(self) -> None:
         """radius=2: block at (0,0) should bond with block at (0,2) — Manhattan dist 2."""
         config = BlockWorldConfig(grid_width=10, grid_height=10, n_blocks=2, observation_range=2)
@@ -226,16 +235,9 @@ class TestObservationRange:
         self._place(world, b0, 0, 0)
         self._place(world, b1, 0, 2)
 
-        # Build a rule table with probability 1.0 for all keys so bonding is certain
-        rule_table: BlockRuleTable = {}
-        for st in BLOCK_TYPES:
-            for nc in range(5):
-                for dt in list(BLOCK_TYPES) + ["Empty"]:
-                    rule_table[(st, nc, dt)] = 1.0
-
+        # Bond probability 1.0 for all keys ensures bonding is certain if in range
         rng = Random(42)
-        # Force bond formation without drift
-        world._try_bond_form(b0, rule_table, rng)
+        world._try_bond_form(b0, self._uniform_rule_table(1.0), rng)
         assert frozenset({b0, b1}) in world.bonds
 
     def test_bond_form_radius1_cannot_reach_distance2_block(self) -> None:
@@ -246,15 +248,8 @@ class TestObservationRange:
         b0, b1 = ids[0], ids[1]
         self._place(world, b0, 0, 0)
         self._place(world, b1, 0, 2)
-
-        rule_table: BlockRuleTable = {}
-        for st in BLOCK_TYPES:
-            for nc in range(5):
-                for dt in list(BLOCK_TYPES) + ["Empty"]:
-                    rule_table[(st, nc, dt)] = 1.0
-
         rng = Random(42)
-        world._try_bond_form(b0, rule_table, rng)
+        world._try_bond_form(b0, self._uniform_rule_table(1.0), rng)
         assert frozenset({b0, b1}) not in world.bonds
 
     def test_prune_breaks_bond_when_outside_range2(self) -> None:
@@ -341,12 +336,12 @@ class TestObservationRange:
         self._place(world, b1, 0, 5)
         # Manually inject a bond that should not exist at this distance
         world.bonds.add(frozenset({b0, b1}))
-        rule_table: BlockRuleTable = {}
-        for st in BLOCK_TYPES:
-            for nc in range(5):
-                for dt in list(BLOCK_TYPES) + ["Empty"]:
-                    rule_table[(st, nc, dt)] = 0.0  # no new bonds
-        world.step(rule_table, noise_level=0.0, rng=Random(0), update_mode=UpdateMode.SYNCHRONOUS)
+        world.step(
+            self._uniform_rule_table(0.0),
+            noise_level=0.0,
+            rng=Random(0),
+            update_mode=UpdateMode.SYNCHRONOUS,
+        )
         assert frozenset({b0, b1}) not in world.bonds
 
     def test_prune_bond_survives_toroidal_wrap(self) -> None:
