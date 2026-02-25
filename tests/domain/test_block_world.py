@@ -208,19 +208,6 @@ class TestBlockWorldConfig:
 class TestObservationRange:
     """Tests for observation_range wiring: bond formation and pruning at r > 1."""
 
-    def _make_world(
-        self, observation_range: int = 1, grid_size: int = 10
-    ) -> tuple[BlockWorld, list[int]]:
-        """Create an empty-ish world and return it with block ids."""
-        config = BlockWorldConfig(
-            grid_width=grid_size,
-            grid_height=grid_size,
-            n_blocks=2,
-            observation_range=observation_range,
-        )
-        world = BlockWorld.create(config, Random(0))
-        return world, list(world.blocks.keys())
-
     def _place(self, world: BlockWorld, bid: int, x: int, y: int) -> None:
         """Teleport a block to (x, y), clearing old grid entry."""
         block = world.blocks[bid]
@@ -340,25 +327,37 @@ class TestObservationRange:
         assert rule_table.observed_counts[0] <= 4
 
     def test_synchronous_stale_bond_uses_range(self) -> None:
-        """Synchronous step with radius=2: bond with dist-3 pair is pruned."""
+        """Synchronous step with radius=2 prunes bonds that exceed observation_range."""
+        from alife_discovery.config.types import UpdateMode
+
         config = BlockWorldConfig(
             grid_width=10, grid_height=10, n_blocks=2, observation_range=2, steps=1
         )
         world = BlockWorld.create(config, Random(0))
         ids = list(world.blocks.keys())
         b0, b1 = ids[0], ids[1]
+        # Place blocks at distance 5 — beyond observation_range=2
         self._place(world, b0, 0, 0)
-        self._place(world, b1, 0, 2)
-        # Add a bond between b0 and b1 at dist=2 (within range)
+        self._place(world, b1, 0, 5)
+        # Manually inject a bond that should not exist at this distance
         world.bonds.add(frozenset({b0, b1}))
-        # Now move b1 to distance 4 (out of range=2) and run synchronous step
-        # We'll manipulate directly: move b1 far away then trigger stale pruning
-        self._place(world, b1, 0, 4)
-        # The stale check in _step_synchronous should mark this bond as stale
-        stale: set[frozenset] = set()
-        for bond in world.bonds:
-            endpoints = list(bond)
-            a, b = world.blocks[endpoints[0]], world.blocks[endpoints[1]]
-            if abs(a.x - b.x) + abs(a.y - b.y) > world.observation_range:
-                stale.add(bond)
-        assert frozenset({b0, b1}) in stale
+        rule_table: BlockRuleTable = {}
+        for st in BLOCK_TYPES:
+            for nc in range(5):
+                for dt in list(BLOCK_TYPES) + ["Empty"]:
+                    rule_table[(st, nc, dt)] = 0.0  # no new bonds
+        world.step(rule_table, noise_level=0.0, rng=Random(0), update_mode=UpdateMode.SYNCHRONOUS)
+        assert frozenset({b0, b1}) not in world.bonds
+
+    def test_prune_bond_survives_toroidal_wrap(self) -> None:
+        """Bond across the toroidal edge (toroidal dist=1) must not be pruned at range=1."""
+        config = BlockWorldConfig(grid_width=10, grid_height=10, n_blocks=2, observation_range=1)
+        world = BlockWorld.create(config, Random(0))
+        ids = list(world.blocks.keys())
+        b0, b1 = ids[0], ids[1]
+        # (0,0) and (9,0): raw distance=9, toroidal distance=1
+        self._place(world, b0, 0, 0)
+        self._place(world, b1, 9, 0)
+        world.bonds.add(frozenset({b0, b1}))
+        world._prune_broken_bonds(b0)
+        assert frozenset({b0, b1}) in world.bonds

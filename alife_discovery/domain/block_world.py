@@ -21,6 +21,9 @@ BlockType = Literal["M", "C", "K"]
 # Rule table type: (self_type, neighbor_count, dominant_type) -> bond_probability
 BlockRuleTable = dict[tuple[str, int, str], float]
 
+# Maximum neighbor_count value used as rule-table key (caps observed neighbors for any radius)
+MAX_NEIGHBOR_COUNT = 4
+
 
 @dataclass
 class Block:
@@ -107,15 +110,28 @@ class BlockWorld:
                     result.append(neighbor_id)
         return result
 
+    def _toroidal_manhattan(self, a: Block, b: Block) -> int:
+        """Toroidal Manhattan distance between two blocks."""
+        dx = abs(a.x - b.x)
+        dy = abs(a.y - b.y)
+        return min(dx, self.grid_width - dx) + min(dy, self.grid_height - dy)
+
     def _manhattan_neighbors(self, x: int, y: int, radius: int) -> list[tuple[int, int]]:
-        """Return all cells within Manhattan distance `radius` (toroidal, excluding origin)."""
-        cells = []
+        """Return all cells within Manhattan distance `radius` (toroidal, excluding origin).
+
+        Deduplicates wrapped cells, which can collide when radius > grid_dim/2.
+        """
+        seen: set[tuple[int, int]] = set()
+        cells: list[tuple[int, int]] = []
         for dx in range(-radius, radius + 1):
             for dy in range(-radius, radius + 1):
                 if dx == 0 and dy == 0:
                     continue
                 if abs(dx) + abs(dy) <= radius:
-                    cells.append(((x + dx) % self.grid_width, (y + dy) % self.grid_height))
+                    cell = ((x + dx) % self.grid_width, (y + dy) % self.grid_height)
+                    if cell not in seen:
+                        seen.add(cell)
+                        cells.append(cell)
         return cells
 
     def _von_neumann_cells(self, x: int, y: int) -> list[tuple[int, int]]:
@@ -182,12 +198,12 @@ class BlockWorld:
             block.x = nx_
             block.y = ny_
             self.grid[(nx_, ny_)] = block_id
-        # Prune bonds where endpoints now exceed observation_range
+        # Prune bonds where endpoints now exceed observation_range (toroidal distance)
         stale: set[frozenset[int]] = set()
         for bond in self.bonds:
             endpoints = list(bond)
             a, b = self.blocks[endpoints[0]], self.blocks[endpoints[1]]
-            if abs(a.x - b.x) + abs(a.y - b.y) > self.observation_range:
+            if self._toroidal_manhattan(a, b) > self.observation_range:
                 stale.add(bond)
         self.bonds -= stale
         # Phase 3: bond formation then breaking (from new positions)
@@ -232,8 +248,8 @@ class BlockWorld:
         neighbor_ids = self.neighbors_of(block_id, radius=self.observation_range)
         if not neighbor_ids:
             return
-        # Cap neighbor_count at 4 to keep rule table at 60 entries for any radius
-        neighbor_count = min(len(neighbor_ids), 4)
+        # Cap neighbor_count to keep rule table at 60 entries for any radius
+        neighbor_count = min(len(neighbor_ids), MAX_NEIGHBOR_COUNT)
         neighbor_types = [self.blocks[n].block_type for n in neighbor_ids]
         type_counts = Counter(neighbor_types)
         dominant_type = type_counts.most_common(1)[0][0]
@@ -263,7 +279,7 @@ def generate_block_rule_table(rule_seed: int) -> BlockRuleTable:
     table: BlockRuleTable = {}
     dominant_types = list(BLOCK_TYPES) + ["Empty"]
     for self_type in BLOCK_TYPES:
-        for neighbor_count in range(5):  # 0-4
+        for neighbor_count in range(MAX_NEIGHBOR_COUNT + 1):  # 0..MAX_NEIGHBOR_COUNT
             for dominant_type in dominant_types:
                 table[(self_type, neighbor_count, dominant_type)] = rng.random()
     return table
