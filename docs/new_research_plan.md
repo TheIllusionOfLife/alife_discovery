@@ -62,7 +62,7 @@ Operationally, an entity is “life-like” if it appears in a run and satisfies
 
 ## 3) Simulation redesign (to make assembly index natural *and* visually life-like)
 
-You requested: **building blocks should visually look life-like when assembly index is meaningful**.
+Goal: **building blocks should visually look life-like when assembly index is meaningful**.
 
 ### 3.1 Recommended building blocks: “cellular tiles with membranes”
 
@@ -340,9 +340,9 @@ Pick 2–3 levers you most want to highlight:
 
 ---
 
-## 11) Next deliverable (once you answer Q1–Q5)
+## 11) Next deliverable (once Q1–Q5 are answered)
 
-I will update this document with:
+Update this document with:
 
 * a concrete simulator spec (state, transition rules, join/split)
 * an assembly-index computation plan (exact + approximation) tailored to your chosen block chemistry

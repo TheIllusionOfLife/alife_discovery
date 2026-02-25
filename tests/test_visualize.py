@@ -21,7 +21,7 @@ from alife_discovery.visualize import (
     render_snapshot_grid,
     select_top_rules,
 )
-from alife_discovery.viz_render import _resolve_grid_dimension
+from alife_discovery.viz.render import _resolve_grid_dimension
 
 
 class _DummyAnimation:

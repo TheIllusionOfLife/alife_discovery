@@ -11,8 +11,8 @@ import pyarrow.parquet as pq
 from alife_discovery.config.constants import MAX_EXPERIMENT_WORK_UNITS
 from alife_discovery.config.types import ExperimentConfig, SimulationResult
 from alife_discovery.experiments.summaries import (
-    _build_phase_comparison,
-    _build_phase_summary,
+    build_phase_comparison,
+    build_phase_summary,
     collect_final_metric_rows,
 )
 from alife_discovery.io.schemas import AGGREGATE_SCHEMA_VERSION
@@ -105,7 +105,7 @@ def run_experiment(config: ExperimentConfig) -> list[SimulationResult]:
         )
 
         phase_summaries.append(
-            _build_phase_summary(
+            build_phase_summary(
                 phase=phase,
                 run_rows=current_phase_run_rows,
                 final_metric_rows=final_metric_rows,
@@ -114,7 +114,7 @@ def run_experiment(config: ExperimentConfig) -> list[SimulationResult]:
 
     pq.write_table(pa.Table.from_pylist(experiment_rows), root_logs_dir / "experiment_runs.parquet")
     pq.write_table(pa.Table.from_pylist(phase_summaries), root_logs_dir / "phase_summary.parquet")
-    phase_comparison = _build_phase_comparison(phase_summaries)
+    phase_comparison = build_phase_comparison(phase_summaries)
     (root_logs_dir / "phase_comparison.json").write_text(
         json.dumps(phase_comparison, ensure_ascii=False, indent=2)
     )

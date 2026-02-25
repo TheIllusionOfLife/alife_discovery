@@ -1,8 +1,8 @@
 """Observation phase enums, rule-table indexing, and seeded rule generation.
 
 This module is the canonical source for ``ObservationPhase`` and all
-rule-table sizing / indexing helpers.  ``CLOCK_PERIOD`` is defined here
-for historical reasons; prefer importing it from
+rule-table sizing / indexing helpers.  ``CLOCK_PERIOD`` is re-exported here
+for backward compatibility; prefer importing it from
 ``alife_discovery.config.constants`` in new code.
 """
 

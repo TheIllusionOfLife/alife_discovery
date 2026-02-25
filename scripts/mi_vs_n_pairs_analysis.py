@@ -163,7 +163,7 @@ def _plot(
 def main(argv: list[str] | None = None) -> None:
     """Run the MI vs n_pairs analysis across all conditions and save the figure."""
     parser = argparse.ArgumentParser(description="MI vs neighbor-pair-count analysis")
-    parser.add_argument("--output-dir", type=str, default="paper/figures/")
+    parser.add_argument("--output-dir", type=str, default="output/figures/")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--n-bootstrap", type=int, default=DEFAULT_N_BOOTSTRAPS)
     args = parser.parse_args(argv)

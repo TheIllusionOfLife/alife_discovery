@@ -1,3 +1,8 @@
+# NOTE: This file is archived dead code. Imports on lines 13, 15, and 16 reference
+# scripts that have been moved to legacy/scripts/ and are no longer resolvable as
+# top-level `scripts.*` modules. This file is excluded from pytest discovery and is
+# preserved for historical reference only.
+
 import csv
 import json
 from pathlib import Path

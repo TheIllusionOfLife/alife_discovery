@@ -28,27 +28,6 @@ from alife_discovery.viz.render import (
     STATE_COLORS as STATE_COLORS,
 )
 from alife_discovery.viz.render import (
-    _annotate_significance as _annotate_significance,
-)
-from alife_discovery.viz.render import (
-    _build_grid_array as _build_grid_array,
-)
-from alife_discovery.viz.render import (
-    _build_state_legend_handles as _build_state_legend_handles,
-)
-from alife_discovery.viz.render import (
-    _draw_cell_grid as _draw_cell_grid,
-)
-from alife_discovery.viz.render import (
-    _resolve_grid_dimension as _resolve_grid_dimension,
-)
-from alife_discovery.viz.render import (
-    _resolve_within_base as _resolve_within_base,
-)
-from alife_discovery.viz.render import (
-    _state_cmap as _state_cmap,
-)
-from alife_discovery.viz.render import (
     render_batch as render_batch,
 )
 from alife_discovery.viz.render import (

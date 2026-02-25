@@ -49,7 +49,7 @@ def _mean(values: list[float]) -> float | None:
     return sum(values) / len(values)
 
 
-def _build_phase_summary(
+def build_phase_summary(
     phase: ObservationPhase,
     run_rows: list[dict[str, Any]],
     final_metric_rows: list[dict[str, Any]],
@@ -95,7 +95,7 @@ def _build_phase_summary(
     return summary
 
 
-def _build_phase_comparison(phase_summaries: list[dict[str, int | float | None]]) -> dict[str, Any]:
+def build_phase_comparison(phase_summaries: list[dict[str, int | float | None]]) -> dict[str, Any]:
     """Build cross-phase comparison payload from a list of phase summary rows."""
 
     def _phase_value(row: dict[str, int | float | None]) -> int:

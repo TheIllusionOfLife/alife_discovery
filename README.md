@@ -151,16 +151,15 @@ Configuration validation is strict and fail-fast:
 
 ## High-Level Architecture
 
-- `alife_discovery/world.py`: toroidal world model, agent state, collision/movement semantics
-- `alife_discovery/rules.py`: observation phases, indexing logic, seeded rule-table generation
-- `alife_discovery/filters.py`: termination and optional dynamic filter detectors
-- `alife_discovery/metrics.py`: post-step analysis metrics
-- `alife_discovery/run_search.py`: batch/experiment runner + artifact persistence
-- `alife_discovery/stats.py`: statistical significance testing (Mann-Whitney U, chi-squared, effect sizes)
-- `alife_discovery/visualize.py`: visualization compatibility entrypoint (`python -m alife_discovery.visualize`)
-- `alife_discovery/viz_cli.py`: visualization CLI parsing and subcommand dispatch
-- `alife_discovery/viz_render.py`: visualization rendering and figure generation logic
-- `alife_discovery/export_web.py`: web export utility for paired/single visualization payloads
+- `alife_discovery/domain/world.py`: toroidal world model, agent state, collision/movement semantics
+- `alife_discovery/domain/rules.py`: observation phases, indexing logic, seeded rule-table generation
+- `alife_discovery/domain/filters.py`: termination and optional dynamic filter detectors
+- `alife_discovery/metrics/`: post-step analysis metrics (spatial, temporal, information submodules)
+- `alife_discovery/experiments/search.py`: batch/experiment runner + artifact persistence
+- `alife_discovery/analysis/stats.py`: statistical significance testing (Mann-Whitney U, chi-squared, effect sizes)
+- `alife_discovery/viz/cli.py`: visualization CLI parsing and subcommand dispatch
+- `alife_discovery/viz/render.py`: visualization rendering and figure generation logic
+- `alife_discovery/viz/export_web.py`: web export utility for paired/single visualization payloads
 
 ## Data Outputs
 

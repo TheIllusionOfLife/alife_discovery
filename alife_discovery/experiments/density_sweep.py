@@ -13,8 +13,8 @@ from alife_discovery.config.types import DensitySweepConfig, SearchConfig, Simul
 from alife_discovery.domain.rules import ObservationPhase
 from alife_discovery.domain.world import WorldConfig
 from alife_discovery.experiments.summaries import (
-    _build_phase_comparison,
-    _build_phase_summary,
+    build_phase_comparison,
+    build_phase_summary,
     collect_final_metric_rows,
 )
 from alife_discovery.io.schemas import (
@@ -135,7 +135,7 @@ def _run_density_phase(
         phase_results=phase_results,
         default_final_step=config.steps - 1,
     )
-    base_summary = _build_phase_summary(
+    base_summary = build_phase_summary(
         phase=phase,
         run_rows=current_phase_run_rows,
         final_metric_rows=final_metric_rows,
@@ -161,7 +161,7 @@ def _append_density_phase_comparison_rows(
     density_ratio: float,
 ) -> None:
     """Append comparison rows for one density point."""
-    comparison_payload = _build_phase_comparison(per_density_phase_summaries)
+    comparison_payload = build_phase_comparison(per_density_phase_summaries)
     base_phase = comparison_payload["phases"][0]
     target_phase = comparison_payload["phases"][1]
     for metric, deltas in comparison_payload["deltas"].items():
