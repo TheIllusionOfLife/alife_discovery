@@ -10,6 +10,8 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import subprocess
+import sys
 from pathlib import Path
 
 import pyarrow as pa
@@ -29,6 +31,11 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--n-blocks", type=int, default=30)
     p.add_argument("--noise-level", type=float, default=0.01)
     p.add_argument("--out-dir", type=Path, default=Path("data/baseline"))
+    p.add_argument(
+        "--plot",
+        action="store_true",
+        help="Generate figures after simulation via plot_baseline.py",
+    )
     return p.parse_args()
 
 
@@ -71,6 +78,21 @@ def main() -> None:
     cn_mean = sum(cn_col) / len(cn_col)
     print(f"Assembly index: min={min(ai_col)}, max={max(ai_col)}, mean={ai_mean:.2f}")
     print(f"Copy number:    min={min(cn_col)}, max={max(cn_col)}, mean={cn_mean:.2f}")
+
+    if args.plot:
+        sys.stdout.flush()
+        plotter = Path(__file__).parent / "plot_baseline.py"
+        subprocess.run(
+            [
+                sys.executable,
+                str(plotter),
+                "--in-file",
+                str(out_path),
+                "--out-dir",
+                str(args.out_dir / "figures"),
+            ],
+            check=True,
+        )
 
 
 if __name__ == "__main__":
