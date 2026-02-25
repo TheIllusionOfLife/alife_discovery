@@ -18,7 +18,7 @@ from pathlib import Path
 import pyarrow.parquet as pq
 from scipy.stats import mannwhitneyu
 
-from objectless_alife.stats import _holm_bonferroni
+from alife_discovery.stats import _holm_bonferroni
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = PROJECT_ROOT / "data" / "stage_d"

@@ -17,9 +17,9 @@ from pathlib import Path
 
 import pyarrow.parquet as pq
 
-from objectless_alife.aggregation import select_top_rules_by_delta_mi
-from objectless_alife.metrics import neighbor_transfer_entropy, transfer_entropy_shuffle_null
-from objectless_alife.world import WorldConfig
+from alife_discovery.aggregation import select_top_rules_by_delta_mi
+from alife_discovery.metrics import neighbor_transfer_entropy, transfer_entropy_shuffle_null
+from alife_discovery.world import WorldConfig
 
 _DEFAULT_WORLD = WorldConfig()
 DEFAULT_GRID_WIDTH = _DEFAULT_WORLD.grid_width

@@ -20,9 +20,9 @@ from pathlib import Path
 
 import pyarrow.parquet as pq
 
-from objectless_alife.aggregation import run_multi_seed_robustness
-from objectless_alife.config import MultiSeedConfig
-from objectless_alife.rules import ObservationPhase
+from alife_discovery.aggregation import run_multi_seed_robustness
+from alife_discovery.config import MultiSeedConfig
+from alife_discovery.rules import ObservationPhase
 from scripts.multi_seed_p1_control import summarize_multi_seed_results
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent

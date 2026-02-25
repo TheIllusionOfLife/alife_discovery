@@ -1,6 +1,6 @@
-"""Root-level shim: delegates to objectless_alife.viz.cli."""
+"""Root-level shim: delegates to alife_discovery.viz.cli."""
 
-from objectless_alife.viz.cli import main
+from alife_discovery.viz.cli import main
 
 if __name__ == "__main__":
     main()

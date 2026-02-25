@@ -21,12 +21,12 @@ from pathlib import Path
 
 import pyarrow.parquet as pq
 
-from objectless_alife.aggregation import (
+from alife_discovery.aggregation import (
     run_halt_window_sweep,
     select_top_rules_by_delta_mi,
 )
-from objectless_alife.config import HaltWindowSweepConfig
-from objectless_alife.metrics import (
+from alife_discovery.config import HaltWindowSweepConfig
+from alife_discovery.metrics import (
     block_shuffle_null_mi,
     fixed_marginal_null_mi,
     neighbor_mutual_information,
@@ -286,9 +286,9 @@ def run_capacity_matched_analysis() -> dict[str, dict[str, float]]:
     """Run Phase 5 and 6 experiments; compare to P1/P2 from stage_d."""
     print("\n=== Capacity-Matched Controls ===")
 
-    from objectless_alife.experiments.summaries import collect_final_metric_rows
-    from objectless_alife.rules import ObservationPhase
-    from objectless_alife.simulation import run_batch_search
+    from alife_discovery.experiments.summaries import collect_final_metric_rows
+    from alife_discovery.rules import ObservationPhase
+    from alife_discovery.simulation import run_batch_search
 
     # Run Phase 5 (Capacity-matched Phase 1)
     print("  Running Phase 5 (capacity-matched P1) — 5000 rules...")

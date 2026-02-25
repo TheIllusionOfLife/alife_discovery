@@ -16,9 +16,9 @@ from pathlib import Path
 
 import pyarrow.parquet as pq
 
-from objectless_alife.config import SearchConfig, SimulationResult
-from objectless_alife.rules import ObservationPhase
-from objectless_alife.simulation import run_batch_search
+from alife_discovery.config import SearchConfig, SimulationResult
+from alife_discovery.rules import ObservationPhase
+from alife_discovery.simulation import run_batch_search
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = PROJECT_ROOT / "data" / "stage_d"

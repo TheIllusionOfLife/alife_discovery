@@ -14,7 +14,7 @@ except ImportError:
     sys.modules["pyarrow"] = mock_pa
     sys.modules["pyarrow.parquet"] = mock_pq
 
-from objectless_alife.aggregation import (  # noqa: E402
+from alife_discovery.experiments.summaries import (  # noqa: E402
     _mean,
     _percentile_pre_sorted,
     _to_float_list,

@@ -1,4 +1,4 @@
-from objectless_alife.config.constants import (
+from alife_discovery.config.constants import (
     ACTION_SPACE_SIZE,
     BLOCK_NCD_WINDOW,
     CLOCK_PERIOD,

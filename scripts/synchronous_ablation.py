@@ -10,9 +10,9 @@ import argparse
 import json
 from pathlib import Path
 
-from objectless_alife.aggregation import run_experiment
-from objectless_alife.config import ExperimentConfig, UpdateMode
-from objectless_alife.rules import ObservationPhase
+from alife_discovery.aggregation import run_experiment
+from alife_discovery.config import ExperimentConfig, UpdateMode
+from alife_discovery.rules import ObservationPhase
 from scripts._analysis_common import (
     collect_phase_pairwise_comparisons,
     write_metric_summary_outputs,

@@ -5,7 +5,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
 
-from objectless_alife.aggregation import (
+from alife_discovery.aggregation import (
     _collect_final_metric_rows,
     run_density_sweep,
     run_experiment,
@@ -13,7 +13,7 @@ from objectless_alife.aggregation import (
     run_multi_seed_robustness,
     select_top_rules_by_delta_mi,
 )
-from objectless_alife.config import (
+from alife_discovery.config import (
     DensitySweepConfig,
     ExperimentConfig,
     FilterConfig,
@@ -25,20 +25,17 @@ from objectless_alife.config import (
     StateUniformMode,
     UpdateMode,
 )
-from objectless_alife.filters import ACTION_SPACE_SIZE
-from objectless_alife.metrics import action_entropy
-from objectless_alife.rules import ObservationPhase
-from objectless_alife.run_search import (
-    _parse_grid_sizes,
-    _parse_phase,
-    main,
-)
-from objectless_alife.schemas import METRICS_SCHEMA, PHASE_SUMMARY_METRIC_NAMES
-from objectless_alife.simulation import (
+from alife_discovery.experiments.search import _parse_grid_sizes, _parse_phase
+from alife_discovery.filters import ACTION_SPACE_SIZE
+from alife_discovery.metrics import action_entropy
+from alife_discovery.rules import ObservationPhase
+from alife_discovery.run_search import main
+from alife_discovery.schemas import METRICS_SCHEMA, PHASE_SUMMARY_METRIC_NAMES
+from alife_discovery.simulation import (
     _entropy_from_action_counts,
     run_batch_search,
 )
-from objectless_alife.world import WorldConfig
+from alife_discovery.world import WorldConfig
 
 
 def test_run_batch_search_writes_json_and_parquet(tmp_path: Path) -> None:
@@ -486,7 +483,7 @@ def test_run_experiment_rejects_excessive_total_workload(tmp_path: Path) -> None
 def test_run_batch_search_does_not_leave_partial_parquet_files_on_early_failure(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import objectless_alife.simulation.engine as simulation_engine
+    import alife_discovery.simulation.engine as simulation_engine
 
     def _fail(*args: object, **kwargs: object) -> list[int]:
         raise RuntimeError("boom")

@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 import pytest
 
-from objectless_alife.viz.cli import _parse_phase_dirs, main
+from alife_discovery.viz.cli import _parse_phase_dirs, main
 
 
 def test_parse_phase_dirs_valid() -> None:
@@ -57,7 +57,7 @@ def test_main_single_subcommand_dispatches(tmp_path: Path) -> None:
         str(tmp_path),
     ]
     with patch.object(sys, "argv", argv):
-        with patch("objectless_alife.viz.cli.render_rule_animation") as mock_render:
+        with patch("alife_discovery.viz.cli.render_rule_animation") as mock_render:
             main()
             mock_render.assert_called_once()
             assert mock_render.call_args.kwargs["fps"] == 4
@@ -85,7 +85,7 @@ def test_main_filmstrip_subcommand_dispatches(tmp_path: Path) -> None:
         str(tmp_path),
     ]
     with patch.object(sys, "argv", argv):
-        with patch("objectless_alife.viz.cli.render_filmstrip") as mock_render:
+        with patch("alife_discovery.viz.cli.render_filmstrip") as mock_render:
             main()
             mock_render.assert_called_once()
             assert mock_render.call_args.kwargs["n_frames"] == 8

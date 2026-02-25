@@ -1,7 +1,7 @@
 [project]
-name = "objectless-alife"
+name = "alife-discovery"
 version = "0.1.0"
-description = "Objective-free ALife PoC"
+description = "Objective-free ALife with Assembly Theory"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -22,7 +22,7 @@ requires = ["hatchling>=1.27.0"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["objectless_alife"]
+packages = ["alife_discovery"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
@@ -30,6 +30,7 @@ testpaths = ["tests"]
 
 [tool.ruff]
 line-length = 100
+exclude = ["legacy/**"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B"]
@@ -37,15 +38,16 @@ select = ["E", "F", "I", "B"]
 [tool.mypy]
 python_version = "3.11"
 ignore_missing_imports = true
+exclude = ["legacy/"]
 files = [
-  "objectless_alife/config/",
-  "objectless_alife/domain/",
-  "objectless_alife/metrics/",
-  "objectless_alife/io/",
-  "objectless_alife/analysis/",
-  "objectless_alife/simulation/",
-  "objectless_alife/experiments/",
-  "objectless_alife/viz/",
+  "alife_discovery/config/",
+  "alife_discovery/domain/",
+  "alife_discovery/metrics/",
+  "alife_discovery/io/",
+  "alife_discovery/analysis/",
+  "alife_discovery/simulation/",
+  "alife_discovery/experiments/",
+  "alife_discovery/viz/",
 ]
 
 [dependency-groups]

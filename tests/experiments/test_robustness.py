@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from objectless_alife.config.types import HaltWindowSweepConfig, MultiSeedConfig
-from objectless_alife.domain.rules import ObservationPhase
+from alife_discovery.config.types import HaltWindowSweepConfig, MultiSeedConfig
+from alife_discovery.domain.rules import ObservationPhase
 
 
 def test_multi_seed_config_defaults() -> None:
@@ -51,7 +51,7 @@ def test_run_multi_seed_robustness_writes_parquet(tmp_path: Path) -> None:
     """run_multi_seed_robustness returns the path to the output Parquet file."""
     import pyarrow.parquet as pq
 
-    from objectless_alife.experiments.robustness import run_multi_seed_robustness
+    from alife_discovery.experiments.robustness import run_multi_seed_robustness
 
     cfg = MultiSeedConfig(
         rule_seeds=(0,),

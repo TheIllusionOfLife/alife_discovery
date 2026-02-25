@@ -21,8 +21,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import pyarrow.parquet as pq  # noqa: E402
 
-from objectless_alife.aggregation import select_top_rules_by_delta_mi  # noqa: E402
-from objectless_alife.metrics import shuffle_null_mi  # noqa: E402
+from alife_discovery.aggregation import select_top_rules_by_delta_mi  # noqa: E402
+from alife_discovery.metrics import shuffle_null_mi  # noqa: E402
 from scripts._common import load_final_snapshots  # noqa: E402
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -95,7 +95,7 @@ def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Shuffle-null MI convergence analysis")
     parser.add_argument("--top-k", type=int, default=50, help="Number of top rules to use")
     parser.add_argument(
-        "--output-dir", type=str, default="paper/figures/", help="Output directory for figure"
+        "--output-dir", type=str, default="output/figures/", help="Output directory for figure"
     )
     parser.add_argument("--seed", type=int, default=42, help="Base RNG seed")
     args = parser.parse_args(argv)

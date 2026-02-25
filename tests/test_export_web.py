@@ -8,14 +8,14 @@ from pathlib import Path
 
 import pytest
 
-from objectless_alife.export_web import (
+from alife_discovery.export_web import (
     export_batch,
     export_gallery,
     export_paired,
     export_single,
 )
-from objectless_alife.rules import ObservationPhase
-from objectless_alife.simulation import run_batch_search
+from alife_discovery.rules import ObservationPhase
+from alife_discovery.simulation import run_batch_search
 
 
 @pytest.fixture()

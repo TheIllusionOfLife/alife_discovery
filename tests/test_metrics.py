@@ -2,7 +2,7 @@ import random
 
 import pytest
 
-from objectless_alife.metrics import (
+from alife_discovery.metrics import (
     action_entropy,
     action_entropy_variance,
     block_ncd,

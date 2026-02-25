@@ -2,7 +2,7 @@
 
 ## Purpose
 
-`objectless_alife` is a research-oriented product that explores whether structured, non-trivial dynamics can emerge in multi-agent systems without explicit objective functions.
+`alife_discovery` is a research-oriented product that explores whether structured, non-trivial dynamics can emerge in multi-agent systems without explicit objective functions.
 
 ## Target Users
 

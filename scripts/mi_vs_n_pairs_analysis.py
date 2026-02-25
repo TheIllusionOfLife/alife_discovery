@@ -21,8 +21,8 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
-from objectless_alife.metrics import neighbor_pair_count  # noqa: E402
-from objectless_alife.stats import load_final_step_metrics  # noqa: E402
+from alife_discovery.metrics import neighbor_pair_count  # noqa: E402
+from alife_discovery.stats import load_final_step_metrics  # noqa: E402
 from scripts._common import load_final_snapshots  # noqa: E402
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -163,7 +163,7 @@ def _plot(
 def main(argv: list[str] | None = None) -> None:
     """Run the MI vs n_pairs analysis across all conditions and save the figure."""
     parser = argparse.ArgumentParser(description="MI vs neighbor-pair-count analysis")
-    parser.add_argument("--output-dir", type=str, default="paper/figures/")
+    parser.add_argument("--output-dir", type=str, default="output/figures/")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--n-bootstrap", type=int, default=DEFAULT_N_BOOTSTRAPS)
     args = parser.parse_args(argv)

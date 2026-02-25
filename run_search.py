@@ -1,6 +1,6 @@
-"""Root-level shim: delegates to objectless_alife.experiments.search."""
+"""Root-level shim: delegates to alife_discovery.experiments.search."""
 
-from objectless_alife.experiments.search import main
+from alife_discovery.experiments.search import main
 
 if __name__ == "__main__":
     main()
