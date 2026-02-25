@@ -42,3 +42,15 @@ FLUSH_THRESHOLD = 8_192
 
 MAX_EXPERIMENT_WORK_UNITS = 100_000_000
 """Safety cap on total simulation steps across all phases/rules/seeds."""
+
+BLOCK_TYPES: tuple[str, ...] = ("M", "C", "K")
+"""Block type vocabulary: Membrane, Cytosol, Catalyst."""
+
+N_BLOCK_TYPES = 3
+"""Number of distinct block types."""
+
+MAX_ENTITY_SIZE = 16
+"""Maximum entity size for exact assembly index DP computation."""
+
+ENTITY_SNAPSHOT_INTERVAL = 10
+"""Sample entity state every K simulation steps."""

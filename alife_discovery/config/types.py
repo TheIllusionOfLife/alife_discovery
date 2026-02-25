@@ -27,6 +27,7 @@ __all__ = [
     "DensitySweepConfig",
     "MultiSeedConfig",
     "HaltWindowSweepConfig",
+    "BlockWorldConfig",
 ]
 
 # ---------------------------------------------------------------------------
@@ -443,3 +444,41 @@ class HaltWindowSweepConfig:
             raise ValueError("halt_windows must not be empty")
         if any(w < 1 for w in self.halt_windows):
             raise ValueError("halt_windows values must be >= 1")
+
+
+@dataclass(frozen=True)
+class BlockWorldConfig:
+    """Runtime parameters for the block-world (Track B) simulation."""
+
+    grid_width: int = 20
+    grid_height: int = 20
+    n_blocks: int = 30
+    block_type_fractions: tuple[float, ...] = (0.5, 0.3, 0.2)
+    """Initial fraction of M, C, K blocks (must sum to 1.0)."""
+    noise_level: float = 0.01
+    """Per-step bond-break probability (global)."""
+    observation_range: int = 1
+    """Von Neumann neighborhood radius for block observations."""
+    update_mode: UpdateMode = UpdateMode.SEQUENTIAL
+    steps: int = 200
+    rule_seed: int = 0
+    sim_seed: int = 0
+
+    def __post_init__(self) -> None:
+        if self.grid_width < 1 or self.grid_height < 1:
+            raise ValueError("grid dimensions must be >= 1")
+        if self.n_blocks < 1:
+            raise ValueError("n_blocks must be >= 1")
+        if self.n_blocks > self.grid_width * self.grid_height:
+            raise ValueError("n_blocks cannot exceed grid cells")
+        if len(self.block_type_fractions) != 3:
+            raise ValueError("block_type_fractions must have 3 elements (M, C, K)")
+        total = sum(self.block_type_fractions)
+        if abs(total - 1.0) > 1e-9:
+            raise ValueError("block_type_fractions must sum to 1.0")
+        if not 0.0 <= self.noise_level <= 1.0:
+            raise ValueError("noise_level must be in [0.0, 1.0]")
+        if self.observation_range < 1:
+            raise ValueError("observation_range must be >= 1")
+        if self.steps < 1:
+            raise ValueError("steps must be >= 1")
