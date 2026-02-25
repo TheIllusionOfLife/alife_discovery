@@ -7,8 +7,10 @@ from random import Random
 
 import pytest
 
+from alife_discovery.config.constants import BLOCK_TYPES
 from alife_discovery.config.types import BlockWorldConfig
 from alife_discovery.domain.block_world import (
+    BlockRuleTable,
     BlockWorld,
     generate_block_rule_table,
 )
@@ -201,3 +203,156 @@ class TestBlockWorldConfig:
     def test_invalid_steps(self) -> None:
         with pytest.raises(ValueError, match="steps must be >= 1"):
             BlockWorldConfig(steps=0)
+
+
+class TestObservationRange:
+    """Tests for observation_range wiring: bond formation and pruning at r > 1."""
+
+    def _place(self, world: BlockWorld, bid: int, x: int, y: int) -> None:
+        """Teleport a block to (x, y), clearing old grid entry."""
+        block = world.blocks[bid]
+        if (block.x, block.y) in world.grid:
+            del world.grid[(block.x, block.y)]
+        block.x = x
+        block.y = y
+        world.grid[(x, y)] = bid
+
+    def _uniform_rule_table(self, prob: float) -> BlockRuleTable:
+        """Build a rule table with uniform bond probability across all keys."""
+        table: BlockRuleTable = {}
+        for st in BLOCK_TYPES:
+            for nc in range(5):
+                for dt in list(BLOCK_TYPES) + ["Empty"]:
+                    table[(st, nc, dt)] = prob
+        return table
+
+    def test_bond_form_radius2_reaches_distance2_block(self) -> None:
+        """radius=2: block at (0,0) should bond with block at (0,2) — Manhattan dist 2."""
+        config = BlockWorldConfig(grid_width=10, grid_height=10, n_blocks=2, observation_range=2)
+        world = BlockWorld.create(config, Random(0))
+        ids = list(world.blocks.keys())
+        b0, b1 = ids[0], ids[1]
+        self._place(world, b0, 0, 0)
+        self._place(world, b1, 0, 2)
+
+        # Bond probability 1.0 for all keys ensures bonding is certain if in range
+        rng = Random(42)
+        world._try_bond_form(b0, self._uniform_rule_table(1.0), rng)
+        assert frozenset({b0, b1}) in world.bonds
+
+    def test_bond_form_radius1_cannot_reach_distance2_block(self) -> None:
+        """radius=1: block at (0,0) must NOT bond with block at (0,2) — too far."""
+        config = BlockWorldConfig(grid_width=10, grid_height=10, n_blocks=2, observation_range=1)
+        world = BlockWorld.create(config, Random(0))
+        ids = list(world.blocks.keys())
+        b0, b1 = ids[0], ids[1]
+        self._place(world, b0, 0, 0)
+        self._place(world, b1, 0, 2)
+        rng = Random(42)
+        world._try_bond_form(b0, self._uniform_rule_table(1.0), rng)
+        assert frozenset({b0, b1}) not in world.bonds
+
+    def test_prune_breaks_bond_when_outside_range2(self) -> None:
+        """radius=2: bond with dist-3 pair is pruned after the block is placed far away."""
+        config = BlockWorldConfig(grid_width=10, grid_height=10, n_blocks=2, observation_range=2)
+        world = BlockWorld.create(config, Random(0))
+        ids = list(world.blocks.keys())
+        b0, b1 = ids[0], ids[1]
+        # Start adjacent so bond is legitimate
+        self._place(world, b0, 0, 0)
+        self._place(world, b1, 0, 1)
+        world.bonds.add(frozenset({b0, b1}))
+        # Now move b0 to distance 3 from b1
+        self._place(world, b0, 0, 4)
+        world._prune_broken_bonds(b0)
+        assert frozenset({b0, b1}) not in world.bonds
+
+    def test_prune_keeps_bond_within_range2(self) -> None:
+        """radius=2: bond between dist-2 pair survives pruning."""
+        config = BlockWorldConfig(grid_width=10, grid_height=10, n_blocks=2, observation_range=2)
+        world = BlockWorld.create(config, Random(0))
+        ids = list(world.blocks.keys())
+        b0, b1 = ids[0], ids[1]
+        self._place(world, b0, 0, 0)
+        self._place(world, b1, 0, 2)
+        world.bonds.add(frozenset({b0, b1}))
+        world._prune_broken_bonds(b0)
+        assert frozenset({b0, b1}) in world.bonds
+
+    def test_neighbor_count_capped_at_4(self) -> None:
+        """With 6 neighbors in radius=2, rule table is queried with neighbor_count ≤ 4."""
+        from alife_discovery.config.constants import BLOCK_TYPES
+
+        class RecordingRuleTable(dict):
+            """dict subclass that records the neighbor_count from each .get() key."""
+
+            def __init__(self) -> None:
+                super().__init__()
+                self.observed_counts: list[int] = []
+
+            def get(self, key: object, default: float = 0.0) -> float:  # type: ignore[override]
+                assert isinstance(key, tuple)
+                _, nc, _ = key
+                self.observed_counts.append(nc)
+                return super().get(key, default)  # type: ignore[return-value]
+
+        # 7-block config (center + 6 arranged around it within radius 2)
+        config = BlockWorldConfig(grid_width=10, grid_height=10, n_blocks=7, observation_range=2)
+        world = BlockWorld.create(config, Random(0))
+        ids = list(world.blocks.keys())
+        center_id = ids[0]
+        neighbor_ids = ids[1:7]
+
+        # Place center at (5,5) and 6 neighbors within Manhattan dist ≤ 2
+        self._place(world, center_id, 5, 5)
+        positions = [(5, 4), (5, 6), (4, 5), (6, 5), (5, 3), (5, 7)]
+        for bid, pos in zip(neighbor_ids, positions, strict=True):
+            self._place(world, bid, pos[0], pos[1])
+
+        rule_table: RecordingRuleTable = RecordingRuleTable()
+        for st in BLOCK_TYPES:
+            for nc in range(5):
+                for dt in list(BLOCK_TYPES) + ["Empty"]:
+                    rule_table[(st, nc, dt)] = 0.0
+
+        world._try_bond_form(center_id, rule_table, Random(0))
+
+        # Exactly one lookup, and neighbor_count must be capped at ≤ 4
+        assert len(rule_table.observed_counts) == 1
+        assert rule_table.observed_counts[0] <= 4
+
+    def test_synchronous_stale_bond_uses_range(self) -> None:
+        """Synchronous step with radius=2 prunes bonds that exceed observation_range."""
+        from alife_discovery.config.types import UpdateMode
+
+        config = BlockWorldConfig(
+            grid_width=10, grid_height=10, n_blocks=2, observation_range=2, steps=1
+        )
+        world = BlockWorld.create(config, Random(0))
+        ids = list(world.blocks.keys())
+        b0, b1 = ids[0], ids[1]
+        # Place blocks at distance 5 — beyond observation_range=2
+        self._place(world, b0, 0, 0)
+        self._place(world, b1, 0, 5)
+        # Manually inject a bond that should not exist at this distance
+        world.bonds.add(frozenset({b0, b1}))
+        world.step(
+            self._uniform_rule_table(0.0),
+            noise_level=0.0,
+            rng=Random(0),
+            update_mode=UpdateMode.SYNCHRONOUS,
+        )
+        assert frozenset({b0, b1}) not in world.bonds
+
+    def test_prune_bond_survives_toroidal_wrap(self) -> None:
+        """Bond across the toroidal edge (toroidal dist=1) must not be pruned at range=1."""
+        config = BlockWorldConfig(grid_width=10, grid_height=10, n_blocks=2, observation_range=1)
+        world = BlockWorld.create(config, Random(0))
+        ids = list(world.blocks.keys())
+        b0, b1 = ids[0], ids[1]
+        # (0,0) and (9,0): raw distance=9, toroidal distance=1
+        self._place(world, b0, 0, 0)
+        self._place(world, b1, 9, 0)
+        world.bonds.add(frozenset({b0, b1}))
+        world._prune_broken_bonds(b0)
+        assert frozenset({b0, b1}) in world.bonds

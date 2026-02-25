@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import random
 from pathlib import Path
 
 import pyarrow.parquet as pq
 
+from alife_discovery.config.types import BlockWorldConfig
+from alife_discovery.domain.block_world import BlockWorld, generate_block_rule_table
 from alife_discovery.io.schemas import ENTITY_LOG_SCHEMA
 from alife_discovery.simulation.engine import run_block_world_search
 
@@ -56,3 +59,30 @@ class TestRunBlockWorldSearch:
         for i in range(table.num_rows):
             row = {col: table.column(col)[i].as_py() for col in table.column_names}
             assert row["n_membrane"] + row["n_cytosol"] + row["n_catalyst"] == row["entity_size"]
+
+    def test_observation_range_changes_bond_count(self, tmp_path: Path) -> None:
+        """observation_range lever produces deterministically different bond counts (golden)."""
+        # Golden values pinned at rule_seed=sim_seed=7, steps=50, 20x20 grid, 30 blocks.
+        # Update these constants if BlockWorld physics change intentionally.
+        EXPECTED_BONDS_RANGE_1 = 2
+        EXPECTED_BONDS_RANGE_2 = 8
+
+        def run(observation_range: int) -> int:
+            cfg = BlockWorldConfig(
+                grid_width=20,
+                grid_height=20,
+                n_blocks=30,
+                observation_range=observation_range,
+                steps=50,
+                rule_seed=7,
+                sim_seed=7,
+            )
+            rule_table = generate_block_rule_table(cfg.rule_seed)
+            rng = random.Random(cfg.sim_seed)
+            world = BlockWorld.create(cfg, rng)
+            for _ in range(cfg.steps):
+                world.step(rule_table, cfg.noise_level, rng, update_mode=cfg.update_mode)
+            return len(world.bonds)
+
+        assert run(1) == EXPECTED_BONDS_RANGE_1
+        assert run(2) == EXPECTED_BONDS_RANGE_2
