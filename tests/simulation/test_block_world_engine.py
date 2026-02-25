@@ -59,17 +59,28 @@ class TestRunBlockWorldSearch:
 
     def test_observation_range_changes_bond_count(self, tmp_path: Path) -> None:
         """observation_range=2 must produce different bond counts than range=1 (fixed seed)."""
-        from alife_discovery.config.types import BlockWorldConfig
-        from alife_discovery.domain.block_world import BlockWorld, generate_block_rule_table
         import random
 
+        from alife_discovery.config.types import BlockWorldConfig
+        from alife_discovery.domain.block_world import BlockWorld, generate_block_rule_table
+
         cfg1 = BlockWorldConfig(
-            grid_width=20, grid_height=20, n_blocks=30,
-            observation_range=1, steps=5, rule_seed=7, sim_seed=7
+            grid_width=20,
+            grid_height=20,
+            n_blocks=30,
+            observation_range=1,
+            steps=5,
+            rule_seed=7,
+            sim_seed=7,
         )
         cfg2 = BlockWorldConfig(
-            grid_width=20, grid_height=20, n_blocks=30,
-            observation_range=2, steps=5, rule_seed=7, sim_seed=7
+            grid_width=20,
+            grid_height=20,
+            n_blocks=30,
+            observation_range=2,
+            steps=5,
+            rule_seed=7,
+            sim_seed=7,
         )
 
         def run(cfg: BlockWorldConfig) -> int:

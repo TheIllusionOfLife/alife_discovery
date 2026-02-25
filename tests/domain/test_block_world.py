@@ -7,8 +7,10 @@ from random import Random
 
 import pytest
 
+from alife_discovery.config.constants import BLOCK_TYPES
 from alife_discovery.config.types import BlockWorldConfig
 from alife_discovery.domain.block_world import (
+    BlockRuleTable,
     BlockWorld,
     generate_block_rule_table,
 )
@@ -230,9 +232,7 @@ class TestObservationRange:
 
     def test_bond_form_radius2_reaches_distance2_block(self) -> None:
         """radius=2: block at (0,0) should bond with block at (0,2) — Manhattan dist 2."""
-        config = BlockWorldConfig(
-            grid_width=10, grid_height=10, n_blocks=2, observation_range=2
-        )
+        config = BlockWorldConfig(grid_width=10, grid_height=10, n_blocks=2, observation_range=2)
         world = BlockWorld.create(config, Random(0))
         ids = list(world.blocks.keys())
         b0, b1 = ids[0], ids[1]
@@ -240,9 +240,6 @@ class TestObservationRange:
         self._place(world, b1, 0, 2)
 
         # Build a rule table with probability 1.0 for all keys so bonding is certain
-        from alife_discovery.domain.block_world import BlockRuleTable
-        from alife_discovery.config.constants import BLOCK_TYPES
-
         rule_table: BlockRuleTable = {}
         for st in BLOCK_TYPES:
             for nc in range(5):
@@ -256,17 +253,12 @@ class TestObservationRange:
 
     def test_bond_form_radius1_cannot_reach_distance2_block(self) -> None:
         """radius=1: block at (0,0) must NOT bond with block at (0,2) — too far."""
-        config = BlockWorldConfig(
-            grid_width=10, grid_height=10, n_blocks=2, observation_range=1
-        )
+        config = BlockWorldConfig(grid_width=10, grid_height=10, n_blocks=2, observation_range=1)
         world = BlockWorld.create(config, Random(0))
         ids = list(world.blocks.keys())
         b0, b1 = ids[0], ids[1]
         self._place(world, b0, 0, 0)
         self._place(world, b1, 0, 2)
-
-        from alife_discovery.domain.block_world import BlockRuleTable
-        from alife_discovery.config.constants import BLOCK_TYPES
 
         rule_table: BlockRuleTable = {}
         for st in BLOCK_TYPES:
@@ -280,9 +272,7 @@ class TestObservationRange:
 
     def test_prune_breaks_bond_when_outside_range2(self) -> None:
         """radius=2: bond with dist-3 pair is pruned after the block is placed far away."""
-        config = BlockWorldConfig(
-            grid_width=10, grid_height=10, n_blocks=2, observation_range=2
-        )
+        config = BlockWorldConfig(grid_width=10, grid_height=10, n_blocks=2, observation_range=2)
         world = BlockWorld.create(config, Random(0))
         ids = list(world.blocks.keys())
         b0, b1 = ids[0], ids[1]
@@ -297,9 +287,7 @@ class TestObservationRange:
 
     def test_prune_keeps_bond_within_range2(self) -> None:
         """radius=2: bond between dist-2 pair survives pruning."""
-        config = BlockWorldConfig(
-            grid_width=10, grid_height=10, n_blocks=2, observation_range=2
-        )
+        config = BlockWorldConfig(grid_width=10, grid_height=10, n_blocks=2, observation_range=2)
         world = BlockWorld.create(config, Random(0))
         ids = list(world.blocks.keys())
         b0, b1 = ids[0], ids[1]
@@ -310,14 +298,24 @@ class TestObservationRange:
         assert frozenset({b0, b1}) in world.bonds
 
     def test_neighbor_count_capped_at_4(self) -> None:
-        """With 6 neighbors in radius=2, rule table is queried with neighbor_count=4."""
-        from alife_discovery.domain.block_world import BlockRuleTable
+        """With 6 neighbors in radius=2, rule table is queried with neighbor_count ≤ 4."""
         from alife_discovery.config.constants import BLOCK_TYPES
 
+        class RecordingRuleTable(dict):
+            """dict subclass that records the neighbor_count from each .get() key."""
+
+            def __init__(self) -> None:
+                super().__init__()
+                self.observed_counts: list[int] = []
+
+            def get(self, key: object, default: float = 0.0) -> float:  # type: ignore[override]
+                assert isinstance(key, tuple)
+                _, nc, _ = key
+                self.observed_counts.append(nc)
+                return super().get(key, default)  # type: ignore[return-value]
+
         # 7-block config (center + 6 arranged around it within radius 2)
-        config = BlockWorldConfig(
-            grid_width=10, grid_height=10, n_blocks=7, observation_range=2
-        )
+        config = BlockWorldConfig(grid_width=10, grid_height=10, n_blocks=7, observation_range=2)
         world = BlockWorld.create(config, Random(0))
         ids = list(world.blocks.keys())
         center_id = ids[0]
@@ -326,37 +324,23 @@ class TestObservationRange:
         # Place center at (5,5) and 6 neighbors within Manhattan dist ≤ 2
         self._place(world, center_id, 5, 5)
         positions = [(5, 4), (5, 6), (4, 5), (6, 5), (5, 3), (5, 7)]
-        for bid, pos in zip(neighbor_ids, positions):
+        for bid, pos in zip(neighbor_ids, positions, strict=True):
             self._place(world, bid, pos[0], pos[1])
 
-        # Record what neighbor_count values were seen
-        observed_counts: list[int] = []
-
-        rule_table: BlockRuleTable = {}
+        rule_table: RecordingRuleTable = RecordingRuleTable()
         for st in BLOCK_TYPES:
             for nc in range(5):
                 for dt in list(BLOCK_TYPES) + ["Empty"]:
-                    rule_table[(st, nc, dt)] = 0.0  # no bonding, just count observation
-
-        # Monkeypatch rule_table.get to record the neighbor_count argument
-        original_get = rule_table.get
-
-        def recording_get(key: tuple, default: float = 0.0) -> float:
-            _, nc, _ = key
-            observed_counts.append(nc)
-            return original_get(key, default)
-
-        rule_table.get = recording_get  # type: ignore[method-assign]
+                    rule_table[(st, nc, dt)] = 0.0
 
         world._try_bond_form(center_id, rule_table, Random(0))
-        # Should have been called exactly once, with neighbor_count ≤ 4
-        assert len(observed_counts) == 1
-        assert observed_counts[0] <= 4
+
+        # Exactly one lookup, and neighbor_count must be capped at ≤ 4
+        assert len(rule_table.observed_counts) == 1
+        assert rule_table.observed_counts[0] <= 4
 
     def test_synchronous_stale_bond_uses_range(self) -> None:
         """Synchronous step with radius=2: bond with dist-3 pair is pruned."""
-        from alife_discovery.domain.block_world import generate_block_rule_table
-
         config = BlockWorldConfig(
             grid_width=10, grid_height=10, n_blocks=2, observation_range=2, steps=1
         )
@@ -370,10 +354,6 @@ class TestObservationRange:
         # Now move b1 to distance 4 (out of range=2) and run synchronous step
         # We'll manipulate directly: move b1 far away then trigger stale pruning
         self._place(world, b1, 0, 4)
-        # Use _step_synchronous directly: it should prune bonds > observation_range apart
-        rule_table = generate_block_rule_table(0)
-        # Ensure bond is gone — use noise=1 so no new bonds persist
-        # but first let's just check the stale bond logic directly:
         # The stale check in _step_synchronous should mark this bond as stale
         stale: set[frozenset] = set()
         for bond in world.bonds:
