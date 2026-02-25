@@ -20,8 +20,10 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import statistics
 import time
 import warnings
+from collections import Counter
 from pathlib import Path
 
 import networkx as nx
@@ -67,8 +69,8 @@ def run_at_benchmark(at_max_n: int, at_warn_ms: float) -> None:
     skip_complete = False
 
     for n in range(2, at_max_n + 1):
-        path_str = "     ---        ---"
-        complete_str = "     ---        ---"
+        path_str = f"{'---':>6}  {'---':>9}"
+        complete_str = f"{'---':>6}  {'---':>9}"
 
         if not skip_path:
             pg = _path_graph(n)
@@ -172,31 +174,30 @@ def print_summary(
     cn_col = combined.column("copy_number_at_step").to_pylist()
 
     # Size distribution
-    size_dist: dict[int, int] = {}
-    for s in sizes:
-        size_dist[s] = size_dist.get(s, 0) + 1
+    size_dist = Counter(sizes)
     print(f"Entity size distribution: {dict(sorted(size_dist.items()))}")
     print(f"Max observed size: {max(sizes)}  (MAX_ENTITY_SIZE={MAX_ENTITY_SIZE})")
 
     # Assembly index distribution
-    ai_sorted = sorted(ai_col)
-    n = len(ai_sorted)
-    ai_min = ai_sorted[0]
-    ai_max = ai_sorted[-1]
-    ai_p25 = ai_sorted[n // 4]
-    ai_p50 = ai_sorted[n // 2]
-    ai_p75 = ai_sorted[3 * n // 4]
+    n = len(ai_col)
+    ai_min = min(ai_col)
+    ai_max = max(ai_col)
     ai_mean = sum(ai_col) / n
+    # statistics.quantiles requires >= 2 data points; fall back for single-row logs
+    if n >= 2:
+        q1, q2, q3 = statistics.quantiles(ai_col, n=4)
+    else:
+        q1 = q2 = q3 = float(ai_col[0])
     print(
         f"Assembly index:"
-        f" min={ai_min} p25={ai_p25} p50={ai_p50}"
-        f" p75={ai_p75} max={ai_max} mean={ai_mean:.2f}"
+        f" min={ai_min} p25={q1:.1f} p50={q2:.1f}"
+        f" p75={q3:.1f} max={ai_max} mean={ai_mean:.2f}"
     )
 
-    # P(discovery) estimate
+    # P(discovery) estimate — fraction of entity *observations* satisfying criteria
     n_discovered = sum(1 for a, c in zip(ai_col, cn_col, strict=True) if a >= 2 and c >= 2)
     p_discovery = n_discovered / n
-    print(f"P(discovery | a>=2, cn>=2) = {p_discovery:.3f}  ({n_discovered}/{n})")
+    print(f"P(discovery | a>=2, cn>=2) = {p_discovery:.3f}  ({n_discovered}/{n} observations)")
 
     # Approx path usage
     n_approx = sum(1 for s in sizes if s > MAX_ENTITY_SIZE)
@@ -221,7 +222,8 @@ def parse_args() -> argparse.Namespace:
         "--seeds",
         type=int,
         default=2,
-        help="Number of sim seeds (default: 2)",
+        metavar="N",
+        help="Number of sim seeds, must be >= 1 (default: 2)",
     )
     p.add_argument(
         "--steps",
@@ -252,6 +254,10 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    if args.seeds < 1:
+        import sys
+
+        sys.exit("error: --seeds must be >= 1")
 
     run_at_benchmark(args.at_max_n, args.at_warn_ms)
 
