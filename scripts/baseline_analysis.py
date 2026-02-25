@@ -6,6 +6,7 @@ Run objective-free block-world rule sampling and collect (assembly_index, copy_n
 Usage:
     uv run python scripts/baseline_analysis.py --n-rules 10 --seeds 2 --steps 50 --out-dir tmp/smoke
 """
+
 from __future__ import annotations
 
 import argparse

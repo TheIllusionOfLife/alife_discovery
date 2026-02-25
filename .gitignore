@@ -58,3 +58,4 @@ viz/dist/
 # Editors/IDEs
 .vscode/
 .idea/
+tmp/

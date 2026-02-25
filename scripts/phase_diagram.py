@@ -7,6 +7,7 @@ P(assembly_index >= threshold, copy_number >= threshold).
 Usage:
     uv run python scripts/phase_diagram.py --n-rules 20 --steps 100 --out-dir tmp/phase
 """
+
 from __future__ import annotations
 
 import argparse
