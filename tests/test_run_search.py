@@ -25,10 +25,10 @@ from alife_discovery.config import (
     StateUniformMode,
     UpdateMode,
 )
+from alife_discovery.experiments.search import _parse_grid_sizes, _parse_phase
 from alife_discovery.filters import ACTION_SPACE_SIZE
 from alife_discovery.metrics import action_entropy
 from alife_discovery.rules import ObservationPhase
-from alife_discovery.experiments.search import _parse_grid_sizes, _parse_phase
 from alife_discovery.run_search import main
 from alife_discovery.schemas import METRICS_SCHEMA, PHASE_SUMMARY_METRIC_NAMES
 from alife_discovery.simulation import (
