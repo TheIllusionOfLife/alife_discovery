@@ -15,6 +15,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -23,6 +24,8 @@ import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 import numpy as np
 import pyarrow.parquet as pq
+
+logger = logging.getLogger(__name__)
 
 # Ordered axes values (fixed regardless of data order)
 OBSERVATION_RANGES = [1, 2, 3]
@@ -37,9 +40,7 @@ NOISE_LEVELS = [0.0, 0.01, 0.05, 0.1]
 def load_data(in_file: Path) -> list[dict]:
     """Load phase_diagram.parquet and return as a list of row dicts."""
     table = pq.read_table(in_file)
-    return [
-        {col: table.column(col)[i].as_py() for col in table.schema.names} for i in range(len(table))
-    ]
+    return table.to_pylist()
 
 
 # ---------------------------------------------------------------------------
@@ -58,11 +59,18 @@ def _build_matrix(rows: list[dict], mode: str) -> np.ndarray:
     for row in rows:
         if row["update_mode"] != mode:
             continue
-        try:
-            r_idx = OBSERVATION_RANGES.index(int(row["observation_range"]))
-            n_idx = NOISE_LEVELS.index(float(row["noise_level"]))
-        except ValueError:
+        obs_range = int(row["observation_range"])
+        noise_val = float(row["noise_level"])
+        if obs_range not in OBSERVATION_RANGES:
+            logger.warning("Skipping row: unexpected observation_range=%s", obs_range)
             continue
+        # Use tolerance matching to avoid float equality issues with stored values
+        noise_matches = [i for i, nl in enumerate(NOISE_LEVELS) if abs(noise_val - nl) < 1e-9]
+        if not noise_matches:
+            logger.warning("Skipping row: unexpected noise_level=%s", noise_val)
+            continue
+        r_idx = OBSERVATION_RANGES.index(obs_range)
+        n_idx = noise_matches[0]
         accum[(n_idx, r_idx)].append(float(row["p_discovery"]))
 
     matrix = np.full((len(NOISE_LEVELS), len(OBSERVATION_RANGES)), np.nan)
@@ -182,7 +190,8 @@ def plot_combined(
     axes[0].set_ylabel("Noise Level")
     axes[1].set_ylabel("")
 
-    assert im is not None
+    if im is None:
+        raise RuntimeError("plot_combined: no panel was rendered (modes list may be empty)")
     fig.colorbar(im, ax=axes.tolist(), label="P(discovery)")
     if title:
         fig.suptitle(title)
@@ -231,6 +240,10 @@ def main() -> None:
 
     print(f"Loading: {args.in_file}")
     rows = load_data(args.in_file)
+    required_cols = {"update_mode", "observation_range", "noise_level", "p_discovery"}
+    if rows and not required_cols.issubset(rows[0].keys()):
+        missing = required_cols - rows[0].keys()
+        sys.exit(f"error: input file missing required columns: {missing}")
     modes = sorted({r["update_mode"] for r in rows})
     print(f"  {len(rows)} rows loaded  (modes: {modes})")
 

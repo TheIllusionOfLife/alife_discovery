@@ -34,7 +34,13 @@ COPY_THRESHOLD = 2
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Experiment 2: Lever Phase Diagram")
     p.add_argument("--n-rules", type=int, default=50)
-    p.add_argument("--seeds", type=int, default=3, help="Number of sim seeds per combo")
+    p.add_argument(
+        "--seeds",
+        type=int,
+        default=3,
+        metavar="N",
+        help="Number of sim seeds per combo (must be >= 1)",
+    )
     p.add_argument("--steps", type=int, default=200)
     p.add_argument("--n-blocks", type=int, default=30)
     p.add_argument("--out-dir", type=Path, default=Path("data/phase_diagram"))
@@ -63,6 +69,8 @@ def _compute_p_discovery(log_path: Path, assembly_threshold: int, copy_threshold
 
 def main() -> None:
     args = parse_args()
+    if args.seeds < 1:
+        raise ValueError(f"--seeds must be >= 1, got {args.seeds}")
     args.out_dir.mkdir(parents=True, exist_ok=True)
 
     summary_rows: list[dict] = []
