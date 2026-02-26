@@ -106,7 +106,7 @@ def create_deposit(base_url: str, token: str) -> dict:
     )
     _check_response(resp, "create deposit")
     data = resp.json()
-    doi = data["metadata"]["prereserve_doi"]["doi"]
+    doi = data.get("metadata", {}).get("prereserve_doi", {}).get("doi", "pending")
     print(f"Created deposit {data['id']} (DOI: {doi})", file=sys.stderr)
     return data
 
@@ -281,8 +281,11 @@ def _load_and_verify(args: argparse.Namespace, meta: dict) -> list[Path]:
             print(f"ERROR: not found: {p}", file=sys.stderr)
             sys.exit(1)
         if not args.no_verify_checksums:
+            expected = entry.get("sha256")
+            if expected is None:
+                print(f"ERROR: missing sha256 for {p} in metadata", file=sys.stderr)
+                sys.exit(1)
             local = _sha256(p)
-            expected = entry.get("sha256", "")
             if local != expected:
                 print(f"ERROR: checksum mismatch: {p}", file=sys.stderr)
                 sys.exit(1)

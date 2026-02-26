@@ -67,10 +67,18 @@ uv run python scripts/upload_zenodo.py \
 
 ### Step 3: Publish (after review)
 
+Repeat the Step 2 command with the `--publish` flag added:
+
 ```bash
 uv run python scripts/upload_zenodo.py \
   --metadata zenodo_staging/zenodo_metadata.json \
-  ... --publish
+  --title "Objective-Free Entity Assembly in Block Worlds: Experiment Data" \
+  --description "Large-scale experiment data (1000 rules x 5 seeds x 500 steps) for the ALIFE 2026 paper." \
+  --version v1.0 \
+  --keyword "artificial life" --keyword "assembly theory" \
+  --conference-title "ALIFE 2026" \
+  --language eng \
+  --publish
 ```
 
 ### Step 4: Update repository references
