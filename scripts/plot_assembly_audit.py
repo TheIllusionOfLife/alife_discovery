@@ -19,6 +19,7 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pyarrow as pa
 import pyarrow.parquet as pq
 
 # ---------------------------------------------------------------------------
@@ -189,7 +190,7 @@ def main() -> None:
     print(f"Loading: {args.in_file}")
     try:
         data = load_data(args.in_file)
-    except Exception as exc:
+    except (KeyError, pa.ArrowInvalid) as exc:
         sys.exit(
             f"error: could not load null columns from {args.in_file}.\n"
             f"Run assembly_audit.py with --n-null > 0 to generate them.\n"

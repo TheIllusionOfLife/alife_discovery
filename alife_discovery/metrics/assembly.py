@@ -147,6 +147,9 @@ def assembly_index_null(
     Returns:
         (mean_a_i, std_a_i) across shuffled graphs.
     """
+    if n_shuffles < 1:
+        raise ValueError("n_shuffles must be >= 1")
+
     if graph.number_of_nodes() <= 1:
         return (0.0, 0.0)
 

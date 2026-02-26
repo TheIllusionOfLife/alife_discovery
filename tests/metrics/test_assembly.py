@@ -1,7 +1,10 @@
 """Tests for Assembly Theory assembly index computation (edge-removal DP)."""
 
+from pathlib import Path
+
 import networkx as nx
 import numpy as np
+import pytest
 
 from alife_discovery.metrics.assembly import (
     _canonical_key,
@@ -217,3 +220,53 @@ class TestAssemblyIndexNull:
         rec = records[0]
         assert "assembly_index_null_mean" not in rec
         assert "assembly_index_null_std" not in rec
+
+    def test_null_rejects_zero_shuffles(self) -> None:
+        """n_shuffles < 1 raises ValueError."""
+        g = make_graph([(0, "M"), (1, "C")], [(0, 1)])
+        with pytest.raises(ValueError, match="n_shuffles must be >= 1"):
+            assembly_index_null(g, n_shuffles=0)
+
+
+class TestBlockWorldSearchNullSchema:
+    """Integration tests for parquet schema selection with null mode."""
+
+    def test_parquet_schema_with_null(self, tmp_path: Path) -> None:
+        """Entity log has null columns when n_null_shuffles > 0."""
+        import pyarrow.parquet as pq
+
+        from alife_discovery.config.types import BlockWorldConfig
+        from alife_discovery.io.schemas import ENTITY_LOG_SCHEMA_WITH_NULL
+        from alife_discovery.simulation.engine import run_block_world_search
+
+        config = BlockWorldConfig(
+            grid_width=10, grid_height=10, n_blocks=10, steps=20, n_null_shuffles=1
+        )
+        run_block_world_search(n_rules=1, out_dir=tmp_path, config=config)
+
+        parquet_path = tmp_path / "logs" / "entity_log.parquet"
+        assert parquet_path.exists()
+        table = pq.read_table(parquet_path)
+        assert "assembly_index_null_mean" in table.column_names
+        assert "assembly_index_null_std" in table.column_names
+        # Verify schema matches expected
+        for field in ENTITY_LOG_SCHEMA_WITH_NULL:
+            assert field.name in table.column_names
+
+    def test_parquet_schema_without_null(self, tmp_path: Path) -> None:
+        """Entity log omits null columns when n_null_shuffles == 0."""
+        import pyarrow.parquet as pq
+
+        from alife_discovery.config.types import BlockWorldConfig
+        from alife_discovery.simulation.engine import run_block_world_search
+
+        config = BlockWorldConfig(
+            grid_width=10, grid_height=10, n_blocks=10, steps=20, n_null_shuffles=0
+        )
+        run_block_world_search(n_rules=1, out_dir=tmp_path, config=config)
+
+        parquet_path = tmp_path / "logs" / "entity_log.parquet"
+        assert parquet_path.exists()
+        table = pq.read_table(parquet_path)
+        assert "assembly_index_null_mean" not in table.column_names
+        assert "assembly_index_null_std" not in table.column_names

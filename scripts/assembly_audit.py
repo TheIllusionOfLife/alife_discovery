@@ -30,7 +30,9 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--n-rules", type=int, default=100)
     p.add_argument("--seeds", type=int, default=3, help="Number of sim seeds per rule batch")
     p.add_argument("--steps", type=int, default=200)
-    p.add_argument("--n-null", type=int, default=20, help="Number of null shuffles per entity")
+    p.add_argument(
+        "--n-null", type=int, default=20, help="Number of null shuffles per entity (>= 1)"
+    )
     p.add_argument("--grid-width", type=int, default=20)
     p.add_argument("--grid-height", type=int, default=20)
     p.add_argument("--n-blocks", type=int, default=30)
@@ -100,6 +102,8 @@ def _write_audit_summary(combined: pa.Table, out_path: Path) -> None:
 
 def main() -> None:
     args = parse_args()
+    if args.n_null < 1:
+        sys.exit("error: --n-null must be >= 1 for assembly audit")
     args.out_dir.mkdir(parents=True, exist_ok=True)
 
     for seed in range(args.seeds):
