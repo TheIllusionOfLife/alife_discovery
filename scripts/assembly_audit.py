@@ -17,6 +17,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+import numpy as np
 import pyarrow as pa
 import pyarrow.parquet as pq
 
@@ -45,37 +46,31 @@ def parse_args() -> argparse.Namespace:
 
 def _write_audit_summary(combined: pa.Table, out_path: Path) -> None:
     """Compute enrichment statistics and write a human-readable summary."""
-    ai = combined.column("assembly_index").to_pylist()
-    null_mean_col = combined.column("assembly_index_null_mean").to_pylist()
-    null_std_col = combined.column("assembly_index_null_std").to_pylist()
-    sizes = combined.column("entity_size").to_pylist()
-
-    n = len(ai)
+    n = combined.num_rows
     if n == 0:
         out_path.write_text("No entity observations.\n")
         return
 
-    ai_arr = [float(v) for v in ai]
-    nm_arr = [float(v) for v in null_mean_col]
-    ns_arr = [float(v) for v in null_std_col]
-    sz_arr = [int(v) for v in sizes]
+    ai_arr = combined.column("assembly_index").to_numpy(zero_copy_only=False).astype(float)
+    nm_arr = combined.column("assembly_index_null_mean").to_numpy(zero_copy_only=False)
+    ns_arr = combined.column("assembly_index_null_std").to_numpy(zero_copy_only=False)
+    sz_arr = combined.column("entity_size").to_numpy(zero_copy_only=False)
 
     # Fraction with significant excess (a_i > null_mean + 2 * null_std)
-    sig_excess = sum(1 for a, m, s in zip(ai_arr, nm_arr, ns_arr, strict=True) if a > m + 2.0 * s)
+    sig_mask = ai_arr > nm_arr + 2.0 * ns_arr
+    sig_excess = int(sig_mask.sum())
     frac_sig = sig_excess / n
 
     # Mean excess overall
-    excess_all = [a - m for a, m in zip(ai_arr, nm_arr, strict=True)]
-    mean_excess_overall = sum(excess_all) / n
+    excess_all = ai_arr - nm_arr
+    mean_excess_overall = float(excess_all.mean())
 
     # Overall enrichment
-    mean_observed = sum(ai_arr) / n
-    mean_null = sum(nm_arr) / n
+    mean_observed = float(ai_arr.mean())
+    mean_null = float(nm_arr.mean())
 
     # Mean excess by entity size
-    size_excess: dict[int, list[float]] = {}
-    for sz, exc in zip(sz_arr, excess_all, strict=True):
-        size_excess.setdefault(sz, []).append(exc)
+    unique_sizes = np.unique(sz_arr)
 
     lines = [
         "=== Assembly Audit Summary (Experiment 3) ===",
@@ -92,10 +87,11 @@ def _write_audit_summary(combined: pa.Table, out_path: Path) -> None:
         "",
         "--- Mean Excess by Entity Size ---",
     ]
-    for sz in sorted(size_excess):
-        vals = size_excess[sz]
-        me = sum(vals) / len(vals)
-        lines.append(f"  size={sz}: mean_excess={me:.4f}  (n={len(vals):,})")
+    for sz in unique_sizes:
+        mask = sz_arr == sz
+        me = float(excess_all[mask].mean())
+        cnt = int(mask.sum())
+        lines.append(f"  size={sz}: mean_excess={me:.4f}  (n={cnt:,})")
 
     text = "\n".join(lines) + "\n"
     out_path.write_text(text)

@@ -488,3 +488,5 @@ class BlockWorldConfig:
             raise ValueError("observation_range must be >= 1")
         if self.steps < 1:
             raise ValueError("steps must be >= 1")
+        if self.n_null_shuffles < 0:
+            raise ValueError("n_null_shuffles must be >= 0")

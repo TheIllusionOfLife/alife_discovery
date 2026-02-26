@@ -186,16 +186,8 @@ ENTITY_LOG_SCHEMA = pa.schema(
 )
 
 ENTITY_LOG_SCHEMA_WITH_NULL = pa.schema(
-    [
-        ("run_id", pa.string()),
-        ("step", pa.int64()),
-        ("entity_hash", pa.string()),
-        ("assembly_index", pa.int64()),
-        ("copy_number_at_step", pa.int64()),
-        ("entity_size", pa.int64()),
-        ("n_membrane", pa.int64()),
-        ("n_cytosol", pa.int64()),
-        ("n_catalyst", pa.int64()),
+    [(f.name, f.type) for f in ENTITY_LOG_SCHEMA]
+    + [
         ("assembly_index_null_mean", pa.float64()),
         ("assembly_index_null_std", pa.float64()),
     ]

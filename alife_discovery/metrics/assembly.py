@@ -161,9 +161,8 @@ def assembly_index_null(
     rng = np.random.default_rng(rng_seed)
     for _ in range(n_shuffles):
         g_copy = graph.copy()
-        seed_i = int(rng.integers(0, 2**31))
         try:
-            nx.double_edge_swap(g_copy, nswap=nswap, max_tries=nswap * 10, seed=seed_i)
+            nx.double_edge_swap(g_copy, nswap=nswap, max_tries=nswap * 10, seed=rng)
         except nx.NetworkXError:
             # Swap failed (e.g., all edges incident to same node pair); use original
             g_copy = graph.copy()
@@ -228,7 +227,9 @@ def compute_entity_metrics(
 
         if n_null_shuffles > 0:
             null_mean, null_std = assembly_index_null(
-                g, n_shuffles=n_null_shuffles, rng_seed=hash(h) & 0xFFFF
+                g,
+                n_shuffles=n_null_shuffles,
+                rng_seed=int(hashlib.sha256(h.encode()).hexdigest()[:8], 16),
             )
             record["assembly_index_null_mean"] = null_mean
             record["assembly_index_null_std"] = null_std

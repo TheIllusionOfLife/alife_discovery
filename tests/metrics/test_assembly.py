@@ -1,6 +1,7 @@
 """Tests for Assembly Theory assembly index computation (edge-removal DP)."""
 
 import networkx as nx
+import numpy as np
 
 from alife_discovery.metrics.assembly import (
     _canonical_key,
@@ -140,14 +141,11 @@ class TestAssemblyIndexNull:
         )
         orig_degrees = sorted(dict(g.degree()).values())
         # Run shuffle 10 times and verify each shuffled copy has the same degrees
-        import numpy as np
-
         rng = np.random.default_rng(42)
         for _ in range(10):
             g_copy = g.copy()
             nswap = max(4, g_copy.number_of_edges())
-            seed_i = int(rng.integers(0, 2**31))
-            nx.double_edge_swap(g_copy, nswap=nswap, max_tries=nswap * 10, seed=seed_i)
+            nx.double_edge_swap(g_copy, nswap=nswap, max_tries=nswap * 10, seed=rng)
             assert sorted(dict(g_copy.degree()).values()) == orig_degrees
 
     def test_null_nontrivial_graph_returns_valid_floats(self) -> None:
