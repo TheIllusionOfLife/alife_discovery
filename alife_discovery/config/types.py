@@ -463,6 +463,8 @@ class BlockWorldConfig:
     steps: int = 200
     rule_seed: int = 0
     sim_seed: int = 0
+    n_null_shuffles: int = 0
+    """Number of shuffle-bond null model trials per entity (0 = disabled)."""
 
     def __post_init__(self) -> None:
         if self.grid_width < 1 or self.grid_height < 1:
@@ -486,3 +488,5 @@ class BlockWorldConfig:
             raise ValueError("observation_range must be >= 1")
         if self.steps < 1:
             raise ValueError("steps must be >= 1")
+        if self.n_null_shuffles < 0:
+            raise ValueError("n_null_shuffles must be >= 0")

@@ -184,3 +184,11 @@ ENTITY_LOG_SCHEMA = pa.schema(
         ("n_catalyst", pa.int64()),
     ]
 )
+
+ENTITY_LOG_SCHEMA_WITH_NULL = pa.schema(
+    [(f.name, f.type) for f in ENTITY_LOG_SCHEMA]
+    + [
+        ("assembly_index_null_mean", pa.float64()),
+        ("assembly_index_null_std", pa.float64()),
+    ]
+)
