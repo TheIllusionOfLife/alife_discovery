@@ -350,14 +350,15 @@ Pick 2–3 levers you most want to highlight:
 | Seeds per rule | 3 | 5 |
 | Steps per sim | 200 | 500 |
 | Null shuffles | 20 | 20 |
-| Total sim-steps | 6,000,000 | 250,000,000 |
+| Total simulations | 300 (100 × 3) | 5,000 (1,000 × 5) |
+| Entity observations | 170,192 | 7,079,166 |
 
 ### 11.2 Key findings
 
 #### Experiment 1 — Discovery baseline (1000 rules × 5 seeds × 500 steps)
 
 - **7,079,166 entity observations** (41× the small-scale run)
-- Assembly index: min=0, max=6, mean=0.06 (unchanged from small-scale)
+- Assembly index: min=0, max=6, mean=0.06 (practically unchanged; 0.0576 → 0.0595, +3.3%)
 - Copy number: min=1, max=15, mean=9.83 (unchanged)
 - Entity size distribution: 94.6% size=1, 4.9% size=2, 0.4% size=3, 0.04% size=4, <0.01% size=5–6
 - Max entity size observed: 6 (only 18 instances out of 7M observations)
@@ -369,7 +370,7 @@ Pick 2–3 levers you most want to highlight:
 - Top entities: all size 2 (a_i=1) with very high copy counts (up to 108,352)
 - Rank 7–10: size 3 entities with a_i=2
 - **No entities with a_i ≥ 3 in top-10**
-- Copy counts scale linearly with compute (≈40× increase, matching ≈41.7× more sim-steps)
+- Copy counts scale linearly with compute (≈39× increase for top entity, consistent with 41× more observations)
 
 #### Assembly audit (1000 rules × 5 seeds × 500 steps × 20 null shuffles)
 
@@ -427,3 +428,5 @@ This reframes the paper as a **characterization of the boundary conditions for e
 | Audit summary | `data/assembly_audit_large/audit_summary.txt` |
 | Exp 1 combined data | `data/experiment1_large/entity_log_combined.parquet` |
 | Audit combined data | `data/assembly_audit_large/entity_log_combined.parquet` |
+
+> **Note:** All paths above are locally generated artifacts (`data/` is in `.gitignore`) and are not tracked in the repository. Re-generate by running the scripts listed in PR #10.
