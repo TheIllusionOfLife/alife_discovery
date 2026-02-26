@@ -4,7 +4,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import matplotlib
+import matplotlib.pyplot as plt
 import networkx as nx
+
+matplotlib.use("Agg")
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -148,11 +152,6 @@ class TestRenderEntitySubplot:
     """Verify render_entity_subplot runs without error on known graphs."""
 
     def test_render_single_entity(self) -> None:
-        import matplotlib
-
-        matplotlib.use("Agg")
-        import matplotlib.pyplot as plt
-
         from scripts.render_entity_gallery import render_entity_subplot
 
         g = _make_small_graph(["M", "C", "K"], [(0, 1), (1, 2), (0, 2)])
@@ -162,11 +161,6 @@ class TestRenderEntitySubplot:
 
     def test_render_single_node(self) -> None:
         """Single-node entity should render without error."""
-        import matplotlib
-
-        matplotlib.use("Agg")
-        import matplotlib.pyplot as plt
-
         from scripts.render_entity_gallery import render_entity_subplot
 
         g = _make_small_graph(["K"], [])

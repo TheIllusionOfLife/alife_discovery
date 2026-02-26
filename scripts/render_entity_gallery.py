@@ -20,6 +20,7 @@ from random import Random
 
 import matplotlib
 import networkx as nx
+import numpy as np
 
 from alife_discovery.config.constants import ENTITY_SNAPSHOT_INTERVAL
 from alife_discovery.config.types import BlockWorldConfig
@@ -37,6 +38,20 @@ _BLOCK_TYPE_COLORS: dict[str, str] = {
     "C": "#22c55e",
     "K": "#ef4444",
 }
+
+# Plotting constants
+_NODE_SIZE = 300
+_NODE_EDGE_WIDTH = 0.5
+_EDGE_COLOR = "#9ca3af"
+_EDGE_WIDTH = 1.0
+_TITLE_FONTSIZE = 8
+_HASH_FONTSIZE = 6
+_HASH_COLOR = "#6b7280"
+_SUPTITLE_FONTSIZE = 12
+_GALLERY_DPI = 150
+_SUBPLOT_WIDTH = 3.2
+_SUBPLOT_HEIGHT = 3.5
+_MAX_COLS = 5
 
 
 @dataclass
@@ -142,16 +157,16 @@ def render_entity_subplot(
         pos,
         ax=ax,
         node_color=node_colors,
-        node_size=300,
+        node_size=_NODE_SIZE,
         edgecolors="black",
-        linewidths=0.5,
+        linewidths=_NODE_EDGE_WIDTH,
     )
-    nx.draw_networkx_edges(graph, pos, ax=ax, edge_color="#9ca3af", width=1.0)
+    nx.draw_networkx_edges(graph, pos, ax=ax, edge_color=_EDGE_COLOR, width=_EDGE_WIDTH)
 
     size = graph.number_of_nodes()
     label = f"$a_i$={assembly_index}  n={copy_count}  size={size}"
-    ax.set_title(label, fontsize=8, pad=4)
-    ax.set_xlabel(entity_hash[:12] + "...", fontsize=6, color="#6b7280")
+    ax.set_title(label, fontsize=_TITLE_FONTSIZE, pad=4)
+    ax.set_xlabel(entity_hash[:12] + "...", fontsize=_HASH_FONTSIZE, color=_HASH_COLOR)
     ax.set_axis_off()
 
 
@@ -192,14 +207,12 @@ def main_gallery(
         return
 
     # Layout: grid of subplots
-    cols = min(5, actual_k)
+    cols = min(_MAX_COLS, actual_k)
     rows = (actual_k + cols - 1) // cols
-    fig, axes = plt.subplots(rows, cols, figsize=(3.2 * cols, 3.5 * rows))
+    fig, axes = plt.subplots(rows, cols, figsize=(_SUBPLOT_WIDTH * cols, _SUBPLOT_HEIGHT * rows))
     if actual_k == 1:
         axes_flat = [axes]
     else:
-        import numpy as np
-
         axes_flat = list(np.asarray(axes).flat)
 
     for idx, (h, rec) in enumerate(top):
@@ -217,13 +230,13 @@ def main_gallery(
 
     fig.suptitle(
         f"Top-{actual_k} entities by assembly score ($a_i \\times n_i$)",
-        fontsize=12,
+        fontsize=_SUPTITLE_FONTSIZE,
         y=1.01,
     )
     fig.tight_layout()
 
     pdf_path = out_dir / "entity_gallery.pdf"
-    fig.savefig(pdf_path, bbox_inches="tight", dpi=150)
+    fig.savefig(pdf_path, bbox_inches="tight", dpi=_GALLERY_DPI)
     plt.close(fig)
     print(f"Gallery figure: {pdf_path}")
 
