@@ -382,7 +382,7 @@ def run_block_world_search(
     from alife_discovery.config.constants import ENTITY_SNAPSHOT_INTERVAL
     from alife_discovery.domain.block_world import BlockWorld, generate_block_rule_table
     from alife_discovery.domain.entity import detect_entities
-    from alife_discovery.io.schemas import ENTITY_LOG_SCHEMA
+    from alife_discovery.io.schemas import ENTITY_LOG_SCHEMA, ENTITY_LOG_SCHEMA_WITH_NULL
     from alife_discovery.metrics.assembly import compute_entity_metrics
 
     cfg = config or BlockWorldConfig()
@@ -407,7 +407,9 @@ def run_block_world_search(
 
             if (step + 1) % ENTITY_SNAPSHOT_INTERVAL == 0 or step == cfg.steps - 1:
                 entities = detect_entities(world)
-                records = compute_entity_metrics(entities, step=step, run_id=run_id)
+                records = compute_entity_metrics(
+                    entities, step=step, run_id=run_id, n_null_shuffles=cfg.n_null_shuffles
+                )
                 all_entity_records.extend(records)
 
         # Final snapshot summary
@@ -424,8 +426,9 @@ def run_block_world_search(
 
     # Write entity log
     if all_entity_records:
-        table = pa.Table.from_pylist(all_entity_records, schema=ENTITY_LOG_SCHEMA)
-        with pq.ParquetWriter(entity_log_path, ENTITY_LOG_SCHEMA) as writer:
+        schema = ENTITY_LOG_SCHEMA_WITH_NULL if cfg.n_null_shuffles > 0 else ENTITY_LOG_SCHEMA
+        table = pa.Table.from_pylist(all_entity_records, schema=schema)
+        with pq.ParquetWriter(entity_log_path, schema) as writer:
             writer.write_table(table)
 
     return summaries

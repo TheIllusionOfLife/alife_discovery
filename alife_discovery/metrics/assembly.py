@@ -50,6 +50,7 @@ import hashlib
 from typing import Any
 
 import networkx as nx
+import numpy as np
 
 from alife_discovery.config.constants import BLOCK_TYPES
 
@@ -125,14 +126,70 @@ def assembly_index_approx(graph: nx.Graph) -> int:
     return graph.number_of_edges()
 
 
+def assembly_index_null(
+    graph: nx.Graph,
+    n_shuffles: int = 20,
+    rng_seed: int = 0,
+) -> tuple[float, float]:
+    """Return (mean, std) of assembly index over degree-preserving bond shuffles.
+
+    Uses nx.double_edge_swap() (edge-switching Markov chain) to preserve the
+    degree sequence exactly. Degenerate cases:
+    - 0 or 1 nodes: returns (0.0, 0.0)
+    - 0 or 1 edges: shuffle is identity → returns (observed_a_i, 0.0)
+
+    Args:
+        graph: The entity graph (node attr ``block_type`` required).
+        n_shuffles: Number of independent shuffle trials.
+        rng_seed: Seed for reproducibility (passed to random.Random for
+            nx.double_edge_swap's internal RNG via numpy seed).
+
+    Returns:
+        (mean_a_i, std_a_i) across shuffled graphs.
+    """
+    if graph.number_of_nodes() <= 1:
+        return (0.0, 0.0)
+
+    n_edges = graph.number_of_edges()
+    if n_edges < 2:
+        observed = float(assembly_index_exact(graph))
+        return (observed, 0.0)
+
+    nswap = max(4, n_edges)
+    results: list[int] = []
+
+    rng = np.random.default_rng(rng_seed)
+    for _ in range(n_shuffles):
+        g_copy = graph.copy()
+        seed_i = int(rng.integers(0, 2**31))
+        try:
+            nx.double_edge_swap(g_copy, nswap=nswap, max_tries=nswap * 10, seed=seed_i)
+        except nx.NetworkXError:
+            # Swap failed (e.g., all edges incident to same node pair); use original
+            g_copy = graph.copy()
+        results.append(assembly_index_exact(g_copy))
+
+    arr = np.array(results, dtype=float)
+    return (float(arr.mean()), float(arr.std()))
+
+
 def compute_entity_metrics(
     entities: list[Any],
     step: int,
     run_id: str,
+    n_null_shuffles: int = 0,
 ) -> list[dict[str, Any]]:
     """Compute per-entity AT metrics for a snapshot.
 
-    Returns list of dicts matching ENTITY_LOG_SCHEMA columns.
+    Returns list of dicts matching ENTITY_LOG_SCHEMA columns (or
+    ENTITY_LOG_SCHEMA_WITH_NULL when n_null_shuffles > 0).
+
+    Args:
+        entities: Detected entity objects from detect_entities().
+        step: Current simulation step.
+        run_id: Identifier for this run.
+        n_null_shuffles: When > 0, compute shuffle-bond null model and include
+            ``assembly_index_null_mean`` and ``assembly_index_null_std`` in each record.
     """
     from alife_discovery.config.constants import MAX_ENTITY_SIZE
     from alife_discovery.domain.entity import canonicalize_entity, entity_graph_hash
@@ -157,18 +214,25 @@ def compute_entity_metrics(
             if bt in type_counts:
                 type_counts[bt] += 1
 
-        records.append(
-            {
-                "run_id": run_id,
-                "step": step,
-                "entity_hash": h,
-                "assembly_index": a_idx,
-                "copy_number_at_step": hash_counts[h],
-                "entity_size": n_nodes,
-                "n_membrane": type_counts["M"],
-                "n_cytosol": type_counts["C"],
-                "n_catalyst": type_counts["K"],
-            }
-        )
+        record: dict[str, Any] = {
+            "run_id": run_id,
+            "step": step,
+            "entity_hash": h,
+            "assembly_index": a_idx,
+            "copy_number_at_step": hash_counts[h],
+            "entity_size": n_nodes,
+            "n_membrane": type_counts["M"],
+            "n_cytosol": type_counts["C"],
+            "n_catalyst": type_counts["K"],
+        }
+
+        if n_null_shuffles > 0:
+            null_mean, null_std = assembly_index_null(
+                g, n_shuffles=n_null_shuffles, rng_seed=hash(h) & 0xFFFF
+            )
+            record["assembly_index_null_mean"] = null_mean
+            record["assembly_index_null_std"] = null_std
+
+        records.append(record)
 
     return records
