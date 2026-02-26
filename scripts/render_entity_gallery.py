@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from random import Random
@@ -103,10 +104,10 @@ def capture_entities(
                     for entity in entities:
                         g = canonicalize_entity(entity)
                         h = entity_graph_hash(g)
-                        a_i = assembly_index_exact(g)
                         if h in registry:
                             registry[h].total_copy_count += 1
                         else:
+                            a_i = assembly_index_exact(g)
                             registry[h] = EntityRecord(
                                 graph=g,
                                 assembly_index=a_i,
@@ -242,7 +243,7 @@ def main_gallery(
 
     # Write metadata CSV
     csv_path = out_dir / "entity_gallery_meta.csv"
-    with open(csv_path, "w", newline="") as f:
+    with open(csv_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(
             f,
             fieldnames=[
@@ -269,22 +270,42 @@ def main_gallery(
     print(f"Metadata CSV: {csv_path}")
 
 
+def _positive_int(value: str) -> int:
+    """Argparse type for strictly positive integers."""
+    n = int(value)
+    if n < 1:
+        raise argparse.ArgumentTypeError(f"must be a positive integer, got {value}")
+    return n
+
+
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Render entity gallery (Figure 2)")
-    p.add_argument("--n-rules", type=int, default=100)
-    p.add_argument("--seeds", type=int, default=3)
-    p.add_argument("--steps", type=int, default=200)
-    p.add_argument("--top-k", type=int, default=10)
-    p.add_argument("--grid-width", type=int, default=20)
-    p.add_argument("--grid-height", type=int, default=20)
-    p.add_argument("--n-blocks", type=int, default=30)
+    p.add_argument("--n-rules", type=_positive_int, default=100)
+    p.add_argument("--seeds", type=_positive_int, default=3)
+    p.add_argument("--steps", type=_positive_int, default=200)
+    p.add_argument("--top-k", type=_positive_int, default=10)
+    p.add_argument("--grid-width", type=_positive_int, default=20)
+    p.add_argument("--grid-height", type=_positive_int, default=20)
+    p.add_argument("--n-blocks", type=_positive_int, default=30)
     p.add_argument("--noise-level", type=float, default=0.01)
     p.add_argument("--out-dir", type=Path, default=Path("data/entity_gallery"))
     return p.parse_args()
 
 
+def _validate_args(args: argparse.Namespace) -> None:
+    """Fail fast on invalid argument combinations."""
+    if args.n_blocks > args.grid_width * args.grid_height:
+        sys.exit(
+            f"error: --n-blocks ({args.n_blocks}) exceeds grid capacity "
+            f"({args.grid_width}×{args.grid_height}={args.grid_width * args.grid_height})"
+        )
+    if not 0.0 <= args.noise_level <= 1.0:
+        sys.exit(f"error: --noise-level must be in [0.0, 1.0], got {args.noise_level}")
+
+
 def main() -> None:
     args = parse_args()
+    _validate_args(args)
     main_gallery(
         n_rules=args.n_rules,
         seeds=args.seeds,

@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import argparse
 from pathlib import Path
 
 import matplotlib
 import matplotlib.pyplot as plt
 import networkx as nx
+import pytest
 
 matplotlib.use("Agg")
 
@@ -127,8 +129,8 @@ class TestSelectTopK:
         top = select_top_k(records, k=5)
         assert len(top) == 1
 
-    def test_selection_excludes_zero_score(self) -> None:
-        """Entities with a_i=0 have score 0 and should still appear if k allows."""
+    def test_selection_includes_zero_score(self) -> None:
+        """Entities with a_i=0 (score=0) are still included when k allows."""
         from scripts.render_entity_gallery import EntityRecord, select_top_k
 
         records = {
@@ -228,3 +230,111 @@ class TestGalleryIntegration:
             "score",
         }
         assert expected_cols.issubset(set(rows[0].keys()))
+
+
+# ---------------------------------------------------------------------------
+# CLI validation
+# ---------------------------------------------------------------------------
+
+
+class TestCLIValidation:
+    """Verify argparse rejects invalid inputs."""
+
+    def test_positive_int_rejects_zero(self) -> None:
+        from scripts.render_entity_gallery import _positive_int
+
+        with pytest.raises(argparse.ArgumentTypeError):
+            _positive_int("0")
+
+    def test_positive_int_rejects_negative(self) -> None:
+        from scripts.render_entity_gallery import _positive_int
+
+        with pytest.raises(argparse.ArgumentTypeError):
+            _positive_int("-1")
+
+    def test_positive_int_accepts_valid(self) -> None:
+        from scripts.render_entity_gallery import _positive_int
+
+        assert _positive_int("5") == 5
+
+    def test_validate_args_rejects_excess_blocks(self) -> None:
+        from scripts.render_entity_gallery import _validate_args
+
+        args = argparse.Namespace(
+            n_rules=1,
+            seeds=1,
+            steps=10,
+            top_k=1,
+            grid_width=5,
+            grid_height=5,
+            n_blocks=100,
+            noise_level=0.01,
+            out_dir=Path("/tmp"),
+        )
+        with pytest.raises(SystemExit):
+            _validate_args(args)
+
+    def test_validate_args_rejects_bad_noise(self) -> None:
+        from scripts.render_entity_gallery import _validate_args
+
+        args = argparse.Namespace(
+            n_rules=1,
+            seeds=1,
+            steps=10,
+            top_k=1,
+            grid_width=10,
+            grid_height=10,
+            n_blocks=5,
+            noise_level=1.5,
+            out_dir=Path("/tmp"),
+        )
+        with pytest.raises(SystemExit):
+            _validate_args(args)
+
+
+# ---------------------------------------------------------------------------
+# Edge cases
+# ---------------------------------------------------------------------------
+
+
+class TestEdgeCases:
+    """Edge-case coverage for select_top_k and empty registries."""
+
+    def test_select_top_k_empty_registry(self) -> None:
+        from scripts.render_entity_gallery import select_top_k
+
+        assert select_top_k({}, k=5) == []
+
+    def test_capture_skips_assembly_for_known_hash(self) -> None:
+        """Verify dedup: assembly_index_exact is NOT called for known hashes."""
+        from unittest.mock import patch
+
+        from scripts.render_entity_gallery import capture_entities
+
+        call_count = 0
+        original_fn = __import__(
+            "alife_discovery.metrics.assembly", fromlist=["assembly_index_exact"]
+        ).assembly_index_exact
+
+        def counting_wrapper(g):  # type: ignore[no-untyped-def]
+            nonlocal call_count
+            call_count += 1
+            return original_fn(g)
+
+        with patch(
+            "scripts.render_entity_gallery.assembly_index_exact",
+            side_effect=counting_wrapper,
+        ):
+            registry = capture_entities(
+                n_rules=1,
+                seeds=1,
+                steps=20,
+                grid_width=10,
+                grid_height=10,
+                n_blocks=5,
+                noise_level=0.01,
+            )
+
+        # Should have called assembly_index_exact only once per unique type,
+        # NOT once per entity observation
+        assert call_count == len(registry)
