@@ -340,11 +340,90 @@ Pick 2–3 levers you most want to highlight:
 
 ---
 
-## 11) Next deliverable (once Q1–Q5 are answered)
+## 11) Large-Scale Experiment Results (PR #10)
 
-Update this document with:
+### 11.1 Experimental parameters
 
-* a concrete simulator spec (state, transition rules, join/split)
-* an assembly-index computation plan (exact + approximation) tailored to your chosen block chemistry
-* a figure-by-figure “camera-ready” plan for ALIFE
-* a minimal experiment matrix with sample sizes and compute estimates
+| Parameter | Small-scale (PR #9) | Large-scale (PR #10) |
+|-----------|---------------------|----------------------|
+| Rule samples | 100 | 1,000 |
+| Seeds per rule | 3 | 5 |
+| Steps per sim | 200 | 500 |
+| Null shuffles | 20 | 20 |
+| Total sim-steps | 6,000,000 | 250,000,000 |
+
+### 11.2 Key findings
+
+#### Experiment 1 — Discovery baseline (1000 rules × 5 seeds × 500 steps)
+
+- **7,079,166 entity observations** (41× the small-scale run)
+- Assembly index: min=0, max=6, mean=0.06 (unchanged from small-scale)
+- Copy number: min=1, max=15, mean=9.83 (unchanged)
+- Entity size distribution: 94.6% size=1, 4.9% size=2, 0.4% size=3, 0.04% size=4, <0.01% size=5–6
+- Max entity size observed: 6 (only 18 instances out of 7M observations)
+
+#### Entity gallery (1000 rules × 5 seeds × 500 steps)
+
+- **282 unique entity types** (up from 72 at 100 rules — 3.9× increase)
+- Top-10 entity ranking is **stable across scales** (same hash values, same order)
+- Top entities: all size 2 (a_i=1) with very high copy counts (up to 108,352)
+- Rank 7–10: size 3 entities with a_i=2
+- **No entities with a_i ≥ 3 in top-10**
+- Copy counts scale linearly with compute (≈40× increase, matching ≈41.7× more sim-steps)
+
+#### Assembly audit (1000 rules × 5 seeds × 500 steps × 20 null shuffles)
+
+- **0.0% significant excess** (a_i > null_mean + 2σ): assembly is **entirely size-driven**
+- Observed mean a_i = 0.0595; null mean a_i = 0.0595; enrichment = 0.0000
+- Zero excess at every entity size (1–6)
+- Result is robust: confirmed at both 170K and 7M observation scales
+
+### 11.3 Comparison: small-scale vs large-scale
+
+| Metric | 100 rules | 1,000 rules | Change |
+|--------|-----------|-------------|--------|
+| Total observations | 170,192 | 7,079,166 | 41× |
+| Unique entity types | 72 | 282 | 3.9× |
+| Max entity size | 6 | 6 | unchanged |
+| Max a_i | 6 | 6 | unchanged |
+| Mean a_i | 0.0576 | 0.0595 | +3.3% |
+| Significant excess | 0.0% | 0.0% | unchanged |
+| Top entity a_i | 1 | 1 | unchanged |
+| Top entity copy count | 2,767 | 108,352 | 39× |
+
+### 11.4 Interpretation and paper narrative
+
+The large-scale experiments provide a **robust negative result**: 10× more rule diversity and 2.5× longer simulations produce no structurally non-trivial assembly. All observed assembly index is fully explained by entity size (the null model matches observations exactly at every scale).
+
+This is itself a **meaningful contribution** to the ALIFE literature:
+
+1. **Objective-free rule sampling produces entities, but not complex ones.** The system reliably generates entities (282 types at scale), but the entity ecology is dominated by size-1 and size-2 objects. The tail of the size distribution falls off steeply.
+
+2. **Assembly index is size-driven in this regime.** The shuffle-bond null model shows zero excess assembly at every entity size, meaning the observed a_i values are entirely explained by the number of edges in the entity graph, not by any structural specificity.
+
+3. **Copy number scales linearly with compute but does not create complexity.** High copy numbers (>100K) arise from the most common dimers, not from structurally interesting entities. More computation produces more copies, not more complex entities.
+
+4. **The entity type ranking is robust.** The same entity types dominate at both 100 and 1000 rules, suggesting the system's emergent ecology is deterministic and convergent.
+
+#### Revised paper claim
+
+The original claim — “objective-free rule sampling produces life-like entities at measurable rates” — should be revised to:
+
+> **Objective-free rule sampling in a block world with local bonding rules produces a stable entity ecology with measurable assembly indices, but the observed assembly is entirely size-driven. Structurally non-trivial assembly (a_i exceeding null expectations) does not emerge under uniform random rule sampling, even at large scale (10³ rules × 5 seeds × 500 steps).**
+
+This reframes the paper as a **characterization of the boundary conditions for emergent complexity**: the system shows where assembly *doesn't* spontaneously emerge, which constrains future search strategies (e.g., biased rule sampling, larger grids, catalytic mechanisms, or environmental gradients).
+
+### 11.5 Output artifacts
+
+| Artifact | Path |
+|----------|------|
+| Experiment 1 scatter | `data/experiment1_large/figures/experiment1_ai_cn_scatter.pdf` |
+| Experiment 1 heatmap | `data/experiment1_large/figures/experiment1_ai_cn_heatmap.pdf` |
+| Experiment 1 size dist | `data/experiment1_large/figures/experiment1_size_dist.pdf` |
+| Entity gallery | `data/entity_gallery_large/entity_gallery.pdf` |
+| Gallery metadata | `data/entity_gallery_large/entity_gallery_meta.csv` |
+| Audit dist figure | `data/assembly_audit_large/figures/assembly_audit_dist.pdf` |
+| Audit excess figure | `data/assembly_audit_large/figures/assembly_audit_excess.pdf` |
+| Audit summary | `data/assembly_audit_large/audit_summary.txt` |
+| Exp 1 combined data | `data/experiment1_large/entity_log_combined.parquet` |
+| Audit combined data | `data/assembly_audit_large/entity_log_combined.parquet` |
