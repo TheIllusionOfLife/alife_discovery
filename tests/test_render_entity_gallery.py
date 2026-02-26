@@ -3,22 +3,8 @@
 from __future__ import annotations
 
 from pathlib import Path
-from random import Random
-from unittest.mock import patch
 
 import networkx as nx
-import pytest
-
-from alife_discovery.config.constants import ENTITY_SNAPSHOT_INTERVAL
-from alife_discovery.config.types import BlockWorldConfig
-from alife_discovery.domain.block_world import BlockWorld, generate_block_rule_table
-from alife_discovery.domain.entity import (
-    canonicalize_entity,
-    detect_entities,
-    entity_graph_hash,
-)
-from alife_discovery.metrics.assembly import assembly_index_exact
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -239,5 +225,12 @@ class TestGalleryIntegration:
             reader = csv.DictReader(f)
             rows = list(reader)
         assert len(rows) >= 1
-        expected_cols = {"rank", "entity_hash", "assembly_index", "copy_count", "entity_size", "score"}
+        expected_cols = {
+            "rank",
+            "entity_hash",
+            "assembly_index",
+            "copy_count",
+            "entity_size",
+            "score",
+        }
         assert expected_cols.issubset(set(rows[0].keys()))
