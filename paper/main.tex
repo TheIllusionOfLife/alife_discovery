@@ -153,17 +153,18 @@ simulations.
 \subsection{Assembly Index Computation}
 
 For each unique entity type, we compute the \emph{assembly index}
-$a_i$ using exact edge-removal dynamic programming. Given an entity
-graph $G$ with $|E|$ edges, the assembly index is defined as the minimum
-number of edge-addition steps required to construct $G$ from isolated
-vertices, where each step adds one edge. For a complete graph $K_n$,
-this equals $\binom{n}{2}$; for a tree on $n$ vertices, $a_i = n - 1$.
+$a_i$. Given an entity graph $G$ with $|E|$ edges, the assembly index is
+defined as the minimum number of edge-addition steps required to
+construct $G$ from isolated vertices, where each step adds one edge.
+For a complete graph $K_n$, this equals $\binom{n}{2}$; for a tree on
+$n$ vertices, $a_i = n - 1$.
 
-The computation enumerates all subsets of edges via bitmask dynamic
-programming. For each subset $S \subseteq E$, it checks whether the
-induced subgraph is connected and whether it can be decomposed into two
-connected subgraphs that share at least one edge. The assembly index is
-the minimum over all valid decompositions of the maximum depth of the
+We compute $a_i$ exactly via edge-removal dynamic programming---the dual
+of the construction definition. The algorithm enumerates all subsets of
+edges via bitmask DP. For each subset $S \subseteq E$, it checks whether
+the induced subgraph is connected and whether it can be decomposed into
+two connected subgraphs that share at least one edge. The assembly index
+is the minimum over all valid decompositions of the maximum depth of the
 decomposition tree. This is exact for the entity sizes observed in our
 experiments (up to 6 blocks).
 

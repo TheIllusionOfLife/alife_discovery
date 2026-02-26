@@ -236,10 +236,10 @@ def parse_args() -> argparse.Namespace:
 
 
 def _build_metadata(args: argparse.Namespace) -> dict:
-    if args.creator:
-        creators = [_parse_creator(c) for c in args.creator]
-    else:
-        creators = [{"name": "<authors>"}]
+    if not args.creator:
+        print("ERROR: at least one --creator must be provided.", file=sys.stderr)
+        sys.exit(1)
+    creators = [_parse_creator(c) for c in args.creator]
     meta: dict = {
         "title": args.title or "Research Dataset",
         "upload_type": "dataset",
