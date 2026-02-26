@@ -166,7 +166,7 @@ def assembly_index_null(
         g_copy = graph.copy()
         try:
             nx.double_edge_swap(g_copy, nswap=nswap, max_tries=nswap * 10, seed=rng)
-        except nx.NetworkXError:
+        except (nx.NetworkXError, nx.NetworkXAlgorithmError):
             # Swap failed (e.g., all edges incident to same node pair); use original
             g_copy = graph.copy()
         results.append(assembly_index_exact(g_copy))
