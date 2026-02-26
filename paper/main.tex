@@ -1,0 +1,457 @@
+\documentclass[letterpaper]{article}
+
+\usepackage{natbib,alifeconf}  %% The order is important
+\usepackage{amsmath}
+\usepackage{url,hyperref,cleveref}
+\usepackage{booktabs}
+
+\newcommand\blfootnote[1]{%
+  \begingroup
+  \renewcommand\thefootnote{}\footnote{#1}%
+  \addtocounter{footnote}{-1}%
+  \endgroup
+}
+
+
+\title{Objective-Free Entity Assembly in Block Worlds:\\
+Characterizing Boundary Conditions for Emergent Complexity}
+
+% Double-blind: author identities removed for review
+\author{
+    Anonymous Author(s)\\
+    \mbox{}\\
+    Affiliations withheld for double-blind review
+}
+
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Artificial life research predominantly relies on fitness functions or
+selection pressures to drive the emergence of complex structures,
+potentially biasing which forms of complexity can be discovered. We
+investigate whether structurally non-trivial entities can arise in an
+objective-free block world governed by randomly sampled local bonding
+rules, using Assembly Theory as a bias-free measurement framework. We
+introduce a two-dimensional toroidal grid world with three block types,
+stochastic bonding and drift dynamics, and an entity observatory that
+detects connected components, canonicalizes their graph structure via
+Weisfeiler--Leman hashing, and computes exact assembly indices through
+edge-removal dynamic programming. Across 5{,}000 simulations
+(1{,}000 rule tables $\times$ 5 seeds $\times$ 500 steps) yielding over
+7 million entity observations and 282 unique entity types, we find that
+observed assembly indices are entirely explained by entity size: a
+bond-shuffle null model produces zero significant excess at every size
+class ($1$--$6$ blocks). The entity ecology is dominated by monomers
+(94.6\%) and dimers (4.9\%), with the maximum observed assembly index of
+6 occurring only 18 times. These results establish a robust negative
+result: uniform random rule sampling with local bonding does not produce
+structurally non-trivial assembly, even at scale. We characterize this
+as a boundary condition for emergent complexity and discuss implications
+for the design of objective-free ALife systems that might cross this
+boundary.
+\end{abstract}
+
+Submission type: \textbf{Full Paper}\\
+
+% TODO: Before submission, create anonymous repo at anonymous.4open.science
+% and replace this URL with the specific anonymous repository link
+Data/Code available at: \url{https://anonymous.4open.science/}
+\blfootnote{\textcopyright\ 2026 Anonymous Author(s). Published under a Creative Commons Attribution 4.0 International (CC BY 4.0) license.}
+
+
+\section{Introduction}
+
+A persistent challenge in artificial life (ALife) research is that the
+complexity of emergent structures is often shaped---and potentially
+limited---by the objectives imposed on the system
+\citep{bedau2003openproblems, taylor2016openended}. Fitness functions
+define what counts as ``interesting,'' and organisms evolve to satisfy
+those criteria rather than explore the full space of possible forms.
+Novelty search and minimal-criterion approaches have partially addressed
+this bias \citep{lehman2011novelty, brant2017minimalcriterion}, but even
+these methods impose implicit selection through behavioral
+characterizations or viability thresholds.
+
+We ask a more radical question: can structurally complex entities arise
+in a system with \emph{no} objective function---not even a novelty
+metric---when governed solely by randomly sampled local interaction
+rules? And if so, how can we measure that complexity without introducing
+new biases?
+
+Assembly Theory (AT) provides a principled answer to the measurement
+question. Originally developed to distinguish biotic from abiotic
+molecular samples \citep{marshall2021assembly}, AT quantifies the
+minimal number of joining operations required to construct an object from
+its building blocks, yielding an \emph{assembly index} that captures
+structural specificity independent of any fitness criterion
+\citep{sharma2023assembly}. An object with a high assembly index that
+appears repeatedly (high \emph{copy number}) is unlikely to have arisen
+by chance, making AT a natural observatory for objective-free systems.
+
+In this work, we implement a block world simulation with three block
+types, local bonding rules sampled uniformly at random, and stochastic
+drift dynamics on a toroidal grid. We detect entities as connected
+components of bonded blocks, canonicalize their graph structure, and
+compute exact assembly indices via edge-removal dynamic programming. We
+then apply a bond-shuffle null model to test whether observed assembly
+exceeds what would be expected from entity size alone.
+
+Our central finding is a \textbf{robust negative result}: across 5{,}000
+simulations producing over 7 million entity observations, the assembly
+index is entirely size-driven. No entity exhibits statistically
+significant excess assembly beyond what random bonding topology predicts.
+This result is itself a contribution: it establishes a concrete boundary
+condition for emergent complexity in objective-free systems and
+constrains the design space for future work seeking to cross that
+boundary.
+
+
+\section{Methods}
+
+\subsection{Block World Model}
+
+The simulation takes place on a two-dimensional toroidal grid of size
+$20 \times 20$. The world is populated with $N = 30$ blocks, each
+assigned one of three types: \texttt{M} (membrane), \texttt{C}
+(cytosol), or \texttt{K} (catalyst). Block types are drawn uniformly at
+random at initialization.
+
+At each time step, blocks undergo two phases: \emph{bonding} and
+\emph{drift}. During bonding, each block observes its von Neumann
+neighbors (Manhattan distance $\leq 1$) and may form a bond with an
+adjacent block according to a shared rule table. During drift, each
+block moves to a random adjacent cell; bonds between blocks that become
+non-adjacent after drift are pruned, implementing a
+\emph{bond-motion invariant} where bonds break on separation rather than
+constraining movement.
+
+\subsection{Rule Table}
+
+Each simulation samples a rule table that maps a block's local context to
+a bonding probability. The context is defined by a triple
+$(\text{self\_type}, \text{neighbor\_count}, \text{dominant\_type})$,
+where neighbor\_count is the number of occupied von Neumann neighbors
+(0--4) and dominant\_type is the most common block type among those
+neighbors (with ties broken deterministically). This yields $3 \times 5
+\times 4 = 60$ entries (the factor of 4 for dominant\_type includes a
+``none'' category when no neighbors are present). Each entry's bonding
+probability is drawn independently from $\text{Uniform}(0, 1)$.
+
+\subsection{Entity Detection and Canonicalization}
+
+At each time step, entities are detected as connected components in the
+graph induced by active bonds. Each entity is represented as an
+undirected graph $G = (V, E)$ where vertices are blocks (labeled by
+type) and edges are bonds. Entity types are canonicalized using the
+Weisfeiler--Leman graph hash \citep{weisfeiler1968reduction} with block
+type as a node attribute, implemented via NetworkX
+\citep{hagberg2008networkx}. The SHA-256 digest of this hash serves as
+a unique type identifier, enabling efficient deduplication across
+simulations.
+
+\subsection{Assembly Index Computation}
+
+For each unique entity type, we compute the \emph{assembly index}
+$a_i$. Given an entity graph $G$ with $|E|$ edges, the assembly index is
+defined as the minimum number of edge-addition steps required to
+construct $G$ from isolated vertices, where each step adds one edge.
+For a complete graph $K_n$, this equals $\binom{n}{2}$; for a tree on
+$n$ vertices, $a_i = n - 1$.
+
+We compute $a_i$ exactly via edge-removal dynamic programming---the dual
+of the construction definition. The algorithm enumerates all subsets of
+edges via bitmask DP. For each subset $S \subseteq E$, it checks whether
+the induced subgraph is connected and whether it can be decomposed into
+two connected subgraphs that share at least one edge. The assembly index
+is the minimum over all valid decompositions of the maximum depth of the
+decomposition tree. This is exact for the entity sizes observed in our
+experiments (up to 6 blocks).
+
+\subsection{Null Model}
+
+To test whether observed assembly indices reflect structural specificity
+beyond what entity size alone predicts, we implement a bond-shuffle null
+model \citep{gotelli2013nullmodels}. For each entity graph $G$, we
+generate $n_{\text{shuffle}} = 20$ randomized graphs by applying
+double-edge swaps \citep{hagberg2008networkx} that preserve the degree
+sequence. We then compute the assembly index of each shuffled graph and
+report the null distribution $(\mu_{\text{null}}, \sigma_{\text{null}})$.
+
+An entity exhibits \emph{significant excess assembly} if its observed
+$a_i$ exceeds $\mu_{\text{null}} + 2\sigma_{\text{null}}$. This
+threshold corresponds to a one-sided $p < 0.023$ under normality.
+
+\subsection{Experimental Protocol}
+
+We sample 1{,}000 rule tables, each run with 5 independent seeds for 500
+time steps, yielding 5{,}000 total simulations. Entity observations are
+logged at every step, producing a combined dataset of over 7 million
+observations. The full pipeline is illustrated in \Cref{fig:methods}.
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\columnwidth]{figures/fig1_methods.pdf}
+    \caption{
+        Experimental pipeline. Random rule tables govern block bonding on
+        a toroidal grid. Connected components are detected as entities,
+        canonicalized via graph hashing, and measured by assembly index
+        and copy number. A bond-shuffle null model tests for excess
+        assembly.
+    }
+    \label{fig:methods}
+\end{figure}
+
+
+\section{Results}
+
+\subsection{Discovery Baseline}
+
+Across all 5{,}000 simulations, we observe 7{,}079{,}166 entity
+instances comprising 282 unique entity types. The vast majority of
+observations are monomers: 94.6\% of entities consist of a single block
+($a_i = 0$), 4.9\% are dimers (2 blocks, $a_i = 1$), and only 0.5\% have
+3 or more blocks. The maximum observed entity size is 6 blocks (18
+instances out of 7M), with a corresponding maximum assembly index of 6.
+
+\Cref{fig:baseline} shows the joint distribution of assembly index and
+copy number. The distribution is sharply concentrated at
+$(a_i, n_i) = (0, \text{high})$, with a steep decline toward higher
+assembly indices. The mean assembly index across all observations is
+0.060, reflecting the dominance of trivial structures.
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\columnwidth]{figures/fig2_baseline_heatmap.pdf}
+    \caption{
+        Joint distribution of assembly index ($a_i$) and copy number
+        ($n_i$) across 7M entity observations. Color encodes
+        log-frequency. The distribution is dominated by monomers
+        ($a_i = 0$) with high copy numbers.
+    }
+    \label{fig:baseline}
+\end{figure}
+
+\subsection{Entity Size Distribution}
+
+\Cref{fig:sizedist} shows the entity size distribution on a logarithmic
+scale. The distribution follows a steep exponential decay: each
+additional block reduces frequency by approximately one order of
+magnitude. This indicates that the bonding dynamics under uniform random
+rules strongly favor small entities, with multi-block structures being
+rare transient configurations rather than stable persistent objects.
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\columnwidth]{figures/fig3_size_dist.pdf}
+    \caption{
+        Entity size distribution across all observations (log scale).
+        Each additional block reduces frequency by $\sim$10$\times$.
+        Size-1 entities account for 94.6\% of all observations.
+    }
+    \label{fig:sizedist}
+\end{figure}
+
+\subsection{Entity Gallery}
+
+\Cref{fig:gallery} presents the top-ranked entity types, ordered by a
+composite score of assembly index and total copy count. The highest-ranked
+entities are all dimers ($a_i = 1$) with very high copy counts (up to
+108{,}352 across all simulations). Trimers with $a_i = 2$ appear in the
+top 10, but no entity with $a_i \geq 3$ reaches high copy numbers. The
+entity ranking is stable across experimental scales: the same entity
+types dominate at both 100 and 1{,}000 rule samples, suggesting that the
+emergent entity ecology is deterministic and convergent under uniform
+random rule sampling.
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\columnwidth]{figures/fig4_entity_gallery.pdf}
+    \caption{
+        Gallery of top-ranked entity types by $a_i \times n_i$ score.
+        Node colors indicate block type (M: blue, C: green, K: red).
+        The top entities are all dimers; larger structures are rare and
+        low-copy.
+    }
+    \label{fig:gallery}
+\end{figure}
+
+\subsection{Assembly Audit: Null Model Comparison}
+
+The bond-shuffle null model reveals that observed assembly indices are
+\emph{entirely} explained by entity size. \Cref{fig:audit} shows the
+distribution of observed versus null assembly indices. Across all
+7{,}079{,}166 observations, zero entities exhibit significant excess
+assembly ($a_i > \mu_{\text{null}} + 2\sigma_{\text{null}}$). The mean
+excess is exactly 0.000 at every entity size class (1--6 blocks).
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\columnwidth]{figures/fig5_audit_dist.pdf}
+    \caption{
+        Assembly audit: observed $a_i$ versus null model expectation.
+        Zero entities (0 of 7M) show significant excess assembly. The
+        observed assembly is fully explained by the number of edges in
+        each entity graph.
+    }
+    \label{fig:audit}
+\end{figure}
+
+This result is robust across scales. A smaller pilot experiment (100
+rules $\times$ 3 seeds, 170{,}192 observations) produced the same 0\%
+excess, and the 10$\times$ scale-up confirms the finding with no change
+in the null model gap. \Cref{tab:scaleup} summarizes the comparison.
+
+\begin{table}[t]
+    \centering
+    \begin{tabular}{lcc}
+        \toprule
+        Metric & Small scale & Large scale \\
+        \midrule
+        Rule samples       & 100       & 1{,}000 \\
+        Seeds per rule     & 3         & 5 \\
+        Total simulations  & 300       & 5{,}000 \\
+        Entity observations & 170{,}192 & 7{,}079{,}166 \\
+        Unique types       & 72        & 282 \\
+        Max entity size    & 6         & 6 \\
+        Max $a_i$          & 6         & 6 \\
+        Mean $a_i$         & 0.058     & 0.060 \\
+        Significant excess & 0.0\%     & 0.0\% \\
+        \bottomrule
+    \end{tabular}
+    \caption{
+        Comparison of small-scale and large-scale experiments. The
+        negative result (0\% excess assembly) is stable across a
+        41$\times$ increase in observations.
+    }
+    \label{tab:scaleup}
+\end{table}
+
+
+\section{Discussion}
+
+\subsection{Why Assembly is Size-Driven}
+
+The central finding---that assembly index is entirely predicted by entity
+size under uniform random bonding rules---has a clear mechanistic
+explanation. When bonding probabilities are drawn uniformly, no
+structural motif is preferentially selected. The topology of each entity
+graph is effectively random given its size, and the assembly index of a
+random graph is determined by its edge count (which scales with size).
+The null model, which preserves edge count while randomizing topology,
+therefore matches observed assembly exactly.
+
+This result does \emph{not} mean that Assembly Theory is unsuitable for
+ALife systems. Rather, it identifies a necessary condition for
+non-trivial assembly: the bonding rules must introduce \emph{structural
+bias}---preferential formation of specific motifs over random
+topologies. Uniform random rule sampling, by construction, does not
+provide such bias.
+
+\subsection{Implications for Objective-Free ALife}
+
+The negative result constrains the design space for objective-free
+systems seeking emergent complexity:
+
+\begin{enumerate}
+    \item \textbf{Rule structure matters.} Uniformly random rules produce
+    entities but not complex ones. To cross the complexity boundary, rule
+    sampling must be biased toward structural specificity---for example,
+    by conditioning bond formation on multi-hop neighborhood patterns or
+    by introducing catalytic mechanisms where specific block
+    configurations promote bonding.
+
+    \item \textbf{Scale does not substitute for structure.} A 41$\times$
+    increase in observations produces 3.9$\times$ more entity types but no
+    increase in structural complexity (maximum $a_i$ remains 6, excess
+    remains 0\%). More computation yields more copies, not more complex
+    entities.
+
+    \item \textbf{The entity ecology is convergent.} The same entity types
+    dominate across independent rule samples, suggesting that the system's
+    emergent ecology is a fixed point of the uniform random sampling
+    distribution rather than a sample-dependent phenomenon.
+\end{enumerate}
+
+\subsection{Boundary Conditions for Emergent Complexity}
+
+We interpret these results as characterizing a \emph{boundary condition}
+for emergent complexity in objective-free systems. Below this boundary,
+defined by uniform random local bonding rules on a small grid with few
+block types, entity assembly is fully explained by size. Crossing this
+boundary likely requires one or more of: (1) biased rule sampling that
+favors specific structural motifs, (2) larger grids or higher block
+densities that increase collision rates, (3) explicit catalytic
+mechanisms where existing entities promote the formation of specific
+structures, or (4) environmental gradients that create spatial
+heterogeneity in bonding conditions.
+
+Each of these represents a departure from the fully objective-free,
+uniformly random baseline---but they need not introduce fitness
+functions. Catalytic rules, for example, can be sampled from a biased
+distribution without defining what constitutes a ``good'' entity. This
+suggests a continuum between fully random and fully optimized systems,
+with non-trivial assembly emerging somewhere along this continuum.
+
+\subsection{Relation to Prior Work}
+
+The observation that random dynamics produce trivial structures resonates
+with classical results in cellular automata, where most random rules
+produce either homogeneous or chaotic behavior, with complex dynamics
+concentrated at the ``edge of chaos''
+\citep{langton1990computation, wolfram2002nks}. Our work extends this
+observation to the domain of compositional objects measured by Assembly
+Theory, showing that the analogous ``edge'' for assembly complexity has
+not been reached under uniform random bonding rules.
+
+The negative-result framing aligns with recent calls for publishing null
+findings in computational science \citep{fanelli2012negativeresults}.
+Understanding where complexity does \emph{not} emerge is as informative
+as finding where it does, particularly for constraining the design space
+of future experiments.
+
+\subsection{Limitations}
+
+Several limitations should be noted. First, the grid size ($20 \times
+20$) and block count (30) are modest; larger systems may exhibit
+qualitatively different dynamics. Second, the rule table conditions on
+only the immediate von Neumann neighborhood; richer observation ranges
+could enable more structured bonding. Third, our assembly index
+computation uses exact edge-removal DP, which does not allow sub-object
+reuse---a property that Assembly Theory in its full formulation permits.
+Finally, the three block types may be insufficient to support the
+combinatorial diversity needed for non-trivial assembly.
+
+
+\section{Conclusion}
+
+We have presented the first systematic application of Assembly Theory to
+an objective-free artificial life system. Across 5{,}000 simulations and
+7 million entity observations, we find that uniform random bonding rules
+produce a stable entity ecology but no structurally non-trivial assembly:
+observed assembly indices are entirely explained by entity size, with
+zero significant excess over a bond-shuffle null model.
+
+This robust negative result is itself a contribution. It establishes
+that emergent structural complexity requires more than random local
+interactions---it requires structural bias in the rules, even in the
+absence of explicit fitness functions. By characterizing this boundary
+condition, we constrain the design space for future objective-free ALife
+systems and provide a concrete experimental baseline against which
+interventions (catalytic rules, biased sampling, environmental gradients)
+can be measured.
+
+
+\section*{Acknowledgements}
+
+Withheld for double-blind review.
+
+
+\footnotesize
+\bibliographystyle{apalike}
+\bibliography{references}
+
+
+\end{document}

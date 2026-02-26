@@ -17,6 +17,7 @@ Prior research direction (`objectless_alife`) is archived under `legacy/`.
 - **Linting/formatting**: `ruff` (`uv run ruff check .`, `uv run ruff format . --check`)
 - **Type checking**: `mypy` (`uv run mypy`)
 - **Tests**: `pytest` (`uv run pytest -q`)
+- **Paper**: `tectonic` for LaTeX compilation (`tectonic paper/main.tex`)
 
 Never install packages globally. Always use `uv run` for commands.
 
@@ -28,6 +29,7 @@ Never install packages globally. Always use `uv run` for commands.
 | `tests/` | Test suite (mirrors source structure) |
 | `scripts/` | Analysis and utility scripts (active research) |
 | `docs/` | Research documentation |
+| `paper/` | ALIFE 2026 paper source (LaTeX, figures, bib) |
 | `legacy/` | **Archived** — prior `objectless_alife` research direction; do not import from here |
 
 ## Architecture Notes
@@ -46,7 +48,7 @@ Flat shim files (`world.py`, `rules.py`, etc.) re-export from subpackages for ba
 
 ## Current Research Phase
 
-**Engineering Track A**: Add Assembly Theory object-graph layer to the existing simulator.
+**Paper writing**: ALIFE 2026 paper draft complete. Negative-result framing: assembly is entirely size-driven.
 
 ## Important Rules
 

@@ -430,3 +430,9 @@ This reframes the paper as a **characterization of the boundary conditions for e
 | Audit combined data | `data/assembly_audit_large/entity_log_combined.parquet` |
 
 > **Note:** All paths above are locally generated artifacts (`data/` is in `.gitignore`) and are not tracked in the repository. Re-generate by running the scripts listed in PR #10.
+
+---
+
+## 12) Paper Draft (PR #11)
+
+**Status: delivered.** The ALIFE 2026 paper draft is at `paper/main.tex` (5 pages, 5 figures). Narrative uses negative-result framing per Section 11.4. Zenodo data archival scripts and metadata are set up. Compile with `tectonic paper/main.tex`.

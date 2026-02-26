@@ -138,6 +138,16 @@ Configuration validation is strict and fail-fast:
 - invalid values (for example, non-positive `steps`, invalid filter windows/ratios)
   raise `ValueError` at config construction/CLI parse time.
 
+## Paper
+
+Compile the ALIFE 2026 paper (requires [tectonic](https://tectonic-typesetting.github.io/)):
+
+```bash
+tectonic paper/main.tex
+```
+
+The compiled PDF is written to `paper/main.pdf`.
+
 ## Documentation Map
 
 - `spec.md`: canonical implementation spec

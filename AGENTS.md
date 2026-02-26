@@ -23,6 +23,12 @@ uv sync --extra dev
 
 ## Non-Obvious Commands
 
+- Compile paper (uses tectonic, not latexmk):
+
+```bash
+tectonic paper/main.tex
+```
+
 - Batch search (phase 1 baseline):
 
 ```bash
