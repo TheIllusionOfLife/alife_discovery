@@ -55,6 +55,9 @@ viz/node_modules/
 viz/dist/
 .playwright-cli/
 
+# Zenodo staging
+zenodo_staging/
+
 # Editors/IDEs
 .vscode/
 .idea/

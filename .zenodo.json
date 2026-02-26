@@ -1,0 +1,22 @@
+{
+  "title": "alife_discovery: Objective-Free Entity Assembly in Block Worlds",
+  "description": "Source code and experiment scripts for studying objective-free artificial life through Assembly Theory. Accompanies the ALIFE 2026 paper.",
+  "upload_type": "software",
+  "creators": [
+    {
+      "name": "Anonymous",
+      "affiliation": "Withheld for double-blind review"
+    }
+  ],
+  "license": "MIT",
+  "keywords": [
+    "artificial life",
+    "assembly theory",
+    "objective-free",
+    "emergent complexity",
+    "block world",
+    "negative result"
+  ],
+  "related_identifiers": [],
+  "language": "eng"
+}
