@@ -58,7 +58,11 @@ def _run_condition(
         )
         print(f"  {label} seed {seed}: {len(results)} runs")
 
-    log_files = list(cond_dir.rglob("entity_log.parquet"))
+    log_files = [
+        cond_dir / f"seed_{s}" / "logs" / "entity_log.parquet"
+        for s in range(args.seeds)
+        if (cond_dir / f"seed_{s}" / "logs" / "entity_log.parquet").exists()
+    ]
     if not log_files:
         return None
     tables = [pq.read_table(f) for f in log_files]

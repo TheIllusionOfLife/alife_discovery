@@ -125,7 +125,11 @@ def main() -> None:
                 )
                 print(f"  seed {seed}: {len(results)} runs")
 
-            log_files = list(cond_dir.rglob("entity_log.parquet"))
+            log_files = [
+                cond_dir / f"seed_{s}" / "logs" / "entity_log.parquet"
+                for s in range(args.seeds)
+                if (cond_dir / f"seed_{s}" / "logs" / "entity_log.parquet").exists()
+            ]
             if log_files:
                 combined = pa.concat_tables([pq.read_table(f) for f in log_files])
                 stats = _summarize_condition(combined)
@@ -166,7 +170,11 @@ def main() -> None:
                 )
                 print(f"  seed {seed}: {len(results)} runs")
 
-            log_files = list(cond_dir.rglob("entity_log.parquet"))
+            log_files = [
+                cond_dir / f"seed_{s}" / "logs" / "entity_log.parquet"
+                for s in range(args.seeds)
+                if (cond_dir / f"seed_{s}" / "logs" / "entity_log.parquet").exists()
+            ]
             if log_files:
                 combined = pa.concat_tables([pq.read_table(f) for f in log_files])
                 stats = _summarize_condition(combined)

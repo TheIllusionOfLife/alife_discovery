@@ -185,6 +185,10 @@ class BlockWorld:
         claimed: dict[tuple[int, int], int] = {}  # target -> first claimant
         for block_id in order:
             block = self.blocks[block_id]
+            # Drift probability gate (same as _try_drift)
+            if self.drift_probability < 1.0 and rng.random() >= self.drift_probability:
+                new_positions[block_id] = (block.x, block.y)
+                continue
             cells = self._von_neumann_cells(block.x, block.y)
             rng.shuffle(cells)
             moved = False

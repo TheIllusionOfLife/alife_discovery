@@ -75,6 +75,35 @@ class TestDriftProbability:
         # Lower drift probability should result in fewer per-step moves
         assert moves_low < moves_high
 
+    def test_drift_probability_reduces_movement_synchronous(self) -> None:
+        """Regression: drift_probability gate applies in synchronous mode too."""
+        from alife_discovery.config.types import UpdateMode
+
+        rule_table = generate_block_rule_table(0)
+
+        def count_step_moves_sync(drift_prob: float, seed: int = 42) -> int:
+            config = BlockWorldConfig(
+                grid_width=20,
+                grid_height=20,
+                n_blocks=10,
+                steps=50,
+                drift_probability=drift_prob,
+            )
+            rng = Random(seed)
+            world = BlockWorld.create(config, rng)
+            moves = 0
+            for _ in range(50):
+                prev_pos = {bid: (b.x, b.y) for bid, b in world.blocks.items()}
+                world.step(rule_table, 0.01, rng, update_mode=UpdateMode.SYNCHRONOUS)
+                for bid, b in world.blocks.items():
+                    if (b.x, b.y) != prev_pos[bid]:
+                        moves += 1
+            return moves
+
+        moves_low = sum(count_step_moves_sync(0.25, s) for s in range(5))
+        moves_high = sum(count_step_moves_sync(1.0, s) for s in range(5))
+        assert moves_low < moves_high
+
     def test_smoke_run_tiny_config(self, tmp_path: object) -> None:
         """Smoke test: run_block_world_search with drift_probability < 1."""
         from pathlib import Path

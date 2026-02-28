@@ -50,6 +50,9 @@ def _entity_lifetime_stats(table: "pq.Table") -> list[str]:  # noqa: F821
         sorted_steps = sorted(set(step_list))
         lifetimes.append(len(sorted_steps))
 
+    if not lifetimes:
+        return ["--- Entity Lifetime Distribution ---", "  No data (no entities observed)."]
+
     arr = np.array(lifetimes, dtype=float)
     lines = [
         "--- Entity Lifetime Distribution ---",
