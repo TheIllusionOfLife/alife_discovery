@@ -11,6 +11,7 @@ from alife_discovery.metrics.assembly import (
     assembly_index_approx,
     assembly_index_exact,
     assembly_index_null,
+    assembly_index_reuse,
     compute_entity_metrics,
 )
 
@@ -226,6 +227,123 @@ class TestAssemblyIndexNull:
         g = make_graph([(0, "M"), (1, "C")], [(0, 1)])
         with pytest.raises(ValueError, match="n_shuffles must be >= 1"):
             assembly_index_null(g, n_shuffles=0)
+
+
+# ── assembly_index_reuse ────────────────────────────────────────────────────
+
+
+class TestAssemblyIndexReuse:
+    """Tests for AT-standard assembly index with sub-object reuse."""
+
+    def test_single_node_is_zero(self) -> None:
+        g = nx.Graph()
+        g.add_node(0, block_type="M")
+        assert assembly_index_reuse(g) == 0
+
+    def test_single_edge_is_one(self) -> None:
+        g = make_graph([(0, "M"), (1, "M")], [(0, 1)])
+        assert assembly_index_reuse(g) == 1
+
+    def test_p3_is_two(self) -> None:
+        """P_3 with reuse = 2 (no reuse benefit — no repeated substructure)."""
+        g = make_graph([(0, "M"), (1, "M"), (2, "M")], [(0, 1), (1, 2)])
+        assert assembly_index_reuse(g) == 2
+
+    def test_p4_is_two(self) -> None:
+        """P_4 with reuse = 2 (build P_2, duplicate+join → P_4)."""
+        g = make_graph(
+            [(0, "M"), (1, "M"), (2, "M"), (3, "M")],
+            [(0, 1), (1, 2), (2, 3)],
+        )
+        assert assembly_index_reuse(g) == 2
+
+    def test_k3_is_two(self) -> None:
+        """KEY: K_3 with reuse = 2 (build P_2, duplicate, join → triangle)."""
+        g = make_graph([(0, "M"), (1, "M"), (2, "M")], [(0, 1), (1, 2), (0, 2)])
+        assert assembly_index_reuse(g) == 2
+
+    def test_k3_less_than_exact(self) -> None:
+        """Reuse-aware index is strictly less than edge-removal DP for K_3."""
+        g = make_graph([(0, "M"), (1, "M"), (2, "M")], [(0, 1), (1, 2), (0, 2)])
+        assert assembly_index_reuse(g) < assembly_index_exact(g)
+
+    def test_c4_is_three(self) -> None:
+        """C_4 with reuse = 3 (cycle closure prevents reuse savings)."""
+        g = make_graph(
+            [(0, "M"), (1, "M"), (2, "M"), (3, "M")],
+            [(0, 1), (1, 2), (2, 3), (3, 0)],
+        )
+        assert assembly_index_reuse(g) == 3
+
+    def test_reuse_leq_exact_always(self) -> None:
+        """Property: reuse <= exact for varied small graphs."""
+        graphs = [
+            make_graph([(0, "M")], []),
+            make_graph([(0, "M"), (1, "M")], [(0, 1)]),
+            make_graph([(0, "M"), (1, "M"), (2, "M")], [(0, 1), (1, 2)]),
+            make_graph([(0, "M"), (1, "M"), (2, "M")], [(0, 1), (1, 2), (0, 2)]),
+            make_graph(
+                [(0, "M"), (1, "M"), (2, "M"), (3, "M")],
+                [(0, 1), (1, 2), (2, 3)],
+            ),
+            make_graph(
+                [(0, "M"), (1, "M"), (2, "M"), (3, "M")],
+                [(0, 1), (1, 2), (2, 3), (3, 0)],
+            ),
+        ]
+        for g in graphs:
+            assert assembly_index_reuse(g) <= assembly_index_exact(g)
+
+    def test_deterministic(self) -> None:
+        g = make_graph([(0, "M"), (1, "M"), (2, "M")], [(0, 1), (1, 2), (0, 2)])
+        r1 = assembly_index_reuse(g)
+        r2 = assembly_index_reuse(g)
+        assert r1 == r2
+
+    def test_cache_isolation(self) -> None:
+        """_ASSEMBLY_REUSE_CACHE is separate from _ASSEMBLY_CACHE."""
+        from alife_discovery.metrics.assembly import _ASSEMBLY_CACHE, _ASSEMBLY_REUSE_CACHE
+
+        assert _ASSEMBLY_REUSE_CACHE is not _ASSEMBLY_CACHE
+
+    def test_compute_entity_metrics_reuse_column(self) -> None:
+        """assembly_index_reuse column present when compute_reuse=True."""
+        from unittest.mock import MagicMock, patch
+
+        from alife_discovery.domain.entity import Entity
+
+        g = make_graph([(0, "M"), (1, "C"), (2, "K")], [(0, 1), (1, 2)])
+        fake_entity = MagicMock(spec=Entity)
+
+        with (
+            patch("alife_discovery.domain.entity.canonicalize_entity", return_value=g),
+            patch("alife_discovery.domain.entity.entity_graph_hash", return_value="fakeR"),
+        ):
+            records = compute_entity_metrics(
+                [fake_entity], step=0, run_id="test_run", compute_reuse=True
+            )
+
+        assert len(records) == 1
+        assert "assembly_index_reuse" in records[0]
+        assert isinstance(records[0]["assembly_index_reuse"], int)
+
+    def test_compute_entity_metrics_no_reuse_by_default(self) -> None:
+        """Reuse column absent when compute_reuse=False (default)."""
+        from unittest.mock import MagicMock, patch
+
+        from alife_discovery.domain.entity import Entity
+
+        g = make_graph([(0, "M"), (1, "C")], [(0, 1)])
+        fake_entity = MagicMock(spec=Entity)
+
+        with (
+            patch("alife_discovery.domain.entity.canonicalize_entity", return_value=g),
+            patch("alife_discovery.domain.entity.entity_graph_hash", return_value="fakeR2"),
+        ):
+            records = compute_entity_metrics([fake_entity], step=0, run_id="test_run")
+
+        assert len(records) == 1
+        assert "assembly_index_reuse" not in records[0]
 
 
 class TestBlockWorldSearchNullSchema:

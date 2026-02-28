@@ -192,3 +192,20 @@ ENTITY_LOG_SCHEMA_WITH_NULL = pa.schema(
         ("assembly_index_null_std", pa.float64()),
     ]
 )
+
+ENTITY_LOG_SCHEMA_WITH_REUSE = pa.schema(
+    [(f.name, f.type) for f in ENTITY_LOG_SCHEMA]
+    + [
+        ("assembly_index_reuse", pa.int64()),
+    ]
+)
+
+ENTITY_LOG_SCHEMA_FULL = pa.schema(
+    [(f.name, f.type) for f in ENTITY_LOG_SCHEMA]
+    + [
+        ("assembly_index_reuse", pa.int64()),
+        ("assembly_index_null_mean", pa.float64()),
+        ("assembly_index_null_std", pa.float64()),
+        ("assembly_index_null_pvalue", pa.float64()),
+    ]
+)

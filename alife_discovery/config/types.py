@@ -465,6 +465,8 @@ class BlockWorldConfig:
     sim_seed: int = 0
     n_null_shuffles: int = 0
     """Number of shuffle-bond null model trials per entity (0 = disabled)."""
+    compute_reuse_index: bool = False
+    """When True, compute AT-standard reuse-aware assembly index alongside edge-removal DP."""
 
     def __post_init__(self) -> None:
         if self.grid_width < 1 or self.grid_height < 1:

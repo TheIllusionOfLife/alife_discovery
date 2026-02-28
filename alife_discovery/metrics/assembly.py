@@ -57,6 +57,9 @@ from alife_discovery.config.constants import BLOCK_TYPES
 # Global memoization cache: canonical_key -> assembly_index
 _ASSEMBLY_CACHE: dict[str, int] = {}
 
+# Separate cache for reuse-aware assembly index
+_ASSEMBLY_REUSE_CACHE: dict[str, int] = {}
+
 
 def _canonical_key(graph: nx.Graph) -> str:
     """Canonical string for a labeled graph, used for memoization.
@@ -121,6 +124,93 @@ def assembly_index_exact(graph: nx.Graph) -> int:
     return min_cost
 
 
+def assembly_index_reuse(graph: nx.Graph) -> int:
+    """AT-standard assembly index with sub-object reuse (vertex-primitive counting).
+
+    Like ``assembly_index_exact``, each step adds one edge.  Unlike the
+    edge-removal DP, previously constructed sub-objects can be duplicated at
+    zero cost.  The assembly index equals the length of the shortest assembly
+    pathway — the minimum number of *distinct* construction steps.
+
+    Algorithm: for each "joining edge" *e* in E(G), consider removing *e* and
+    partitioning the remaining edges into two connected sub-objects S1 and S2.
+    The joining step (+1) adds *e* back to merge S1 and S2.  When S1 ≅ S2
+    (by canonical key), the duplicate is free so cost = a(S1) + 1.
+
+    Complexity: |E| × 2^(|E|−1) partitions with memoization. Tractable for
+    entity graphs with ≤ 15 edges.
+
+    Memoized globally by canonical graph key (separate from _ASSEMBLY_CACHE).
+    """
+    key = _canonical_key(graph)
+    if key in _ASSEMBLY_REUSE_CACHE:
+        return _ASSEMBLY_REUSE_CACHE[key]
+
+    n_edges = graph.number_of_edges()
+
+    if n_edges == 0:
+        _ASSEMBLY_REUSE_CACHE[key] = 0
+        return 0
+
+    if n_edges == 1:
+        _ASSEMBLY_REUSE_CACHE[key] = 1
+        return 1
+
+    edges = list(graph.edges())
+    n_e = len(edges)
+    min_cost = n_edges  # naive upper bound (one step per edge)
+
+    def _subgraph_from_edges(edge_list: list[tuple[int, int]]) -> nx.Graph:
+        """Build a subgraph from an edge list, copying node attributes."""
+        sg = nx.Graph()
+        sg.add_edges_from(edge_list)
+        for n in sg.nodes():
+            sg.nodes[n].update(graph.nodes[n])
+        return sg
+
+    # For each "joining edge" e, try all partitions of E(G)\{e} into (S1, S2).
+    for i in range(n_e):
+        remaining = edges[:i] + edges[i + 1 :]
+        n_rem = len(remaining)
+
+        for mask in range(2**n_rem):
+            s1_edges = [remaining[j] for j in range(n_rem) if not (mask >> j & 1)]
+            s2_edges = [remaining[j] for j in range(n_rem) if mask >> j & 1]
+
+            if not s1_edges and not s2_edges:
+                # G had only 1 edge (handled above), guard only
+                cost = 1
+            elif not s2_edges:
+                # Degenerate: entire G-e as one sub-object, joined by edge e
+                s1 = _subgraph_from_edges(s1_edges)
+                if not nx.is_connected(s1):
+                    continue
+                cost = 1 + assembly_index_reuse(s1)
+            elif not s1_edges:
+                # Symmetric degenerate
+                s2 = _subgraph_from_edges(s2_edges)
+                if not nx.is_connected(s2):
+                    continue
+                cost = 1 + assembly_index_reuse(s2)
+            else:
+                s1 = _subgraph_from_edges(s1_edges)
+                s2 = _subgraph_from_edges(s2_edges)
+                if not nx.is_connected(s1) or not nx.is_connected(s2):
+                    continue
+                key_s1 = _canonical_key(s1)
+                key_s2 = _canonical_key(s2)
+                if key_s1 == key_s2:
+                    cost = assembly_index_reuse(s1) + 1
+                else:
+                    cost = assembly_index_reuse(s1) + assembly_index_reuse(s2) + 1
+
+            if cost < min_cost:
+                min_cost = cost
+
+    _ASSEMBLY_REUSE_CACHE[key] = min_cost
+    return min_cost
+
+
 def assembly_index_approx(graph: nx.Graph) -> int:
     """Greedy upper bound: number of edges (assemble one edge at a time)."""
     return graph.number_of_edges()
@@ -180,6 +270,7 @@ def compute_entity_metrics(
     step: int,
     run_id: str,
     n_null_shuffles: int = 0,
+    compute_reuse: bool = False,
 ) -> list[dict[str, Any]]:
     """Compute per-entity AT metrics for a snapshot.
 
@@ -227,6 +318,9 @@ def compute_entity_metrics(
             "n_cytosol": type_counts["C"],
             "n_catalyst": type_counts["K"],
         }
+
+        if compute_reuse:
+            record["assembly_index_reuse"] = assembly_index_reuse(g)
 
         if n_null_shuffles > 0:
             null_mean, null_std = assembly_index_null(
