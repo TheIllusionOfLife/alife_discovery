@@ -86,3 +86,56 @@ class TestRunBlockWorldSearch:
 
         assert run(1) == EXPECTED_BONDS_RANGE_1
         assert run(2) == EXPECTED_BONDS_RANGE_2
+
+
+class TestStepTimeseries:
+    """Tests for step_timeseries.parquet generation."""
+
+    def test_timeseries_written_when_flag_set(self, tmp_path: Path) -> None:
+        config = BlockWorldConfig(
+            grid_width=10, grid_height=10, n_blocks=10, steps=20, write_timeseries=True
+        )
+        run_block_world_search(n_rules=1, out_dir=tmp_path, config=config)
+        ts_path = tmp_path / "logs" / "step_timeseries.parquet"
+        assert ts_path.exists()
+
+    def test_timeseries_not_written_by_default(self, tmp_path: Path) -> None:
+        config = BlockWorldConfig(grid_width=10, grid_height=10, n_blocks=10, steps=20)
+        run_block_world_search(n_rules=1, out_dir=tmp_path, config=config)
+        ts_path = tmp_path / "logs" / "step_timeseries.parquet"
+        assert not ts_path.exists()
+
+    def test_timeseries_schema_columns(self, tmp_path: Path) -> None:
+        from alife_discovery.io.schemas import STEP_TIMESERIES_SCHEMA
+
+        config = BlockWorldConfig(
+            grid_width=10, grid_height=10, n_blocks=10, steps=20, write_timeseries=True
+        )
+        run_block_world_search(n_rules=1, out_dir=tmp_path, config=config)
+        table = pq.read_table(tmp_path / "logs" / "step_timeseries.parquet")
+        expected = {f.name for f in STEP_TIMESERIES_SCHEMA}
+        assert set(table.column_names) == expected
+
+    def test_timeseries_step_values_match_snapshot_interval(self, tmp_path: Path) -> None:
+        from alife_discovery.config.constants import ENTITY_SNAPSHOT_INTERVAL
+
+        config = BlockWorldConfig(
+            grid_width=10, grid_height=10, n_blocks=10, steps=20, write_timeseries=True
+        )
+        run_block_world_search(n_rules=1, out_dir=tmp_path, config=config)
+        table = pq.read_table(tmp_path / "logs" / "step_timeseries.parquet")
+        steps = table.column("step").to_pylist()
+        # Steps should correspond to snapshot interval or last step
+        for s in steps:
+            assert (s + 1) % ENTITY_SNAPSHOT_INTERVAL == 0 or s == config.steps - 1
+
+    def test_timeseries_sorted_by_run_id_step(self, tmp_path: Path) -> None:
+        config = BlockWorldConfig(
+            grid_width=10, grid_height=10, n_blocks=10, steps=20, write_timeseries=True
+        )
+        run_block_world_search(n_rules=2, out_dir=tmp_path, config=config)
+        table = pq.read_table(tmp_path / "logs" / "step_timeseries.parquet")
+        run_ids = table.column("run_id").to_pylist()
+        steps = table.column("step").to_pylist()
+        pairs = list(zip(run_ids, steps, strict=True))
+        assert pairs == sorted(pairs)

@@ -396,6 +396,7 @@ def run_block_world_search(
     entity_log_path = logs_dir / "entity_log.parquet"
 
     all_entity_records: list[dict] = []
+    all_timeseries_records: list[dict] = []
     summaries: list[dict] = []
 
     for i in range(n_rules):
@@ -420,6 +421,20 @@ def run_block_world_search(
                     compute_reuse=cfg.compute_reuse_index,
                 )
                 all_entity_records.extend(records)
+
+                if cfg.write_timeseries:
+                    sizes = [r["entity_size"] for r in records]
+                    ais = [r["assembly_index"] for r in records]
+                    all_timeseries_records.append(
+                        {
+                            "run_id": run_id,
+                            "step": step,
+                            "mean_entity_size": sum(sizes) / len(sizes) if sizes else 0.0,
+                            "mean_assembly_index": sum(ais) / len(ais) if ais else 0.0,
+                            "n_entities": len(entities),
+                            "n_bonds": len(world.bonds),
+                        }
+                    )
 
         # Final snapshot summary
         final_entities = detect_entities(world)
@@ -448,5 +463,16 @@ def run_block_world_search(
         table = pa.Table.from_pylist(all_entity_records, schema=schema)
         with pq.ParquetWriter(entity_log_path, schema) as writer:
             writer.write_table(table)
+
+    # Write step timeseries
+    if cfg.write_timeseries and all_timeseries_records:
+        from alife_discovery.io.schemas import STEP_TIMESERIES_SCHEMA
+
+        ts_path = logs_dir / "step_timeseries.parquet"
+        # Sort by (run_id, step) as documented contract
+        all_timeseries_records.sort(key=lambda r: (r["run_id"], r["step"]))
+        ts_table = pa.Table.from_pylist(all_timeseries_records, schema=STEP_TIMESERIES_SCHEMA)
+        with pq.ParquetWriter(ts_path, STEP_TIMESERIES_SCHEMA) as writer:
+            writer.write_table(ts_table)
 
     return summaries

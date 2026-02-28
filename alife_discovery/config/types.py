@@ -471,6 +471,8 @@ class BlockWorldConfig:
     """Bond probability multiplier when a K-type block is among neighbors (>= 1.0)."""
     drift_probability: float = 1.0
     """Probability of attempting drift each step (0 < p <= 1.0)."""
+    write_timeseries: bool = False
+    """When True, write step-level timeseries to logs/step_timeseries.parquet."""
 
     def __post_init__(self) -> None:
         if self.grid_width < 1 or self.grid_height < 1:
