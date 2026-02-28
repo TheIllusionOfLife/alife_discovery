@@ -25,7 +25,7 @@ from alife_discovery.simulation.engine import run_block_world_search
 
 # Density ratios: 7.5%, 15%, 30%, 50%
 DENSITY_RATIOS = (0.075, 0.15, 0.30, 0.50)
-GRID_SIZES = ((20, 20), (40, 40))
+GRID_SIZES = ((10, 10), (20, 20))
 DRIFT_PROBABILITIES = (0.25, 0.5, 0.75, 1.0)
 
 PARAM_SWEEP_SCHEMA = pa.schema(
