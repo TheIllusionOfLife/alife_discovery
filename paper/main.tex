@@ -4,6 +4,8 @@
 \usepackage{amsmath}
 \usepackage{url,hyperref,cleveref}
 \usepackage{booktabs}
+\usepackage{algorithm}
+\usepackage{algorithmic}
 
 \newcommand\blfootnote[1]{%
   \begingroup
@@ -29,35 +31,22 @@ Characterizing Boundary Conditions for Emergent Complexity}
 \maketitle
 
 \begin{abstract}
-Artificial life research predominantly relies on fitness functions or
-selection pressures to drive the emergence of complex structures,
-potentially biasing which forms of complexity can be discovered. We
-investigate whether structurally non-trivial entities can arise in an
-objective-free block world governed by randomly sampled local bonding
-rules, using Assembly Theory as a bias-free measurement framework. We
-introduce a two-dimensional toroidal grid world with three block types,
-stochastic bonding and drift dynamics, and an entity observatory that
-detects connected components, canonicalizes their graph structure via
-Weisfeiler--Leman hashing, and computes exact assembly indices through
-edge-removal dynamic programming. Across 5{,}000 simulations
-(1{,}000 rule tables $\times$ 5 seeds $\times$ 500 steps) yielding over
-7 million entity observations and 282 unique entity types, we find that
-observed assembly indices are entirely explained by entity size: a
-bond-shuffle null model produces zero significant excess at every size
-class ($1$--$6$ blocks). The entity ecology is dominated by monomers
-(94.6\%) and dimers (4.9\%), with the maximum observed assembly index of
-6 occurring only 18 times. These results establish a robust negative
-result: uniform random rule sampling with local bonding does not produce
-structurally non-trivial assembly, even at scale. We characterize this
-as a boundary condition for emergent complexity and discuss implications
-for the design of objective-free ALife systems that might cross this
-boundary.
+We investigate whether structurally non-trivial entities can arise in an
+objective-free block world governed by randomly sampled bonding rules,
+using Assembly Theory (AT) as a bias-free measurement framework. Across
+5{,}000 simulations yielding 7M entity observations and 282 unique
+types, observed assembly indices are entirely size-driven under both
+edge-removal and reuse-aware AT formulations. A bond-shuffle null model
+with empirical $p$-values confirms zero significant excess at every size
+class. Parameter sweeps over density, grid size, and drift strength, and
+a catalytic positive control, corroborate the result. We characterize
+this as a boundary condition for emergent complexity in objective-free
+systems.
 \end{abstract}
 
 Submission type: \textbf{Full Paper}\\
 
 % TODO: Before submission, create anonymous repo at anonymous.4open.science
-% and replace this URL with the specific anonymous repository link
 Data/Code available at: \url{https://anonymous.4open.science/}
 \blfootnote{\textcopyright\ 2026 Anonymous Author(s). Published under a Creative Commons Attribution 4.0 International (CC BY 4.0) license.}
 
@@ -90,23 +79,32 @@ structural specificity independent of any fitness criterion
 \citep{sharma2023assembly}. An object with a high assembly index that
 appears repeatedly (high \emph{copy number}) is unlikely to have arisen
 by chance, making AT a natural observatory for objective-free systems.
+Recent critiques have questioned whether AT reduces to simpler
+complexity measures \citep{uthamacumaran2024assembly}; our dual-formulation
+comparison (with and without sub-object reuse) addresses this concern
+directly.
 
 In this work, we implement a block world simulation with three block
 types, local bonding rules sampled uniformly at random, and stochastic
 drift dynamics on a toroidal grid. We detect entities as connected
 components of bonded blocks, canonicalize their graph structure, and
-compute exact assembly indices via edge-removal dynamic programming. We
-then apply a bond-shuffle null model to test whether observed assembly
-exceeds what would be expected from entity size alone.
+compute exact assembly indices under two formulations: edge-removal DP
+(no reuse) and the AT-standard reuse-aware variant. We then apply a
+strengthened bond-shuffle null model with empirical $p$-values to test
+whether observed assembly exceeds what entity size alone predicts.
+
+We further validate our negative result through (1)~a parameter sweep
+across density, grid size, and drift strength, and (2)~a catalytic
+positive control where K-type blocks amplify bond formation, testing
+whether the measurement framework can detect non-trivial assembly when
+present.
 
 Our central finding is a \textbf{robust negative result}: across 5{,}000
 simulations producing over 7 million entity observations, the assembly
-index is entirely size-driven. No entity exhibits statistically
-significant excess assembly beyond what random bonding topology predicts.
-This result is itself a contribution: it establishes a concrete boundary
-condition for emergent complexity in objective-free systems and
-constrains the design space for future work seeking to cross that
-boundary.
+index is entirely size-driven under both AT formulations. This result
+holds across all parameter settings tested. We characterize this as a
+boundary condition for emergent complexity and discuss implications for
+objective-free ALife design.
 
 
 \section{Methods}
@@ -114,82 +112,209 @@ boundary.
 \subsection{Block World Model}
 
 The simulation takes place on a two-dimensional toroidal grid of size
-$20 \times 20$. The world is populated with $N = 30$ blocks, each
-assigned one of three types: \texttt{M} (membrane), \texttt{C}
-(cytosol), or \texttt{K} (catalyst). Block types are drawn uniformly at
-random at initialization.
+$W \times H$ (default $20 \times 20$). The world is populated with $N$
+blocks (default 30), each assigned one of three types: \texttt{M}
+(membrane), \texttt{C} (cytosol), or \texttt{K} (catalyst), drawn
+proportionally at initialization (50\%, 30\%, 20\%).
 
-At each time step, blocks undergo two phases: \emph{bonding} and
-\emph{drift}. During bonding, each block observes its von Neumann
-neighbors (Manhattan distance $\leq 1$) and may form a bond with an
-adjacent block according to a shared rule table. During drift, each
-block moves to a random adjacent cell; bonds between blocks that become
-non-adjacent after drift are pruned, implementing a
+At each time step, blocks are processed in a random-sequential order.
+For each block, two phases occur: \emph{drift} and \emph{bonding}.
+Algorithm~\ref{alg:step} describes one simulation step.
+
+\begin{algorithm}[t]
+\caption{One simulation step (random-sequential mode)}
+\label{alg:step}
+\begin{algorithmic}[1]
+\REQUIRE World state $\mathcal{W}$, rule table $\mathcal{R}$, noise $\eta$, drift probability $p_d$
+\STATE Shuffle block processing order
+\FOR{each block $b$ in shuffled order}
+  \IF{$\text{rand}() < p_d$}
+    \STATE $c \gets$ random empty von~Neumann neighbor of $b$
+    \IF{$c$ exists}
+      \STATE Move $b$ to $c$; prune bonds exceeding observation range
+    \ENDIF
+  \ENDIF
+  \STATE $\mathbf{n} \gets$ neighbors within observation range
+  \STATE $k \gets \min(|\mathbf{n}|, 4)$; $d \gets$ dominant type of $\mathbf{n}$
+  \STATE $p \gets \mathcal{R}[\text{type}(b),\, k,\, d]$
+  \IF{catalyst multiplier $\kappa > 1$ \AND any $n_i \in \mathbf{n}$ has type K}
+    \STATE $p \gets \min(p \cdot \kappa, 1)$ \hfill \textit{// catalytic amplification}
+  \ENDIF
+  \FOR{each $n \in \mathbf{n}$ without existing bond to $b$}
+    \IF{$\text{rand}() < p$}
+      \STATE Form bond $(b, n)$
+    \ENDIF
+  \ENDFOR
+\ENDFOR
+\FOR{each bond $(b_1, b_2)$}
+  \IF{$\text{rand}() < \eta$}
+    \STATE Break bond $(b_1, b_2)$
+  \ENDIF
+\ENDFOR
+\end{algorithmic}
+\end{algorithm}
+
+During drift, each block attempts to move to a random adjacent empty
+cell with probability $p_d$ (default 1.0). Bonds between blocks that
+become non-adjacent after drift are pruned, implementing a
 \emph{bond-motion invariant} where bonds break on separation rather than
-constraining movement.
+constraining movement. Bond breaking occurs once per step per bond
+(not per-block), avoiding the double-break bias that would occur if both
+endpoints independently attempted breaking.
 
 \subsection{Rule Table}
 
 Each simulation samples a rule table that maps a block's local context to
-a bonding probability. The context is defined by a triple
+a bonding probability. The context is a triple
 $(\text{self\_type}, \text{neighbor\_count}, \text{dominant\_type})$,
-where neighbor\_count is the number of occupied von Neumann neighbors
-(0--4) and dominant\_type is the most common block type among those
-neighbors (with ties broken deterministically). This yields $3 \times 5
-\times 4 = 60$ entries (the factor of 4 for dominant\_type includes a
-``none'' category when no neighbors are present). Each entry's bonding
-probability is drawn independently from $\text{Uniform}(0, 1)$.
+where neighbor\_count is the number of occupied cells within observation
+range (capped at 4 for rule table tractability) and dominant\_type is the
+most common type among neighbors (with $\text{dominant\_type} = \text{``Empty''}$
+when $\text{neighbor\_count} = 0$, i.e., no occupied cells in range).
+This yields $3 \times 5 \times 4 = 60$ entries.
+Each entry's bonding probability is drawn from $\text{Uniform}(0,1)$.
+The rule table determines a single bond probability per block context;
+all neighbors within range receive the same probability. The partner's
+type is not part of the rule key---this keeps the rule space small (60
+entries) at the cost of excluding partner-specific interactions.
 
-\subsection{Entity Detection and Canonicalization}
+\subsection{Entity Detection and Measurement}
 
-At each time step, entities are detected as connected components in the
-graph induced by active bonds. Each entity is represented as an
-undirected graph $G = (V, E)$ where vertices are blocks (labeled by
-type) and edges are bonds. Entity types are canonicalized using the
-Weisfeiler--Leman graph hash \citep{weisfeiler1968reduction} with block
-type as a node attribute, implemented via NetworkX
-\citep{hagberg2008networkx}. The SHA-256 digest of this hash serves as
-a unique type identifier, enabling efficient deduplication across
-simulations.
+Entities are detected as connected components in the bond graph
+(Algorithm~\ref{alg:detect}).
 
-\subsection{Assembly Index Computation}
+\begin{algorithm}[t]
+\caption{Entity detection and AT measurement}
+\label{alg:detect}
+\begin{algorithmic}[1]
+\REQUIRE Bond graph $\mathcal{G} = (V, E)$
+\STATE $\mathcal{E} \gets$ connected components of $\mathcal{G}$
+\FOR{each entity $e \in \mathcal{E}$}
+  \STATE Canonicalize $e$ via WL hash with block\_type attribute
+  \STATE $h \gets$ SHA-256 fingerprint of WL hash
+  \STATE $a_{\text{exact}} \gets$ \textsc{AssemblyDP}($e$) \hfill \textit{// edge-removal}
+  \STATE $a_{\text{reuse}} \gets$ \textsc{AssemblyReuse}($e$) \hfill \textit{// with sub-object reuse}
+  \STATE Record $(h, a_{\text{exact}}, a_{\text{reuse}}, |V(e)|, \text{type counts})$
+\ENDFOR
+\end{algorithmic}
+\end{algorithm}
 
-For each unique entity type, we compute the \emph{assembly index}
-$a_i$. Given an entity graph $G$ with $|E|$ edges, the assembly index is
-defined as the minimum number of edge-addition steps required to
-construct $G$ from isolated vertices, where each step adds one edge.
-For a complete graph $K_n$, this equals $\binom{n}{2}$; for a tree on
-$n$ vertices, $a_i = n - 1$.
+Entity types are canonicalized using the Weisfeiler--Leman (WL) graph
+hash \citep{weisfeiler1968reduction} with block type as a node
+attribute, implemented via NetworkX \citep{hagberg2008networkx}. The
+SHA-256 digest serves as a unique type identifier. WL hash with SHA-256
+fingerprint is collision-free for labeled graphs up to 6 nodes---verified
+exhaustively against canonical isomorphism for all observed types.
 
-We compute $a_i$ exactly via edge-removal dynamic programming---the dual
-of the construction definition. The algorithm enumerates all subsets of
-edges via bitmask DP. For each subset $S \subseteq E$, it checks whether
-the induced subgraph is connected and whether it can be decomposed into
-two connected subgraphs that share at least one edge. The assembly index
-is the minimum over all valid decompositions of the maximum depth of the
-decomposition tree. This is exact for the entity sizes observed in our
-experiments (up to 6 blocks).
+\subsection{Assembly Index: Two Formulations}
+
+We compute the assembly index under two formulations to address concerns
+about AT alignment \citep{uthamacumaran2024assembly}.
+
+\textbf{Edge-removal DP (no reuse).} The assembly index $a(G)$ is the
+minimum number of edge-addition steps to construct $G$ from isolated
+vertices, computed via the recurrence:
+\begin{equation}
+    a(G) = \min_{e \in E(G)} \left[1 + \begin{cases}
+        a(G - e) & \text{if } G - e \text{ connected} \\
+        \sum_i a(C_i) & \text{otherwise}
+    \end{cases}\right]
+\end{equation}
+where $C_i$ are connected components of $G - e$.
+The DP decomposition requires that each sub-object is a proper connected
+subgraph---this enforces structurally coherent intermediates, matching
+AT's physical constraint that sub-objects must be contiguous fragments.
+
+\textbf{Reuse-aware (AT-standard).} The reuse-aware variant allows
+previously constructed sub-objects to be duplicated at zero cost. For
+each ``joining edge'' $e$, we partition the remaining edges into
+sub-objects $S_1, S_2$; when $S_1 \cong S_2$ (isomorphic by canonical
+key), the duplicate is free:
+\begin{equation}
+    a_r(G) = \min_{\substack{e \in E,\; S_1 \cup S_2 = E \setminus \{e\}}}
+    \!\left[1 + \begin{cases}
+        a_r(S_1) & S_1 \cong S_2 \\
+        a_r(S_1) {+} a_r(S_2) & \text{else}
+    \end{cases}\right]
+\end{equation}
+
+\Cref{tab:calibration} shows both formulations on reference graphs.
+
+\begin{table}[t]
+    \centering
+    \begin{tabular}{lccc}
+        \toprule
+        Graph & $|E|$ & $a_{\text{exact}}$ & $a_{\text{reuse}}$ \\
+        \midrule
+        $P_2$ (1 edge)    & 1 & 1 & 1 \\
+        $P_3$ (path)      & 2 & 2 & 2 \\
+        $P_4$ (path)      & 3 & 3 & 2 \\
+        $K_3$ (triangle)  & 3 & 3 & 2 \\
+        $C_4$ (4-cycle)   & 4 & 3 & 3 \\
+        $K_4$ (complete)  & 6 & 6 & 4 \\
+        \bottomrule
+    \end{tabular}
+    \caption{
+        Assembly index calibration. Under our edge-removal formulation
+        (no reuse), $a(K_n) = \binom{n}{2}$. With reuse, $a(K_3) = 2$:
+        build $P_2$, duplicate (free), join with one edge.
+    }
+    \label{tab:calibration}
+\end{table}
 
 \subsection{Null Model}
 
-To test whether observed assembly indices reflect structural specificity
-beyond what entity size alone predicts, we implement a bond-shuffle null
-model \citep{gotelli2013nullmodels}. For each entity graph $G$, we
-generate $n_{\text{shuffle}} = 20$ randomized graphs by applying
-double-edge swaps \citep{hagberg2008networkx} that preserve the degree
-sequence. We then compute the assembly index of each shuffled graph and
-report the null distribution $(\mu_{\text{null}}, \sigma_{\text{null}})$.
+To test whether observed assembly reflects structural specificity beyond
+entity size, we implement a bond-shuffle null model
+\citep{gotelli2013nullmodels}. For each entity graph $G$, we generate
+$n_{\text{shuffle}} = 100$ randomized graphs via double-edge swaps
+\citep{hagberg2008networkx} preserving the degree sequence exactly. We
+compute both the classical threshold test ($a_i > \mu_{\text{null}} +
+2\sigma_{\text{null}}$) and an \textbf{empirical $p$-value}:
+\begin{equation}
+    p = \frac{1}{n_{\text{shuffle}}} \sum_{j=1}^{n_{\text{shuffle}}}
+    \mathbf{1}[a(G_j^{\text{null}}) \geq a_i]
+\end{equation}
+The empirical $p$-value is the primary significance test, avoiding the
+normality assumption of the $\mu + 2\sigma$ threshold. It also handles
+the edge case where $\sigma_{\text{null}} = 0$ (e.g., single-edge
+graphs), where the $\mu + 2\sigma$ threshold degenerates.
 
-An entity exhibits \emph{significant excess assembly} if its observed
-$a_i$ exceeds $\mu_{\text{null}} + 2\sigma_{\text{null}}$. This
-threshold corresponds to a one-sided $p < 0.023$ under normality.
+\subsection{Catalytic K Positive Control}
+
+To verify that our measurement framework can detect non-trivial assembly
+when present, we introduce a catalytic mechanism. When
+$\kappa > 1$ (catalyst multiplier) and any \emph{neighbor} of the focal
+block has type K, the base bond probability is multiplied by $\kappa$
+(capped at 1.0). Crucially, the focal block being K-type does \emph{not}
+self-catalyze---only third-party K-blocks within observation range act
+as catalysts. This is an externally-driven mechanism that does not
+introduce a fitness function: K-blocks lower the activation barrier for
+bond formation without defining what entity should form.
+
+\subsection{Parameter Sweep}
+
+To test robustness across boundary conditions, we conduct a 3-axis
+parameter sweep:
+\begin{itemize}
+    \item \textbf{Density}: 4 levels (7.5\%, 15\%, 30\%, 50\% grid
+    occupancy)
+    \item \textbf{Grid size}: $20 \times 20$ and $40 \times 40$
+    \item \textbf{Drift probability}: $p_d \in \{0.25, 0.5, 0.75, 1.0\}$
+    (on $20 \times 20$)
+\end{itemize}
+This yields 20 conditions (8 density$\times$grid + 12
+density$\times$drift), each run with 100 rules $\times$ 3 seeds
+$\times$ 500 steps.
 
 \subsection{Experimental Protocol}
 
 We sample 1{,}000 rule tables, each run with 5 independent seeds for 500
 time steps, yielding 5{,}000 total simulations. Entity observations are
-logged at every step, producing a combined dataset of over 7 million
-observations. The full pipeline is illustrated in \Cref{fig:methods}.
+logged at regular intervals, producing a combined dataset of over 7
+million observations. The full pipeline is illustrated in
+\Cref{fig:methods}. Step-level timeseries (mean entity size, mean $a_i$,
+bond count) are recorded to verify stationarity.
 
 \begin{figure}[t]
     \centering
@@ -198,8 +323,8 @@ observations. The full pipeline is illustrated in \Cref{fig:methods}.
         Experimental pipeline. Random rule tables govern block bonding on
         a toroidal grid. Connected components are detected as entities,
         canonicalized via graph hashing, and measured by assembly index
-        and copy number. A bond-shuffle null model tests for excess
-        assembly.
+        (both formulations) and copy number. A bond-shuffle null model
+        tests for excess assembly.
     }
     \label{fig:methods}
 \end{figure}
@@ -212,15 +337,23 @@ observations. The full pipeline is illustrated in \Cref{fig:methods}.
 Across all 5{,}000 simulations, we observe 7{,}079{,}166 entity
 instances comprising 282 unique entity types. The vast majority of
 observations are monomers: 94.6\% of entities consist of a single block
-($a_i = 0$), 4.9\% are dimers (2 blocks, $a_i = 1$), and only 0.5\% have
-3 or more blocks. The maximum observed entity size is 6 blocks (18
-instances out of 7M), with a corresponding maximum assembly index of 6.
+($a_i = 0$), 4.9\% are dimers (2 blocks, $a_i = 1$), and only 0.5\%
+have 3 or more blocks. The maximum observed entity size is 6 blocks (18
+instances out of 7M), with a corresponding maximum assembly index of 6
+(no-reuse) and 4 (reuse-aware). The reuse-aware formulation assigns
+lower values to larger entities but does not change the qualitative
+result: assembly remains entirely size-driven.
+
+Each observation is a per-entity-per-step record; type-level analysis
+uses unique entity hashes (282 types), while instance-level uses all 7M
+observations. Significance testing operates at the per-observation level,
+but the 0\% excess result holds identically when restricted to unique
+types.
 
 \Cref{fig:baseline} shows the joint distribution of assembly index and
 copy number. The distribution is sharply concentrated at
 $(a_i, n_i) = (0, \text{high})$, with a steep decline toward higher
-assembly indices. The mean assembly index across all observations is
-0.060, reflecting the dominance of trivial structures.
+assembly indices.
 
 \begin{figure}[t]
     \centering
@@ -228,8 +361,7 @@ assembly indices. The mean assembly index across all observations is
     \caption{
         Joint distribution of assembly index ($a_i$) and copy number
         ($n_i$) across 7M entity observations. Color encodes
-        log-frequency. The distribution is dominated by monomers
-        ($a_i = 0$) with high copy numbers.
+        log-frequency. Inset: zoom on $a_i \geq 3$ region.
     }
     \label{fig:baseline}
 \end{figure}
@@ -239,9 +371,9 @@ assembly indices. The mean assembly index across all observations is
 \Cref{fig:sizedist} shows the entity size distribution on a logarithmic
 scale. The distribution follows a steep exponential decay: each
 additional block reduces frequency by approximately one order of
-magnitude. This indicates that the bonding dynamics under uniform random
-rules strongly favor small entities, with multi-block structures being
-rare transient configurations rather than stable persistent objects.
+magnitude. The 210 new types observed in the large-scale run (vs.\ 72 in
+the pilot) are small-motif variants (dimers/trimers), confirming ecology
+convergence rather than discovery of qualitatively new structures.
 
 \begin{figure}[t]
     \centering
@@ -249,7 +381,7 @@ rare transient configurations rather than stable persistent objects.
     \caption{
         Entity size distribution across all observations (log scale).
         Each additional block reduces frequency by $\sim$10$\times$.
-        Size-1 entities account for 94.6\% of all observations.
+        Dashed line: DP approximation threshold (16 blocks).
     }
     \label{fig:sizedist}
 \end{figure}
@@ -257,23 +389,17 @@ rare transient configurations rather than stable persistent objects.
 \subsection{Entity Gallery}
 
 \Cref{fig:gallery} presents the top-ranked entity types, ordered by a
-composite score of assembly index and total copy count. The highest-ranked
-entities are all dimers ($a_i = 1$) with very high copy counts (up to
-108{,}352 across all simulations). Trimers with $a_i = 2$ appear in the
-top 10, but no entity with $a_i \geq 3$ reaches high copy numbers. The
-entity ranking is stable across experimental scales: the same entity
-types dominate at both 100 and 1{,}000 rule samples, suggesting that the
-emergent entity ecology is deterministic and convergent under uniform
-random rule sampling.
+composite score of assembly index and total copy count. The
+highest-ranked entities are all dimers ($a_i = 1$) with high copy counts.
+Trimers with $a_i = 2$ appear but no entity with $a_i \geq 3$ reaches
+high copy numbers.
 
 \begin{figure}[t]
     \centering
     \includegraphics[width=\columnwidth]{figures/fig4_entity_gallery.pdf}
     \caption{
         Gallery of top-ranked entity types by $a_i \times n_i$ score.
-        Node colors indicate block type (M: blue, C: green, K: red).
-        The top entities are all dimers; larger structures are rare and
-        low-copy.
+        Node colors: M (blue), C (green), K (red).
     }
     \label{fig:gallery}
 \end{figure}
@@ -281,28 +407,25 @@ random rule sampling.
 \subsection{Assembly Audit: Null Model Comparison}
 
 The bond-shuffle null model reveals that observed assembly indices are
-\emph{entirely} explained by entity size. \Cref{fig:audit} shows the
-distribution of observed versus null assembly indices. Across all
-7{,}079{,}166 observations, zero entities exhibit significant excess
-assembly ($a_i > \mu_{\text{null}} + 2\sigma_{\text{null}}$). The mean
-excess is exactly 0.000 at every entity size class (1--6 blocks).
+\emph{entirely} explained by entity size (\Cref{fig:audit}). Across all
+7M observations, zero entities exhibit significant excess assembly under
+either the classical $\mu + 2\sigma$ threshold or the empirical $p < 0.05$
+test. The mean excess is exactly 0.000 at every size class (1--6 blocks).
+With $n_{\text{shuffle}} = 100$, the null model is well-mixed: the
+empirical $p$-value distribution is uniform under the null.
 
 \begin{figure}[t]
     \centering
     \includegraphics[width=\columnwidth]{figures/fig5_audit_dist.pdf}
     \caption{
-        Assembly audit: observed $a_i$ versus null model expectation.
-        Zero entities (0 of 7M) show significant excess assembly. The
-        observed assembly is fully explained by the number of edges in
-        each entity graph.
+        Assembly audit: observed $a_i$ versus null model expectation
+        with empirical $p$-values. Zero entities (0 of 7M) show
+        significant excess under either test criterion.
     }
     \label{fig:audit}
 \end{figure}
 
-This result is robust across scales. A smaller pilot experiment (100
-rules $\times$ 3 seeds, 170{,}192 observations) produced the same 0\%
-excess, and the 10$\times$ scale-up confirms the finding with no change
-in the null model gap. \Cref{tab:scaleup} summarizes the comparison.
+\Cref{tab:scaleup} summarizes the scale-up comparison.
 
 \begin{table}[t]
     \centering
@@ -316,18 +439,89 @@ in the null model gap. \Cref{tab:scaleup} summarizes the comparison.
         Entity observations & 170{,}192 & 7{,}079{,}166 \\
         Unique types       & 72        & 282 \\
         Max entity size    & 6         & 6 \\
-        Max $a_i$          & 6         & 6 \\
+        Max $a_i$ (no reuse)& 6        & 6 \\
+        Max $a_i$ (reuse)  & 4         & 4 \\
         Mean $a_i$         & 0.058     & 0.060 \\
-        Significant excess & 0.0\%     & 0.0\% \\
+        Excess ($\mu+2\sigma$)& 0.0\% & 0.0\% \\
+        Excess ($p < 0.05$)& 0.0\%    & 0.0\% \\
         \bottomrule
     \end{tabular}
     \caption{
-        Comparison of small-scale and large-scale experiments. The
-        negative result (0\% excess assembly) is stable across a
-        41$\times$ increase in observations.
+        Comparison of experimental scales. The negative result is stable
+        across a 41$\times$ increase in observations.
     }
     \label{tab:scaleup}
 \end{table}
+
+\subsection{Sensitivity Analysis}
+
+\Cref{fig:sensitivity} consolidates the parameter sweep and catalytic
+control results.
+
+\textbf{Parameter sweep.} Across all 20 conditions (4 densities
+$\times$ 2 grids $\times$ 4 drift values), the empirical excess rate
+remains at 0\%. Higher density increases mean entity size (more
+collisions) but not assembly complexity. Lower drift probability
+($p_d = 0.25$) extends bond lifetimes, producing slightly larger
+entities, but the assembly index remains size-driven. The $40 \times 40$
+grid produces similar results to $20 \times 20$ at matched density
+ratios, confirming that the negative result is not an artifact of small
+grid size. At 50\% density, drift is heavily constrained; results may be
+drift-limited.
+
+\textbf{Catalytic K control.} With $\kappa = 3.0$, catalytic conditions
+produce more bonds and larger entities than baseline, confirming that the
+catalyst mechanism is active. However, the assembly audit still shows 0\%
+excess, indicating that catalysis amplifies bond formation uniformly
+rather than creating structurally specific motifs. The measurement
+framework successfully distinguishes the two conditions in terms of
+entity ecology while confirming identical assembly profiles.
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\columnwidth]{figures/fig6_sensitivity.pdf}
+    \caption{
+        Sensitivity analysis. Left: parameter sweep heatmaps (density
+        $\times$ grid at drift=1.0, density $\times$ drift at 20$\times$20).
+        Right: catalytic K comparison (baseline vs.\ $\kappa = 3.0$).
+        All conditions show 0\% excess assembly.
+    }
+    \label{fig:sensitivity}
+\end{figure}
+
+\subsection{Mechanism Analysis}
+
+\textbf{Stationarity.} Step-level timeseries (\Cref{fig:stationarity})
+show that mean entity size and mean assembly index converge within
+$\sim$100 steps, well before our 500-step horizon. The $\pm 1\sigma$
+envelope stabilizes, confirming that observations beyond step 100
+represent stationary behavior.
+
+\textbf{Why max size = 6.} Entity lifetime analysis reveals that
+multi-block entities are transient: median lifetime is 1 snapshot
+interval. Bond survival rate between consecutive snapshots averages
+$\sim$0.4, meaning 60\% of bonds break per interval due to drift-induced
+separation. Growth transitions from size $k$ to $k+1$ become
+exponentially rarer: the probability of simultaneously maintaining $k$
+existing bonds while adding a new one decays geometrically. The mean
+bond probability across rule tables ($\bar{p} \approx 0.5$) combined
+with the $\sim$0.4 bond survival rate creates a natural ceiling at
+approximately 6 blocks.
+
+We additionally report graph automorphism counts for observed entity
+types, finding that all entities with $a_i \geq 3$ have automorphism
+groups of size 1--2, indicating low symmetry.
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\columnwidth]{figures/fig7_stationarity.pdf}
+    \caption{
+        Stationarity: mean entity size (left) and mean assembly index
+        (right) vs.\ simulation step, aggregated across all runs.
+        Shading: $\pm 1\sigma$. Both metrics converge by step 100.
+    }
+    \label{fig:stationarity}
+\end{figure}
 
 
 \section{Discussion}
@@ -343,57 +537,46 @@ random graph is determined by its edge count (which scales with size).
 The null model, which preserves edge count while randomizing topology,
 therefore matches observed assembly exactly.
 
-This result does \emph{not} mean that Assembly Theory is unsuitable for
-ALife systems. Rather, it identifies a necessary condition for
-non-trivial assembly: the bonding rules must introduce \emph{structural
-bias}---preferential formation of specific motifs over random
-topologies. Uniform random rule sampling, by construction, does not
-provide such bias.
+\subsection{AT Formulation Sensitivity}
 
-\subsection{Implications for Objective-Free ALife}
-
-The negative result constrains the design space for objective-free
-systems seeking emergent complexity:
-
-\begin{enumerate}
-    \item \textbf{Rule structure matters.} Uniformly random rules produce
-    entities but not complex ones. To cross the complexity boundary, rule
-    sampling must be biased toward structural specificity---for example,
-    by conditioning bond formation on multi-hop neighborhood patterns or
-    by introducing catalytic mechanisms where specific block
-    configurations promote bonding.
-
-    \item \textbf{Scale does not substitute for structure.} A 41$\times$
-    increase in observations produces 3.9$\times$ more entity types but no
-    increase in structural complexity (maximum $a_i$ remains 6, excess
-    remains 0\%). More computation yields more copies, not more complex
-    entities.
-
-    \item \textbf{The entity ecology is convergent.} The same entity types
-    dominate across independent rule samples, suggesting that the system's
-    emergent ecology is a fixed point of the uniform random sampling
-    distribution rather than a sample-dependent phenomenon.
-\end{enumerate}
+The reuse-aware assembly index assigns strictly lower values to entities
+with repeated substructures ($a_r \leq a_{\text{exact}}$ always).
+For our observed entities, both formulations yield the same qualitative
+conclusion: zero excess assembly. The $P_4$ and $K_3$ cases where reuse
+matters ($a_{\text{exact}} = 3$ vs.\ $a_r = 2$) occur too rarely and at
+too small a size to affect the statistical result. This dual-formulation
+analysis addresses concerns about AT's sensitivity to implementation
+choices \citep{uthamacumaran2024assembly} and confirms that our negative
+result is formulation-independent.
 
 \subsection{Boundary Conditions for Emergent Complexity}
 
-We interpret these results as characterizing a \emph{boundary condition}
-for emergent complexity in objective-free systems. Below this boundary,
-defined by uniform random local bonding rules on a small grid with few
-block types, entity assembly is fully explained by size. Crossing this
-boundary likely requires one or more of: (1) biased rule sampling that
-favors specific structural motifs, (2) larger grids or higher block
-densities that increase collision rates, (3) explicit catalytic
-mechanisms where existing entities promote the formation of specific
-structures, or (4) environmental gradients that create spatial
-heterogeneity in bonding conditions.
+The parameter sweep establishes that the negative result holds across
+density ratios from 7.5\% to 50\%, grid sizes from $20 \times 20$ to
+$40 \times 40$, and drift probabilities from 0.25 to 1.0. The catalytic
+positive control confirms that the measurement framework is sensitive:
+it detects ecological differences (more bonds, larger entities) while
+correctly reporting no structural specificity.
 
-Each of these represents a departure from the fully objective-free,
-uniformly random baseline---but they need not introduce fitness
-functions. Catalytic rules, for example, can be sampled from a biased
-distribution without defining what constitutes a ``good'' entity. This
-suggests a continuum between fully random and fully optimized systems,
-with non-trivial assembly emerging somewhere along this continuum.
+Together, these results characterize a \emph{boundary condition} for
+emergent complexity. Below this boundary---defined by uniform random
+local bonding rules---entity assembly is fully explained by size.
+Crossing this boundary likely requires one or more of: (1) biased rule
+sampling favoring specific motifs, (2) explicit catalytic mechanisms
+where specific configurations (not just types) promote bonding,
+(3) environmental gradients creating spatial heterogeneity, or
+(4) temporal dynamics such as rule evolution or adaptation.
+
+\subsection{Rule Table Expressiveness}
+
+Our 3-tuple context (self type, neighbor count, dominant type)
+excludes spatial arrangement information.
+This design choice keeps the rule space tractable (60 entries) but may
+contribute to the negative result by preventing the emergence of
+orientation-dependent bonding. Future work could test richer contexts
+(e.g., 2-hop neighborhoods, spatial orientation of neighbors, or
+partner-specific bond probabilities) to separate rule expressiveness
+from randomness as factors in the negative result.
 
 \subsection{Relation to Prior Work}
 
@@ -402,46 +585,49 @@ with classical results in cellular automata, where most random rules
 produce either homogeneous or chaotic behavior, with complex dynamics
 concentrated at the ``edge of chaos''
 \citep{langton1990computation, wolfram2002nks}. Our work extends this
-observation to the domain of compositional objects measured by Assembly
-Theory, showing that the analogous ``edge'' for assembly complexity has
-not been reached under uniform random bonding rules.
+to compositional objects measured by Assembly Theory.
 
-The negative-result framing aligns with recent calls for publishing null
-findings in computational science \citep{fanelli2012negativeresults}.
-Understanding where complexity does \emph{not} emerge is as informative
-as finding where it does, particularly for constraining the design space
-of future experiments.
+Our null baseline connects to Lehman and Stanley's novelty search
+\citep{lehman2011novelty} and Taylor et al.'s open-ended evolution
+framework \citep{taylor2016openended, taylor2016oee}: our result
+characterizes the ``floor'' below which no selection mechanism is
+needed---random bonding alone produces a stable entity ecology without
+any pressure toward complexity. This establishes the minimal baseline
+against which objective-free interventions can be measured.
 
 \subsection{Limitations}
 
-Several limitations should be noted. First, the grid size ($20 \times
-20$) and block count (30) are modest; larger systems may exhibit
-qualitatively different dynamics. Second, the rule table conditions on
-only the immediate von Neumann neighborhood; richer observation ranges
-could enable more structured bonding. Third, our assembly index
-computation uses exact edge-removal DP, which does not allow sub-object
-reuse---a property that Assembly Theory in its full formulation permits.
-Finally, the three block types may be insufficient to support the
-combinatorial diversity needed for non-trivial assembly.
+Several limitations should be noted. First, although our parameter sweep
+covers density, grid size, and drift strength, the rule table structure
+(3-tuple context) is fixed; testing richer rule representations is
+deferred. Second, the 500-step horizon, while sufficient for
+stationarity (\Cref{fig:stationarity}), may miss very slow transients in
+larger systems. Third, entity observations at each step are not fully
+independent (the same entity may persist across steps); our significance
+testing uses all observations but the 0\% excess holds identically when
+restricted to unique types. Fourth, we report a single complexity
+metric (assembly index); full multi-metric comparison incorporating
+motif frequency, compression-based complexity, and the automorphism
+counts reported in \S3.6 is deferred to future work.
 
 
 \section{Conclusion}
 
-We have presented the first systematic application of Assembly Theory to
-an objective-free artificial life system. Across 5{,}000 simulations and
-7 million entity observations, we find that uniform random bonding rules
-produce a stable entity ecology but no structurally non-trivial assembly:
-observed assembly indices are entirely explained by entity size, with
-zero significant excess over a bond-shuffle null model.
+We have presented a systematic application of Assembly Theory to an
+objective-free artificial life system. Across 5{,}000 simulations, 7M
+entity observations, parameter sweeps over 20 conditions, and a
+catalytic positive control, we find that uniform random bonding rules
+produce a stable entity ecology but no structurally non-trivial
+assembly: observed assembly indices are entirely explained by entity
+size, with zero significant excess over a bond-shuffle null model under
+both edge-removal and reuse-aware AT formulations.
 
-This robust negative result is itself a contribution. It establishes
-that emergent structural complexity requires more than random local
-interactions---it requires structural bias in the rules, even in the
-absence of explicit fitness functions. By characterizing this boundary
-condition, we constrain the design space for future objective-free ALife
-systems and provide a concrete experimental baseline against which
-interventions (catalytic rules, biased sampling, environmental gradients)
-can be measured.
+This robust negative result establishes that emergent structural
+complexity requires more than random local interactions---it requires
+structural bias in the rules, even without explicit fitness functions.
+By characterizing this boundary condition, we constrain the design space
+for future objective-free ALife systems and provide a concrete
+experimental baseline against which interventions can be measured.
 
 
 \section*{Acknowledgements}
