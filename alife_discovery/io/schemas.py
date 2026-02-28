@@ -190,6 +190,7 @@ ENTITY_LOG_SCHEMA_WITH_NULL = pa.schema(
     + [
         ("assembly_index_null_mean", pa.float64()),
         ("assembly_index_null_std", pa.float64()),
+        ("assembly_index_null_pvalue", pa.float64()),
     ]
 )
 

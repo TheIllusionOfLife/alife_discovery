@@ -346,6 +346,116 @@ class TestAssemblyIndexReuse:
         assert "assembly_index_reuse" not in records[0]
 
 
+class TestAssemblyIndexNullImproved:
+    """Tests for return_samples, empirical p-values, and std=0 guard."""
+
+    def test_return_samples_gives_3_tuple(self) -> None:
+        g = make_graph(
+            [(0, "M"), (1, "C"), (2, "K"), (3, "M"), (4, "C")],
+            [(0, 1), (1, 2), (2, 3), (3, 4), (0, 3)],
+        )
+        result = assembly_index_null(g, n_shuffles=10, return_samples=True)
+        assert len(result) == 3
+        mean, std, samples = result
+        assert isinstance(mean, float)
+        assert isinstance(std, float)
+        assert isinstance(samples, np.ndarray)
+
+    def test_samples_array_length_matches_n_shuffles(self) -> None:
+        g = make_graph(
+            [(0, "M"), (1, "C"), (2, "K"), (3, "M"), (4, "C")],
+            [(0, 1), (1, 2), (2, 3), (3, 4), (0, 3)],
+        )
+        _, _, samples = assembly_index_null(g, n_shuffles=7, return_samples=True)
+        assert len(samples) == 7
+
+    def test_backward_compat_2_tuple_default(self) -> None:
+        g = make_graph(
+            [(0, "M"), (1, "C"), (2, "K"), (3, "M"), (4, "C")],
+            [(0, 1), (1, 2), (2, 3), (3, 4), (0, 3)],
+        )
+        result = assembly_index_null(g, n_shuffles=5)
+        assert len(result) == 2
+
+    def test_empirical_pvalue_in_zero_one_range(self) -> None:
+        g = make_graph(
+            [(0, "M"), (1, "C"), (2, "K"), (3, "M"), (4, "C")],
+            [(0, 1), (1, 2), (2, 3), (3, 4), (0, 3)],
+        )
+        _, _, samples = assembly_index_null(g, n_shuffles=20, return_samples=True)
+        a_idx = assembly_index_exact(g)
+        pvalue = float((samples >= a_idx).mean())
+        assert 0.0 <= pvalue <= 1.0
+
+    def test_std_zero_does_not_crash(self) -> None:
+        """Single-edge graph → std=0, should not crash."""
+        g = make_graph([(0, "M"), (1, "C")], [(0, 1)])
+        mean, std = assembly_index_null(g, n_shuffles=5)
+        assert std == 0.0
+        # With return_samples
+        mean2, std2, samples = assembly_index_null(g, n_shuffles=5, return_samples=True)
+        assert std2 == 0.0
+        assert len(samples) == 1  # degenerate: single sample = observed
+
+    def test_compute_entity_metrics_pvalue_column_present(self) -> None:
+        """pvalue column present when n_null_shuffles > 0."""
+        from unittest.mock import MagicMock, patch
+
+        from alife_discovery.domain.entity import Entity
+
+        g = make_graph([(0, "M"), (1, "C"), (2, "K")], [(0, 1), (1, 2)])
+        fake_entity = MagicMock(spec=Entity)
+
+        with (
+            patch("alife_discovery.domain.entity.canonicalize_entity", return_value=g),
+            patch("alife_discovery.domain.entity.entity_graph_hash", return_value="fakeP"),
+        ):
+            records = compute_entity_metrics(
+                [fake_entity], step=0, run_id="test_run", n_null_shuffles=5
+            )
+
+        assert len(records) == 1
+        assert "assembly_index_null_pvalue" in records[0]
+        pv = records[0]["assembly_index_null_pvalue"]
+        assert 0.0 <= pv <= 1.0
+
+    def test_pvalue_column_absent_when_no_null(self) -> None:
+        from unittest.mock import MagicMock, patch
+
+        from alife_discovery.domain.entity import Entity
+
+        g = make_graph([(0, "M"), (1, "C")], [(0, 1)])
+        fake_entity = MagicMock(spec=Entity)
+
+        with (
+            patch("alife_discovery.domain.entity.canonicalize_entity", return_value=g),
+            patch("alife_discovery.domain.entity.entity_graph_hash", return_value="fakeP2"),
+        ):
+            records = compute_entity_metrics([fake_entity], step=0, run_id="test_run")
+
+        assert "assembly_index_null_pvalue" not in records[0]
+
+    def test_pvalue_for_single_node_entity(self) -> None:
+        """Edge case: a_i=0, null=0, p=1.0."""
+        from unittest.mock import MagicMock, patch
+
+        from alife_discovery.domain.entity import Entity
+
+        g = nx.Graph()
+        g.add_node(0, block_type="M")
+        fake_entity = MagicMock(spec=Entity)
+
+        with (
+            patch("alife_discovery.domain.entity.canonicalize_entity", return_value=g),
+            patch("alife_discovery.domain.entity.entity_graph_hash", return_value="fakeSN"),
+        ):
+            records = compute_entity_metrics(
+                [fake_entity], step=0, run_id="test_run", n_null_shuffles=5
+            )
+
+        assert records[0]["assembly_index_null_pvalue"] == 1.0
+
+
 class TestBlockWorldSearchNullSchema:
     """Integration tests for parquet schema selection with null mode."""
 

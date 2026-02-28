@@ -47,7 +47,7 @@ FORMAL ASSEMBLY GRAMMAR SPEC
 from __future__ import annotations
 
 import hashlib
-from typing import Any
+from typing import Any, Literal, overload
 
 import networkx as nx
 import numpy as np
@@ -216,36 +216,64 @@ def assembly_index_approx(graph: nx.Graph) -> int:
     return graph.number_of_edges()
 
 
+@overload
+def assembly_index_null(
+    graph: nx.Graph,
+    n_shuffles: int = ...,
+    rng_seed: int = ...,
+    *,
+    return_samples: Literal[False] = ...,
+) -> tuple[float, float]: ...
+
+
+@overload
+def assembly_index_null(
+    graph: nx.Graph,
+    n_shuffles: int = ...,
+    rng_seed: int = ...,
+    *,
+    return_samples: Literal[True],
+) -> tuple[float, float, np.ndarray]: ...
+
+
 def assembly_index_null(
     graph: nx.Graph,
     n_shuffles: int = 20,
     rng_seed: int = 0,
-) -> tuple[float, float]:
+    *,
+    return_samples: bool = False,
+) -> tuple[float, float] | tuple[float, float, np.ndarray]:
     """Return (mean, std) of assembly index over degree-preserving bond shuffles.
 
     Uses nx.double_edge_swap() (edge-switching Markov chain) to preserve the
     degree sequence exactly. Degenerate cases:
-    - 0 or 1 nodes: returns (0.0, 0.0)
-    - 0 or 1 edges: shuffle is identity → returns (observed_a_i, 0.0)
+    - 0 or 1 nodes: returns (0.0, 0.0[, array])
+    - 0 or 1 edges: shuffle is identity → returns (observed_a_i, 0.0[, array])
 
     Args:
         graph: The entity graph (node attr ``block_type`` required).
         n_shuffles: Number of independent shuffle trials.
-        rng_seed: Seed for reproducibility (passed to random.Random for
-            nx.double_edge_swap's internal RNG via numpy seed).
+        rng_seed: Seed for reproducibility.
+        return_samples: When True, return a 3-tuple ``(mean, std, samples_array)``
+            where ``samples_array`` is the raw per-shuffle assembly index values.
 
     Returns:
-        (mean_a_i, std_a_i) across shuffled graphs.
+        ``(mean_a_i, std_a_i)`` or ``(mean_a_i, std_a_i, samples_array)``
+        across shuffled graphs.
     """
     if n_shuffles < 1:
         raise ValueError("n_shuffles must be >= 1")
 
     if graph.number_of_nodes() <= 1:
+        if return_samples:
+            return (0.0, 0.0, np.zeros(1, dtype=float))
         return (0.0, 0.0)
 
     n_edges = graph.number_of_edges()
     if n_edges < 2:
         observed = float(assembly_index_exact(graph))
+        if return_samples:
+            return (observed, 0.0, np.full(1, observed, dtype=float))
         return (observed, 0.0)
 
     nswap = max(4, n_edges)
@@ -262,6 +290,8 @@ def assembly_index_null(
         results.append(assembly_index_exact(g_copy))
 
     arr = np.array(results, dtype=float)
+    if return_samples:
+        return (float(arr.mean()), float(arr.std()), arr)
     return (float(arr.mean()), float(arr.std()))
 
 
@@ -323,13 +353,15 @@ def compute_entity_metrics(
             record["assembly_index_reuse"] = assembly_index_reuse(g)
 
         if n_null_shuffles > 0:
-            null_mean, null_std = assembly_index_null(
+            null_mean, null_std, null_samples = assembly_index_null(
                 g,
                 n_shuffles=n_null_shuffles,
                 rng_seed=int(hashlib.sha256(h.encode()).hexdigest()[:8], 16),
+                return_samples=True,
             )
             record["assembly_index_null_mean"] = null_mean
             record["assembly_index_null_std"] = null_std
+            record["assembly_index_null_pvalue"] = float((null_samples >= a_idx).mean())
 
         records.append(record)
 
