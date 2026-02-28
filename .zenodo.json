@@ -1,6 +1,6 @@
 {
   "title": "alife_discovery: Objective-Free Entity Assembly in Block Worlds",
-  "description": "Source code and experiment scripts for studying objective-free artificial life through Assembly Theory. Accompanies the ALIFE 2026 paper.",
+  "description": "Source code, experiment data, and analysis scripts for studying objective-free artificial life through Assembly Theory. Includes reuse-aware assembly index, empirical p-value null model, parameter sweep, catalytic positive control, and mechanism analysis. Accompanies the ALIFE 2026 paper.",
   "upload_type": "software",
   "creators": [
     {
@@ -15,7 +15,10 @@
     "objective-free",
     "emergent complexity",
     "block world",
-    "negative result"
+    "negative result",
+    "null model",
+    "parameter sweep",
+    "catalytic control"
   ],
   "related_identifiers": [],
   "language": "eng"
