@@ -46,6 +46,7 @@ class BlockWorld:
     bonds: set[frozenset[int]]  # each element is frozenset of 2 block IDs
     observation_range: int = 1  # Manhattan radius for bond formation/pruning
     catalyst_multiplier: float = 1.0  # bond prob multiplier when K neighbor present
+    drift_probability: float = 1.0  # probability of attempting drift each step
 
     @classmethod
     def create(cls, config: BlockWorldConfig, rng: Random) -> BlockWorld:
@@ -99,6 +100,7 @@ class BlockWorld:
             bonds=set(),
             observation_range=config.observation_range,
             catalyst_multiplier=config.catalyst_multiplier,
+            drift_probability=config.drift_probability,
         )
 
     def neighbors_of(self, block_id: int, radius: int = 1) -> list[int]:
@@ -217,6 +219,8 @@ class BlockWorld:
 
     def _try_drift(self, block_id: int, rng: Random) -> None:
         """Attempt to move block to a random adjacent empty cell."""
+        if self.drift_probability < 1.0 and rng.random() >= self.drift_probability:
+            return
         block = self.blocks[block_id]
         cells = self._von_neumann_cells(block.x, block.y)
         rng.shuffle(cells)

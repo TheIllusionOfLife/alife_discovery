@@ -469,6 +469,8 @@ class BlockWorldConfig:
     """When True, compute AT-standard reuse-aware assembly index alongside edge-removal DP."""
     catalyst_multiplier: float = 1.0
     """Bond probability multiplier when a K-type block is among neighbors (>= 1.0)."""
+    drift_probability: float = 1.0
+    """Probability of attempting drift each step (0 < p <= 1.0)."""
 
     def __post_init__(self) -> None:
         if self.grid_width < 1 or self.grid_height < 1:
@@ -496,3 +498,5 @@ class BlockWorldConfig:
             raise ValueError("n_null_shuffles must be >= 0")
         if self.catalyst_multiplier < 1.0:
             raise ValueError("catalyst_multiplier must be >= 1.0")
+        if not (0.0 < self.drift_probability <= 1.0):
+            raise ValueError("drift_probability must be in (0.0, 1.0]")
