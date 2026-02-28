@@ -45,6 +45,7 @@ class BlockWorld:
     blocks: dict[int, Block]  # block_id -> Block
     bonds: set[frozenset[int]]  # each element is frozenset of 2 block IDs
     observation_range: int = 1  # Manhattan radius for bond formation/pruning
+    catalyst_multiplier: float = 1.0  # bond prob multiplier when K neighbor present
 
     @classmethod
     def create(cls, config: BlockWorldConfig, rng: Random) -> BlockWorld:
@@ -97,6 +98,7 @@ class BlockWorld:
             blocks=blocks,
             bonds=set(),
             observation_range=config.observation_range,
+            catalyst_multiplier=config.catalyst_multiplier,
         )
 
     def neighbors_of(self, block_id: int, radius: int = 1) -> list[int]:
@@ -255,6 +257,10 @@ class BlockWorld:
         type_counts = Counter(neighbor_types)
         dominant_type = type_counts.most_common(1)[0][0]
         prob = rule_table.get((block.block_type, neighbor_count, dominant_type), 0.0)
+        if self.catalyst_multiplier > 1.0:
+            has_k_neighbor = any(self.blocks[n].block_type == "K" for n in neighbor_ids)
+            if has_k_neighbor:
+                prob = min(prob * self.catalyst_multiplier, 1.0)
         for neighbor_id in neighbor_ids:
             bond = frozenset({block_id, neighbor_id})
             if bond not in self.bonds:

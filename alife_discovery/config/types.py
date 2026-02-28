@@ -467,6 +467,8 @@ class BlockWorldConfig:
     """Number of shuffle-bond null model trials per entity (0 = disabled)."""
     compute_reuse_index: bool = False
     """When True, compute AT-standard reuse-aware assembly index alongside edge-removal DP."""
+    catalyst_multiplier: float = 1.0
+    """Bond probability multiplier when a K-type block is among neighbors (>= 1.0)."""
 
     def __post_init__(self) -> None:
         if self.grid_width < 1 or self.grid_height < 1:
@@ -492,3 +494,5 @@ class BlockWorldConfig:
             raise ValueError("steps must be >= 1")
         if self.n_null_shuffles < 0:
             raise ValueError("n_null_shuffles must be >= 0")
+        if self.catalyst_multiplier < 1.0:
+            raise ValueError("catalyst_multiplier must be >= 1.0")
