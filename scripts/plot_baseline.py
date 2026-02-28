@@ -232,7 +232,7 @@ def plot_size_dist(
         color="crimson",
         linestyle="--",
         linewidth=1.4,
-        label=f"MAX_ENTITY_SIZE = {MAX_ENTITY_SIZE}",
+        label=f"DP approx. threshold ({MAX_ENTITY_SIZE})",
         zorder=3,
     )
     ax.set_xlabel("Entity Size (nodes)")
