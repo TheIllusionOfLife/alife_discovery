@@ -23,9 +23,15 @@ class TestZoomInset:
         out_path = tmp_path / "heatmap.pdf"
         fig = plot_heatmap(data, out_path, return_fig=True)
         assert out_path.exists()
-        # Should have inset axes (main + top + right + inset = 4 axes minimum)
-        axes = fig.get_axes()
-        assert len(axes) >= 4, f"Expected >=4 axes (with inset), got {len(axes)}"
+        # Inset is created via ax.inset_axes() and appears as a child of main axes
+        main_ax = fig.get_axes()[0]
+        main_area = main_ax.get_position().width * main_ax.get_position().height
+        inset_children = [
+            c
+            for c in main_ax.child_axes
+            if c.get_position().width * c.get_position().height < main_area
+        ]
+        assert len(inset_children) >= 1, "Expected an inset axes as child of main axes"
         plt.close(fig)
 
     def test_heatmap_without_high_ai_skips_inset(self, tmp_path: Path) -> None:
@@ -38,9 +44,7 @@ class TestZoomInset:
         out_path = tmp_path / "heatmap_no_inset.pdf"
         fig = plot_heatmap(data, out_path, return_fig=True)
         assert out_path.exists()
-        # Should have exactly 3 axes (main + top + right) — no inset
-        # Plus colorbar axes, so check no inset by counting
-        axes = fig.get_axes()
-        # Without inset: main, top marginal, right marginal, colorbar = 4
-        assert len(axes) == 4, f"Expected 4 axes (no inset), got {len(axes)}"
+        # No inset: main axes should have no child axes
+        main_ax = fig.get_axes()[0]
+        assert len(main_ax.child_axes) == 0, "Expected no inset axes"
         plt.close(fig)

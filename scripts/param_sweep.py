@@ -16,6 +16,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -62,7 +63,7 @@ def density_for_grid(ratio: float, grid_w: int, grid_h: int) -> int:
     return max(1, int(round(ratio * grid_w * grid_h)))
 
 
-def _summarize_condition(combined: pa.Table) -> dict:
+def _summarize_condition(combined: pa.Table) -> dict[str, Any]:
     """Compute summary statistics for a single condition."""
     ai = combined.column("assembly_index").to_numpy(zero_copy_only=False).astype(float)
     sz = combined.column("entity_size").to_numpy(zero_copy_only=False).astype(float)

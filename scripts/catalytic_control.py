@@ -26,7 +26,6 @@ from alife_discovery.simulation.engine import run_block_world_search
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Catalytic K Positive Control")
-    p.add_argument("--n-rules", type=int, default=100)
 
     def _positive_int(value: str) -> int:
         iv = int(value)
@@ -34,8 +33,9 @@ def parse_args() -> argparse.Namespace:
             raise argparse.ArgumentTypeError(f"must be >= 1, got {iv}")
         return iv
 
+    p.add_argument("--n-rules", type=_positive_int, default=100)
     p.add_argument("--seeds", type=_positive_int, default=3)
-    p.add_argument("--steps", type=int, default=200)
+    p.add_argument("--steps", type=_positive_int, default=200)
     p.add_argument("--catalyst-multiplier", type=float, default=3.0)
     p.add_argument("--n-null", type=int, default=100)
     p.add_argument("--out-dir", type=Path, default=Path("data/catalytic_control"))
