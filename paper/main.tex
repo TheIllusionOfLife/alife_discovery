@@ -202,9 +202,9 @@ Entities are detected as connected components in the bond graph
 Entity types are canonicalized using the Weisfeiler--Leman (WL) graph
 hash \citep{weisfeiler1968reduction} with block type as a node
 attribute, implemented via NetworkX \citep{hagberg2008networkx}. The
-SHA-256 digest serves as a unique type identifier. WL hash with SHA-256
-fingerprint is collision-free for labeled graphs up to 6 nodes---verified
-exhaustively against canonical isomorphism for all observed types.
+SHA-256 digest serves as a unique type identifier. No hash collisions
+were observed in exhaustive checks against canonical isomorphism for all
+197 observed entity types (up to 6 nodes).
 
 \subsection{Assembly Index: Two Formulations}
 
@@ -508,9 +508,9 @@ bond probability across rule tables ($\bar{p} \approx 0.5$) combined
 with the $\sim$0.4 bond survival rate creates a natural ceiling at
 approximately 6 blocks.
 
-We additionally report graph automorphism counts for observed entity
-types, finding that all entities with $a_i \geq 3$ have automorphism
-groups of size 1--2, indicating low symmetry.
+We additionally report graph automorphism group sizes for observed entity
+types as a supplementary complexity indicator. Full multi-metric
+comparison is deferred to future work.
 
 \begin{figure}[t]
     \centering
@@ -589,7 +589,7 @@ to compositional objects measured by Assembly Theory.
 
 Our null baseline connects to Lehman and Stanley's novelty search
 \citep{lehman2011novelty} and Taylor et al.'s open-ended evolution
-framework \citep{taylor2016openended, taylor2016oee}: our result
+framework \citep{taylor2016openended, taylor2015oee}: our result
 characterizes the ``floor'' below which no selection mechanism is
 needed---random bonding alone produces a stable entity ecology without
 any pressure toward complexity. This establishes the minimal baseline

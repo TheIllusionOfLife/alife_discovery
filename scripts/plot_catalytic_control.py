@@ -14,6 +14,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -33,6 +34,11 @@ def main() -> None:
     args = parse_args()
     args.out_dir.mkdir(parents=True, exist_ok=True)
 
+    if not args.baseline_file.exists():
+        sys.exit(f"Error: baseline file not found: {args.baseline_file}")
+    if not args.catalytic_file.exists():
+        sys.exit(f"Error: catalytic file not found: {args.catalytic_file}")
+
     baseline = pq.read_table(args.baseline_file)
     catalytic = pq.read_table(args.catalytic_file)
 
@@ -45,6 +51,8 @@ def main() -> None:
         ("Catalytic", catalytic, "#ee854a"),
     ]:
         ai = tbl.column("assembly_index").to_numpy(zero_copy_only=False).astype(float)
+        if len(ai) == 0:
+            continue
         bins = np.arange(0, int(ai.max()) + 2) - 0.5
         ax.hist(ai, bins=bins, alpha=0.6, label=label, color=color, density=True)
     ax.set_xlabel("Assembly Index")
@@ -59,6 +67,7 @@ def main() -> None:
         ("Catalytic", catalytic, "#ee854a", "s"),
     ]:
         if "assembly_index_null_mean" not in tbl.column_names:
+            print(f"Warning: {label} missing 'assembly_index_null_mean' — skipping excess panel")
             continue
         ai = tbl.column("assembly_index").to_numpy(zero_copy_only=False).astype(float)
         nm = tbl.column("assembly_index_null_mean").to_numpy(zero_copy_only=False)

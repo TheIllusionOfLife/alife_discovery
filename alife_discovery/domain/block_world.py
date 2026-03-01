@@ -185,8 +185,7 @@ class BlockWorld:
         claimed: dict[tuple[int, int], int] = {}  # target -> first claimant
         for block_id in order:
             block = self.blocks[block_id]
-            # Drift probability gate (same as _try_drift)
-            if self.drift_probability < 1.0 and rng.random() >= self.drift_probability:
+            if not self._should_drift(rng):
                 new_positions[block_id] = (block.x, block.y)
                 continue
             cells = self._von_neumann_cells(block.x, block.y)
@@ -221,9 +220,15 @@ class BlockWorld:
             self._try_bond_form(block_id, rule_table, rng)
         self._step_bond_break(noise_level, rng)
 
+    def _should_drift(self, rng: Random) -> bool:
+        """Return True if drift should be attempted this step."""
+        if self.drift_probability < 1.0 and rng.random() >= self.drift_probability:
+            return False
+        return True
+
     def _try_drift(self, block_id: int, rng: Random) -> None:
         """Attempt to move block to a random adjacent empty cell."""
-        if self.drift_probability < 1.0 and rng.random() >= self.drift_probability:
+        if not self._should_drift(rng):
             return
         block = self.blocks[block_id]
         cells = self._von_neumann_cells(block.x, block.y)

@@ -27,7 +27,14 @@ from alife_discovery.simulation.engine import run_block_world_search
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Catalytic K Positive Control")
     p.add_argument("--n-rules", type=int, default=100)
-    p.add_argument("--seeds", type=int, default=3)
+
+    def _positive_int(value: str) -> int:
+        iv = int(value)
+        if iv < 1:
+            raise argparse.ArgumentTypeError(f"must be >= 1, got {iv}")
+        return iv
+
+    p.add_argument("--seeds", type=_positive_int, default=3)
     p.add_argument("--steps", type=int, default=200)
     p.add_argument("--catalyst-multiplier", type=float, default=3.0)
     p.add_argument("--n-null", type=int, default=100)
@@ -105,22 +112,27 @@ def main() -> None:
         print(summary_text)
 
     if args.plot:
-        sys.stdout.flush()
-        plotter = Path(__file__).parent / "plot_catalytic_control.py"
-        subprocess.run(
-            [
-                sys.executable,
-                str(plotter),
-                "--baseline-file",
-                str(args.out_dir / "baseline" / "entity_log_combined.parquet"),
-                "--catalytic-file",
-                str(args.out_dir / "catalytic" / "entity_log_combined.parquet"),
-                "--out-dir",
-                str(args.out_dir / "figures"),
-            ],
-            check=True,
-            env={**os.environ, "MPLBACKEND": "Agg"},
-        )
+        baseline_log = args.out_dir / "baseline" / "entity_log_combined.parquet"
+        catalytic_log = args.out_dir / "catalytic" / "entity_log_combined.parquet"
+        if not baseline_log.exists() or not catalytic_log.exists():
+            print("Warning: skipping plot — combined parquet files not found")
+        else:
+            sys.stdout.flush()
+            plotter = Path(__file__).parent / "plot_catalytic_control.py"
+            subprocess.run(
+                [
+                    sys.executable,
+                    str(plotter),
+                    "--baseline-file",
+                    str(baseline_log),
+                    "--catalytic-file",
+                    str(catalytic_log),
+                    "--out-dir",
+                    str(args.out_dir / "figures"),
+                ],
+                check=True,
+                env={**os.environ, "MPLBACKEND": "Agg"},
+            )
 
 
 if __name__ == "__main__":

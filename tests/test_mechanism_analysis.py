@@ -57,7 +57,7 @@ class TestMechanismAnalysisEdgeCases:
         assert any("No data" in line for line in lines)
 
     def test_empty_entity_log_growth_transitions(self) -> None:
-        """Empty entity table should report no transitions."""
+        """Empty entity table should report no step pairs."""
         schema = pa.schema(
             [
                 ("run_id", pa.string()),
@@ -76,4 +76,4 @@ class TestMechanismAnalysisEdgeCases:
             schema=schema,
         )
         lines = _growth_transition_stats(table)
-        assert any("No size transitions" in line for line in lines)
+        assert any("No step pairs" in line for line in lines)

@@ -21,6 +21,7 @@ import argparse
 from pathlib import Path
 
 import numpy as np
+import pyarrow as pa
 import pyarrow.parquet as pq
 
 
@@ -32,23 +33,44 @@ def parse_args() -> argparse.Namespace:
     return p.parse_args()
 
 
-def _entity_lifetime_stats(table: "pq.Table") -> list[str]:  # noqa: F821
-    """Count consecutive-step appearances per (run_id, entity_hash)."""
+def _entity_lifetime_stats(table: pa.Table) -> list[str]:
+    """Measure contiguous-run lifetimes per (run_id, entity_hash).
+
+    An entity type may appear, disappear, and reappear across steps.
+    Each contiguous run of consecutive snapshot intervals counts as one
+    lifetime instance.  This avoids conflating persistent entities with
+    those that independently reform.
+    """
     run_ids = table.column("run_id").to_pylist()
     steps = table.column("step").to_pylist()
     hashes = table.column("entity_hash").to_pylist()
 
-    # Group steps by (run_id, entity_hash)
     from collections import defaultdict
 
     groups: dict[tuple[str, str], list[int]] = defaultdict(list)
     for rid, s, h in zip(run_ids, steps, hashes, strict=True):
         groups[(rid, h)].append(s)
 
+    # Infer snapshot interval from global step data
+    all_steps = sorted(set(steps))
+    if len(all_steps) >= 2:
+        intervals = [all_steps[i + 1] - all_steps[i] for i in range(len(all_steps) - 1)]
+        snapshot_interval = min(intervals) if intervals else 1
+    else:
+        snapshot_interval = 1
+
     lifetimes: list[int] = []
     for _key, step_list in groups.items():
         sorted_steps = sorted(set(step_list))
-        lifetimes.append(len(sorted_steps))
+        # Split into contiguous runs (consecutive snapshot intervals)
+        run_length = 1
+        for i in range(1, len(sorted_steps)):
+            if sorted_steps[i] - sorted_steps[i - 1] <= snapshot_interval:
+                run_length += 1
+            else:
+                lifetimes.append(run_length)
+                run_length = 1
+        lifetimes.append(run_length)
 
     if not lifetimes:
         return ["--- Entity Lifetime Distribution ---", "  No data (no entities observed)."]
@@ -64,7 +86,7 @@ def _entity_lifetime_stats(table: "pq.Table") -> list[str]:  # noqa: F821
     return lines
 
 
-def _bond_survival_stats(ts_table: "pq.Table") -> list[str]:  # noqa: F821
+def _bond_survival_stats(ts_table: pa.Table) -> list[str]:
     """Compute bond survival rate from timeseries n_bonds[t+1]/n_bonds[t]."""
     run_ids = ts_table.column("run_id").to_pylist()
     steps = ts_table.column("step").to_pylist()
@@ -98,39 +120,60 @@ def _bond_survival_stats(ts_table: "pq.Table") -> list[str]:  # noqa: F821
     return lines
 
 
-def _growth_transition_stats(table: "pq.Table") -> list[str]:  # noqa: F821
-    """Count size k → k+1 transitions between consecutive snapshots."""
+def _growth_transition_stats(table: pa.Table) -> list[str]:
+    """Count population-level size distribution changes between consecutive steps.
+
+    Since ``entity_hash`` encodes topology (hence size), an individual entity
+    cannot change size without changing hash.  Instead, we compare the
+    per-run size distribution at consecutive snapshots to quantify how
+    the population shifts toward larger or smaller entities over time.
+    """
     run_ids = table.column("run_id").to_pylist()
     steps = table.column("step").to_pylist()
-    hashes = table.column("entity_hash").to_pylist()
     sizes = table.column("entity_size").to_pylist()
 
-    from collections import defaultdict
+    from collections import Counter, defaultdict
 
-    # Build size-at-step for each (run_id, entity_hash)
-    groups: dict[tuple[str, str], list[tuple[int, int]]] = defaultdict(list)
-    for rid, s, h, sz in zip(run_ids, steps, hashes, sizes, strict=True):
-        groups[(rid, h)].append((s, sz))
+    # Build size distribution per (run_id, step)
+    step_sizes: dict[tuple[str, int], list[int]] = defaultdict(list)
+    for rid, s, sz in zip(run_ids, steps, sizes, strict=True):
+        step_sizes[(rid, s)].append(sz)
 
-    transitions: dict[tuple[int, int], int] = defaultdict(int)
-    for _key, data in groups.items():
-        data.sort()
-        for i in range(1, len(data)):
-            s_prev = data[i - 1][1]
-            s_curr = data[i][1]
-            if s_curr != s_prev:
-                transitions[(s_prev, s_curr)] = transitions.get((s_prev, s_curr), 0) + 1
+    # Group steps by run_id
+    run_steps: dict[str, list[int]] = defaultdict(list)
+    for rid, s in step_sizes:
+        run_steps[rid].append(s)
 
-    lines = ["--- Growth Transitions ---"]
-    if not transitions:
-        lines.append("  No size transitions observed.")
+    transitions: dict[str, int] = defaultdict(int)
+    total_pairs = 0
+    for rid, step_list in run_steps.items():
+        sorted_steps = sorted(set(step_list))
+        for i in range(1, len(sorted_steps)):
+            prev_dist = Counter(step_sizes[(rid, sorted_steps[i - 1])])
+            curr_dist = Counter(step_sizes[(rid, sorted_steps[i])])
+            prev_max = max(prev_dist.keys()) if prev_dist else 0
+            curr_max = max(curr_dist.keys()) if curr_dist else 0
+            if curr_max > prev_max:
+                transitions["growth"] += 1
+            elif curr_max < prev_max:
+                transitions["shrinkage"] += 1
+            else:
+                transitions["stable"] += 1
+            total_pairs += 1
+
+    lines = ["--- Population Size Transitions ---"]
+    if total_pairs == 0:
+        lines.append("  No step pairs to compare.")
     else:
-        for (s_from, s_to), count in sorted(transitions.items()):
-            lines.append(f"  {s_from} → {s_to}: {count}")
+        for label in ("growth", "stable", "shrinkage"):
+            count = transitions.get(label, 0)
+            pct = count / total_pairs * 100
+            lines.append(f"  {label}: {count} ({pct:.1f}%)")
+        lines.append(f"  total step pairs: {total_pairs}")
     return lines
 
 
-def _symmetry_counts(table: "pq.Table") -> list[str]:  # noqa: F821
+def _symmetry_counts(table: pa.Table) -> list[str]:
     """Compute graph automorphism counts for unique entity types."""
 
     hashes = table.column("entity_hash").to_pylist()

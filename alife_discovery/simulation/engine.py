@@ -387,6 +387,7 @@ def run_block_world_search(
         ENTITY_LOG_SCHEMA_FULL,
         ENTITY_LOG_SCHEMA_WITH_NULL,
         ENTITY_LOG_SCHEMA_WITH_REUSE,
+        STEP_TIMESERIES_SCHEMA,
     )
     from alife_discovery.metrics.assembly import compute_entity_metrics
 
@@ -466,8 +467,6 @@ def run_block_world_search(
 
     # Write step timeseries
     if cfg.write_timeseries and all_timeseries_records:
-        from alife_discovery.io.schemas import STEP_TIMESERIES_SCHEMA
-
         ts_path = logs_dir / "step_timeseries.parquet"
         # Sort by (run_id, step) as documented contract
         all_timeseries_records.sort(key=lambda r: (r["run_id"], r["step"]))

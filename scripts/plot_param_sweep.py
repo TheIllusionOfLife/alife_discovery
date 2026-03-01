@@ -44,7 +44,11 @@ def _heatmap(
     for xi, yi, zi in zip(x_vals, y_vals, z_vals, strict=True):
         row = np.searchsorted(y_unique, yi)
         col = np.searchsorted(x_unique, xi)
-        grid[row, col] = zi
+        if not np.isnan(grid[row, col]):
+            # Aggregate duplicates by averaging
+            grid[row, col] = (grid[row, col] + zi) / 2.0
+        else:
+            grid[row, col] = zi
     im = ax.imshow(grid, origin="lower", aspect="auto", cmap="YlOrRd")
     ax.set_xticks(range(len(x_unique)))
     ax.set_xticklabels([f"{v:.2f}" if isinstance(v, float) else str(v) for v in x_unique])
@@ -74,7 +78,7 @@ def main() -> None:
     fig, axes = plt.subplots(1, 2, figsize=(12, 5))
 
     # Left: density × grid (drift=1.0)
-    mask_drift1 = df["drift_probability"] == 1.0
+    mask_drift1 = np.isclose(df["drift_probability"], 1.0)
     grid_labels = df["grid_width"][mask_drift1].astype(float)
     density = df["density_ratio"][mask_drift1]
     pct_excess = df["pct_excess_p05"][mask_drift1]

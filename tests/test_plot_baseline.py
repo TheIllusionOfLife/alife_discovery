@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
+import matplotlib.pyplot as plt
 import numpy as np
-import pytest
 
 from scripts.plot_baseline import plot_heatmap
 
@@ -11,9 +13,7 @@ from scripts.plot_baseline import plot_heatmap
 class TestZoomInset:
     """Tests for the high-AI zoom inset on the heatmap figure."""
 
-    def test_heatmap_with_high_ai_data_creates_inset(
-        self, tmp_path: "pytest.TempPathFactory"
-    ) -> None:
+    def test_heatmap_with_high_ai_data_creates_inset(self, tmp_path: Path) -> None:
         """When data has a_i >= 3 with >=5 points, the heatmap should include an inset axes."""
         data = {
             "assembly_index": np.array([0, 0, 0, 1, 1, 2, 3, 3, 4, 5, 3]),
@@ -26,11 +26,9 @@ class TestZoomInset:
         # Should have inset axes (main + top + right + inset = 4 axes minimum)
         axes = fig.get_axes()
         assert len(axes) >= 4, f"Expected >=4 axes (with inset), got {len(axes)}"
-        import matplotlib.pyplot as plt
-
         plt.close(fig)
 
-    def test_heatmap_without_high_ai_skips_inset(self, tmp_path: "pytest.TempPathFactory") -> None:
+    def test_heatmap_without_high_ai_skips_inset(self, tmp_path: Path) -> None:
         """When all a_i < 3, no inset should be added (no crash)."""
         data = {
             "assembly_index": np.array([0, 0, 1, 1, 2]),
@@ -45,6 +43,4 @@ class TestZoomInset:
         axes = fig.get_axes()
         # Without inset: main, top marginal, right marginal, colorbar = 4
         assert len(axes) == 4, f"Expected 4 axes (no inset), got {len(axes)}"
-        import matplotlib.pyplot as plt
-
         plt.close(fig)

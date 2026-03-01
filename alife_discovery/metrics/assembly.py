@@ -350,18 +350,27 @@ def compute_entity_metrics(
         }
 
         if compute_reuse:
-            record["assembly_index_reuse"] = assembly_index_reuse(g)
+            record["assembly_index_reuse"] = (
+                assembly_index_reuse(g) if n_nodes <= MAX_ENTITY_SIZE else assembly_index_approx(g)
+            )
 
         if n_null_shuffles > 0:
-            null_mean, null_std, null_samples = assembly_index_null(
-                g,
-                n_shuffles=n_null_shuffles,
-                rng_seed=int(hashlib.sha256(h.encode()).hexdigest()[:8], 16),
-                return_samples=True,
-            )
-            record["assembly_index_null_mean"] = null_mean
-            record["assembly_index_null_std"] = null_std
-            record["assembly_index_null_pvalue"] = float((null_samples >= a_idx).mean())
+            if n_nodes <= MAX_ENTITY_SIZE:
+                null_mean, null_std, null_samples = assembly_index_null(
+                    g,
+                    n_shuffles=n_null_shuffles,
+                    rng_seed=int(hashlib.sha256(h.encode()).hexdigest()[:8], 16),
+                    return_samples=True,
+                )
+                record["assembly_index_null_mean"] = null_mean
+                record["assembly_index_null_std"] = null_std
+                record["assembly_index_null_pvalue"] = float((null_samples >= a_idx).mean())
+            else:
+                # Skip null sampling for large entities to avoid mixing
+                # approximate observed AI with exact null AI
+                record["assembly_index_null_mean"] = float("nan")
+                record["assembly_index_null_std"] = float("nan")
+                record["assembly_index_null_pvalue"] = float("nan")
 
         records.append(record)
 
