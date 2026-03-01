@@ -26,7 +26,7 @@ N_NULL = 100
 OUT_DIR = Path("data/param_sweep_v2")
 
 # Conditions to run: (grid_w, grid_h, density_ratio, drift_probability)
-# 10×10 at 50% skipped (too slow with 100 null shuffles at high density)
+# Only 20×20 low-density conditions; 10×10 data already exists from prior runs
 CONDITIONS: list[tuple[int, int, float, float]] = [
     # 20×20 low-density at drift=1.0
     (20, 20, 0.075, 1.0),

@@ -48,7 +48,11 @@ def _heatmap(
         row = np.searchsorted(y_unique, yi)
         col = np.searchsorted(x_unique, xi)
         grid[row, col] = zi
-    im = ax.imshow(grid, origin="lower", aspect="auto", cmap="YlOrRd", vmin=0, vmax=1)
+    if grid.size == 0:
+        ax.set_title(title, fontsize=9)
+        ax.text(0.5, 0.5, "No data", ha="center", va="center", transform=ax.transAxes)
+        return
+    im = ax.imshow(grid, origin="lower", aspect="auto", cmap="YlOrRd", vmin=0, vmax=100)
     ax.set_xticks(range(len(x_unique)))
     ax.set_xticklabels(
         [f"{v:.2f}" if isinstance(v, float) else str(v) for v in x_unique], fontsize=7
