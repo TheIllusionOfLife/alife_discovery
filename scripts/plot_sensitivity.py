@@ -62,7 +62,8 @@ def _heatmap(
         for c in range(len(x_unique)):
             val = grid[r, c]
             if not np.isnan(val):
-                lum = 0.299 * im.cmap(im.norm(val))[0] + 0.587 * im.cmap(im.norm(val))[1]
+                rgba = im.cmap(im.norm(val))
+                lum = 0.299 * rgba[0] + 0.587 * rgba[1] + 0.114 * rgba[2]
                 color = "white" if lum < 0.5 else "black"
                 ax.text(c, r, f"{val:{fmt}}", ha="center", va="center", fontsize=7, color=color)
 

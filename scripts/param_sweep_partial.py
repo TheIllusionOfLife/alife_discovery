@@ -2,11 +2,10 @@
 """Partial parameter sweep: run only missing conditions for pre-submission fix.
 
 Conditions:
-- 10×10: 50% density, drift=1.0 (re-run, incomplete)
 - 20×20: 7.5%, 15% density, drift=1.0
 - 20×20: 7.5%, 15% density × drift {0.25, 0.5, 0.75}
 
-Total: 9 conditions (completing 12 when combined with existing 10×10 data).
+Total: 8 conditions (completing 11 when combined with existing 10×10 data).
 """
 
 from __future__ import annotations
@@ -64,9 +63,19 @@ def density_for_grid(ratio: float, grid_w: int, grid_h: int) -> int:
 
 
 def _summarize_condition(combined: pa.Table) -> dict[str, Any]:
+    if combined.num_rows == 0:
+        return {
+            "mean_ai": 0.0,
+            "max_ai": 0,
+            "mean_entity_size": 0.0,
+            "max_entity_size": 0,
+            "unique_types": 0,
+            "pct_excess_2sigma": 0.0,
+            "pct_excess_p05": 0.0,
+        }
     ai = combined.column("assembly_index").to_numpy(zero_copy_only=False).astype(float)
     sz = combined.column("entity_size").to_numpy(zero_copy_only=False).astype(float)
-    unique_types = len(set(combined.column("entity_hash").to_pylist()))
+    unique_types = len(combined.column("entity_hash").unique())
 
     result: dict = {
         "mean_ai": float(ai.mean()),
