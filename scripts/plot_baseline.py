@@ -98,7 +98,9 @@ def plot_heatmap(
     data: dict[str, np.ndarray],
     out_path: Path,
     title: str | None = None,
-) -> None:
+    *,
+    return_fig: bool = False,
+) -> "plt.Figure | None":
     """2-D histogram of (a_i, log10(n_i)) with log-colorscale and marginal counts."""
     ai = data["assembly_index"]
     cn = data["copy_number_at_step"]
@@ -170,10 +172,43 @@ def plot_heatmap(
     cbar = fig.colorbar(im, ax=[ax_main, ax_right], location="right", fraction=0.04, pad=0.02)
     cbar.set_label("Count (log scale)")
 
+    # Zoom inset for high-AI region (a_i >= 3)
+    high_ai_mask = ai >= 3
+    if high_ai_mask.sum() >= 5:
+        ax_inset = ax_main.inset_axes([0.55, 0.55, 0.42, 0.42])
+        hi_ai = ai[high_ai_mask]
+        hi_log_cn = log_cn[high_ai_mask]
+        hi_ai_bins = np.arange(int(hi_ai.min()), int(hi_ai.max()) + 2) - 0.5
+        n_hi_cn_bins = max(10, int((hi_log_cn.max() - hi_log_cn.min()) * 10) + 2)
+        hi_cn_bins = np.linspace(
+            float(hi_log_cn.min()) - 0.05,
+            float(hi_log_cn.max()) + 0.05,
+            n_hi_cn_bins,
+        )
+        hi_counts, hi_xedges, hi_yedges = np.histogram2d(
+            hi_ai, hi_log_cn, bins=[hi_ai_bins, hi_cn_bins]
+        )
+        ax_inset.pcolormesh(
+            hi_xedges,
+            hi_yedges,
+            hi_counts.T,
+            norm=mcolors.LogNorm(vmin=1, vmax=max(float(hi_counts.max()), 1.0)),
+            cmap="plasma",
+        )
+        ax_inset.set_xlabel("$a_i$", fontsize=7)
+        ax_inset.set_ylabel(r"$\log_{10}(n_i)$", fontsize=7)
+        ax_inset.tick_params(labelsize=6)
+        ax_inset.set_title("$a_i \\geq 3$", fontsize=8)
+        ax_inset.patch.set_edgecolor("gray")
+        ax_inset.patch.set_linewidth(1.5)
+
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, bbox_inches="tight")
+    if return_fig:
+        return fig
     plt.close(fig)
     print(f"Saved heatmap:          {out_path}")
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -197,7 +232,7 @@ def plot_size_dist(
         color="crimson",
         linestyle="--",
         linewidth=1.4,
-        label=f"MAX_ENTITY_SIZE = {MAX_ENTITY_SIZE}",
+        label=f"DP approx. threshold ({MAX_ENTITY_SIZE})",
         zorder=3,
     )
     ax.set_xlabel("Entity Size (nodes)")

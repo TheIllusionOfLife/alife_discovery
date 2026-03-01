@@ -45,6 +45,8 @@ class BlockWorld:
     blocks: dict[int, Block]  # block_id -> Block
     bonds: set[frozenset[int]]  # each element is frozenset of 2 block IDs
     observation_range: int = 1  # Manhattan radius for bond formation/pruning
+    catalyst_multiplier: float = 1.0  # bond prob multiplier when K neighbor present
+    drift_probability: float = 1.0  # probability of attempting drift each step
 
     @classmethod
     def create(cls, config: BlockWorldConfig, rng: Random) -> BlockWorld:
@@ -97,6 +99,8 @@ class BlockWorld:
             blocks=blocks,
             bonds=set(),
             observation_range=config.observation_range,
+            catalyst_multiplier=config.catalyst_multiplier,
+            drift_probability=config.drift_probability,
         )
 
     def neighbors_of(self, block_id: int, radius: int = 1) -> list[int]:
@@ -181,6 +185,9 @@ class BlockWorld:
         claimed: dict[tuple[int, int], int] = {}  # target -> first claimant
         for block_id in order:
             block = self.blocks[block_id]
+            if not self._should_drift(rng):
+                new_positions[block_id] = (block.x, block.y)
+                continue
             cells = self._von_neumann_cells(block.x, block.y)
             rng.shuffle(cells)
             moved = False
@@ -213,8 +220,16 @@ class BlockWorld:
             self._try_bond_form(block_id, rule_table, rng)
         self._step_bond_break(noise_level, rng)
 
+    def _should_drift(self, rng: Random) -> bool:
+        """Return True if drift should be attempted this step."""
+        if self.drift_probability < 1.0 and rng.random() >= self.drift_probability:
+            return False
+        return True
+
     def _try_drift(self, block_id: int, rng: Random) -> None:
         """Attempt to move block to a random adjacent empty cell."""
+        if not self._should_drift(rng):
+            return
         block = self.blocks[block_id]
         cells = self._von_neumann_cells(block.x, block.y)
         rng.shuffle(cells)
@@ -255,6 +270,10 @@ class BlockWorld:
         type_counts = Counter(neighbor_types)
         dominant_type = type_counts.most_common(1)[0][0]
         prob = rule_table.get((block.block_type, neighbor_count, dominant_type), 0.0)
+        if self.catalyst_multiplier > 1.0:
+            has_k_neighbor = any(self.blocks[n].block_type == "K" for n in neighbor_ids)
+            if has_k_neighbor:
+                prob = min(prob * self.catalyst_multiplier, 1.0)
         for neighbor_id in neighbor_ids:
             bond = frozenset({block_id, neighbor_id})
             if bond not in self.bonds:

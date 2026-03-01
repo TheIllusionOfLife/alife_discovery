@@ -38,6 +38,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--n-blocks", type=int, default=30)
     p.add_argument("--noise-level", type=float, default=0.01)
     p.add_argument("--out-dir", type=Path, default=Path("data/assembly_audit"))
+    p.add_argument("--reuse", action="store_true", help="Compute reuse-aware assembly index")
+    p.add_argument("--write-timeseries", action="store_true", help="Write step-level timeseries")
     p.add_argument(
         "--plot",
         action="store_true",
@@ -63,6 +65,13 @@ def _write_audit_summary(combined: pa.Table, out_path: Path) -> None:
     sig_excess = int(sig_mask.sum())
     frac_sig = sig_excess / n
 
+    # Empirical p-value significance (if column present)
+    has_pvalue = "assembly_index_null_pvalue" in combined.column_names
+    if has_pvalue:
+        pv_arr = combined.column("assembly_index_null_pvalue").to_numpy(zero_copy_only=False)
+        pv_sig = int((pv_arr < 0.05).sum())
+        frac_pv = pv_sig / n
+
     # Mean excess overall
     excess_all = ai_arr - nm_arr
     mean_excess_overall = float(excess_all.mean())
@@ -70,6 +79,13 @@ def _write_audit_summary(combined: pa.Table, out_path: Path) -> None:
     # Overall enrichment
     mean_observed = float(ai_arr.mean())
     mean_null = float(nm_arr.mean())
+
+    # Reuse AI stats (if column present)
+    has_reuse = "assembly_index_reuse" in combined.column_names
+    if has_reuse:
+        reuse_arr = (
+            combined.column("assembly_index_reuse").to_numpy(zero_copy_only=False).astype(float)
+        )
 
     # Mean excess by entity size
     unique_sizes = np.unique(sz_arr)
@@ -86,9 +102,31 @@ def _write_audit_summary(combined: pa.Table, out_path: Path) -> None:
         "--- Significant Excess (a_i > null_mean + 2σ) ---",
         f"Count:    {sig_excess:,} / {n:,}",
         f"Fraction: {frac_sig:.4f} ({frac_sig * 100:.1f}%)",
-        "",
-        "--- Mean Excess by Entity Size ---",
     ]
+    if has_pvalue:
+        lines.extend(
+            [
+                "",
+                "--- Significant Excess (empirical p < 0.05) ---",
+                f"Count:    {pv_sig:,} / {n:,}",
+                f"Fraction: {frac_pv:.4f} ({frac_pv * 100:.1f}%)",
+            ]
+        )
+    if has_reuse:
+        lines.extend(
+            [
+                "",
+                "--- Reuse-Aware Assembly Index ---",
+                f"Mean a_r:  {float(reuse_arr.mean()):.4f}",
+                f"Max a_r:   {int(reuse_arr.max())}",
+            ]
+        )
+    lines.extend(
+        [
+            "",
+            "--- Mean Excess by Entity Size ---",
+        ]
+    )
     for sz in unique_sizes:
         mask = sz_arr == sz
         me = float(excess_all[mask].mean())
@@ -115,6 +153,8 @@ def main() -> None:
             steps=args.steps,
             sim_seed=seed,
             n_null_shuffles=args.n_null,
+            compute_reuse_index=args.reuse,
+            write_timeseries=args.write_timeseries,
         )
         results = run_block_world_search(
             n_rules=args.n_rules,
@@ -123,7 +163,11 @@ def main() -> None:
         )
         print(f"Seed {seed}: {len(results)} runs complete")
 
-    log_files = list(args.out_dir.rglob("entity_log.parquet"))
+    log_files = [
+        args.out_dir / f"seed_{s}" / "logs" / "entity_log.parquet"
+        for s in range(args.seeds)
+        if (args.out_dir / f"seed_{s}" / "logs" / "entity_log.parquet").exists()
+    ]
     if not log_files:
         print("No entity logs found.")
         return

@@ -190,5 +190,34 @@ ENTITY_LOG_SCHEMA_WITH_NULL = pa.schema(
     + [
         ("assembly_index_null_mean", pa.float64()),
         ("assembly_index_null_std", pa.float64()),
+        ("assembly_index_null_pvalue", pa.float64()),
+    ]
+)
+
+ENTITY_LOG_SCHEMA_WITH_REUSE = pa.schema(
+    [(f.name, f.type) for f in ENTITY_LOG_SCHEMA]
+    + [
+        ("assembly_index_reuse", pa.int64()),
+    ]
+)
+
+STEP_TIMESERIES_SCHEMA = pa.schema(
+    [
+        ("run_id", pa.string()),
+        ("step", pa.int64()),
+        ("mean_entity_size", pa.float64()),
+        ("mean_assembly_index", pa.float64()),
+        ("n_entities", pa.int64()),
+        ("n_bonds", pa.int64()),
+    ]
+)
+
+ENTITY_LOG_SCHEMA_FULL = pa.schema(
+    [(f.name, f.type) for f in ENTITY_LOG_SCHEMA]
+    + [
+        ("assembly_index_reuse", pa.int64()),
+        ("assembly_index_null_mean", pa.float64()),
+        ("assembly_index_null_std", pa.float64()),
+        ("assembly_index_null_pvalue", pa.float64()),
     ]
 )

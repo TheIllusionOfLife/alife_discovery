@@ -356,3 +356,156 @@ class TestObservationRange:
         world.bonds.add(frozenset({b0, b1}))
         world._prune_broken_bonds(b0)
         assert frozenset({b0, b1}) in world.bonds
+
+
+class TestCatalyticK:
+    """Tests for catalyst_multiplier bond amplification by K-type neighbors."""
+
+    @staticmethod
+    def _place(world: BlockWorld, block_id: int, x: int, y: int) -> None:
+        old = (world.blocks[block_id].x, world.blocks[block_id].y)
+        if old in world.grid and world.grid[old] == block_id:
+            del world.grid[old]
+        world.blocks[block_id].x = x
+        world.blocks[block_id].y = y
+        world.grid[(x, y)] = block_id
+
+    def test_default_multiplier_is_one(self) -> None:
+        config = BlockWorldConfig()
+        assert config.catalyst_multiplier == 1.0
+
+    def test_multiplier_lt_one_raises(self) -> None:
+        with pytest.raises(ValueError, match="catalyst_multiplier"):
+            BlockWorldConfig(catalyst_multiplier=0.5)
+
+    def test_no_effect_without_k_neighbors(self) -> None:
+        """Focal M block with only M neighbors → no amplification."""
+        config = BlockWorldConfig(
+            grid_width=10, grid_height=10, n_blocks=3, catalyst_multiplier=5.0
+        )
+        world = BlockWorld.create(config, Random(0))
+        ids = list(world.blocks.keys())
+        # Make all blocks type M
+        for bid in ids:
+            world.blocks[bid].block_type = "M"
+        self._place(world, ids[0], 5, 5)
+        self._place(world, ids[1], 5, 6)
+        self._place(world, ids[2], 5, 4)
+        # Use rule table with low prob
+        rule_table: BlockRuleTable = {}
+        for st in BLOCK_TYPES:
+            for nc in range(5):
+                for dt in list(BLOCK_TYPES) + ["Empty"]:
+                    rule_table[(st, nc, dt)] = 0.1
+        # Run many trials — without K neighbors, effective prob stays 0.1
+        bonds_formed = 0
+        n_trials = 500
+        for seed in range(n_trials):
+            world.bonds.clear()
+            world._try_bond_form(ids[0], rule_table, Random(seed))
+            bonds_formed += len(world.bonds)
+        # With prob=0.1, expected ~100/500 (no amplification)
+        assert bonds_formed < n_trials * 0.3  # well below amplified rate
+
+    def test_focal_k_does_not_self_catalyze(self) -> None:
+        """Focal K with only M neighbors → no amplification (K doesn't self-catalyze)."""
+        config = BlockWorldConfig(
+            grid_width=10, grid_height=10, n_blocks=2, catalyst_multiplier=10.0
+        )
+        world = BlockWorld.create(config, Random(0))
+        ids = list(world.blocks.keys())
+        world.blocks[ids[0]].block_type = "K"  # focal is K
+        world.blocks[ids[1]].block_type = "M"  # neighbor is M
+        self._place(world, ids[0], 5, 5)
+        self._place(world, ids[1], 5, 6)
+        rule_table: BlockRuleTable = {}
+        for st in BLOCK_TYPES:
+            for nc in range(5):
+                for dt in list(BLOCK_TYPES) + ["Empty"]:
+                    rule_table[(st, nc, dt)] = 0.1
+        bonds_formed = 0
+        n_trials = 500
+        for seed in range(n_trials):
+            world.bonds.clear()
+            world._try_bond_form(ids[0], rule_table, Random(seed))
+            bonds_formed += len(world.bonds)
+        # No amplification, rate should stay ~0.1
+        assert bonds_formed < n_trials * 0.3
+
+    def test_k_neighbor_amplifies_bond_prob(self) -> None:
+        """Statistical: K neighbor with high multiplier → significantly more bonds."""
+        config = BlockWorldConfig(
+            grid_width=10, grid_height=10, n_blocks=2, catalyst_multiplier=10.0
+        )
+        world = BlockWorld.create(config, Random(0))
+        ids = list(world.blocks.keys())
+        world.blocks[ids[0]].block_type = "M"  # focal
+        world.blocks[ids[1]].block_type = "K"  # K neighbor → catalyze!
+        self._place(world, ids[0], 5, 5)
+        self._place(world, ids[1], 5, 6)
+        rule_table: BlockRuleTable = {}
+        for st in BLOCK_TYPES:
+            for nc in range(5):
+                for dt in list(BLOCK_TYPES) + ["Empty"]:
+                    rule_table[(st, nc, dt)] = 0.1
+        bonds_formed = 0
+        n_trials = 500
+        for seed in range(n_trials):
+            world.bonds.clear()
+            world._try_bond_form(ids[0], rule_table, Random(seed))
+            bonds_formed += len(world.bonds)
+        # With multiplier=10, effective prob = min(1.0, 0.1*10) = 1.0
+        # Should form bond almost every trial
+        assert bonds_formed >= n_trials * 0.9
+
+    def test_prob_capped_at_one(self) -> None:
+        """multiplier=10 + base=0.5 → capped at 1.0."""
+        config = BlockWorldConfig(
+            grid_width=10, grid_height=10, n_blocks=2, catalyst_multiplier=10.0
+        )
+        world = BlockWorld.create(config, Random(0))
+        ids = list(world.blocks.keys())
+        world.blocks[ids[0]].block_type = "M"
+        world.blocks[ids[1]].block_type = "K"
+        self._place(world, ids[0], 5, 5)
+        self._place(world, ids[1], 5, 6)
+        rule_table: BlockRuleTable = {}
+        for st in BLOCK_TYPES:
+            for nc in range(5):
+                for dt in list(BLOCK_TYPES) + ["Empty"]:
+                    rule_table[(st, nc, dt)] = 0.5
+        # 100% bond formation expected (0.5 * 10 = 5.0, capped at 1.0)
+        bonds_formed = 0
+        for seed in range(100):
+            world.bonds.clear()
+            world._try_bond_form(ids[0], rule_table, Random(seed))
+            bonds_formed += len(world.bonds)
+        assert bonds_formed == 100
+
+    def test_create_threads_catalyst_multiplier(self) -> None:
+        """BlockWorld.create passes config value to world."""
+        config = BlockWorldConfig(
+            grid_width=10, grid_height=10, n_blocks=5, catalyst_multiplier=3.0
+        )
+        world = BlockWorld.create(config, Random(0))
+        assert world.catalyst_multiplier == 3.0
+
+    def test_baseline_unchanged_when_multiplier_one(self) -> None:
+        """Golden: multiplier=1.0 produces identical bonds as before."""
+        config = BlockWorldConfig(
+            grid_width=10, grid_height=10, n_blocks=10, steps=10, catalyst_multiplier=1.0
+        )
+        rng = Random(42)
+        world = BlockWorld.create(config, rng)
+        rule_table = generate_block_rule_table(0)
+        for _ in range(10):
+            world.step(rule_table, 0.01, rng)
+        bonds_baseline = len(world.bonds)
+
+        # Same with default config (no catalyst_multiplier field)
+        config2 = BlockWorldConfig(grid_width=10, grid_height=10, n_blocks=10, steps=10)
+        rng2 = Random(42)
+        world2 = BlockWorld.create(config2, rng2)
+        for _ in range(10):
+            world2.step(rule_table, 0.01, rng2)
+        assert len(world2.bonds) == bonds_baseline

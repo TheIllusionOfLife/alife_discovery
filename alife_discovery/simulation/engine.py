@@ -382,7 +382,13 @@ def run_block_world_search(
     from alife_discovery.config.constants import ENTITY_SNAPSHOT_INTERVAL
     from alife_discovery.domain.block_world import BlockWorld, generate_block_rule_table
     from alife_discovery.domain.entity import detect_entities
-    from alife_discovery.io.schemas import ENTITY_LOG_SCHEMA, ENTITY_LOG_SCHEMA_WITH_NULL
+    from alife_discovery.io.schemas import (
+        ENTITY_LOG_SCHEMA,
+        ENTITY_LOG_SCHEMA_FULL,
+        ENTITY_LOG_SCHEMA_WITH_NULL,
+        ENTITY_LOG_SCHEMA_WITH_REUSE,
+        STEP_TIMESERIES_SCHEMA,
+    )
     from alife_discovery.metrics.assembly import compute_entity_metrics
 
     cfg = config or BlockWorldConfig()
@@ -391,6 +397,7 @@ def run_block_world_search(
     entity_log_path = logs_dir / "entity_log.parquet"
 
     all_entity_records: list[dict] = []
+    all_timeseries_records: list[dict] = []
     summaries: list[dict] = []
 
     for i in range(n_rules):
@@ -408,9 +415,27 @@ def run_block_world_search(
             if (step + 1) % ENTITY_SNAPSHOT_INTERVAL == 0 or step == cfg.steps - 1:
                 entities = detect_entities(world)
                 records = compute_entity_metrics(
-                    entities, step=step, run_id=run_id, n_null_shuffles=cfg.n_null_shuffles
+                    entities,
+                    step=step,
+                    run_id=run_id,
+                    n_null_shuffles=cfg.n_null_shuffles,
+                    compute_reuse=cfg.compute_reuse_index,
                 )
                 all_entity_records.extend(records)
+
+                if cfg.write_timeseries:
+                    sizes = [r["entity_size"] for r in records]
+                    ais = [r["assembly_index"] for r in records]
+                    all_timeseries_records.append(
+                        {
+                            "run_id": run_id,
+                            "step": step,
+                            "mean_entity_size": sum(sizes) / len(sizes) if sizes else 0.0,
+                            "mean_assembly_index": sum(ais) / len(ais) if ais else 0.0,
+                            "n_entities": len(entities),
+                            "n_bonds": len(world.bonds),
+                        }
+                    )
 
         # Final snapshot summary
         final_entities = detect_entities(world)
@@ -424,11 +449,29 @@ def run_block_world_search(
             }
         )
 
-    # Write entity log
+    # Write entity log — select schema from 4-way dispatch table
     if all_entity_records:
-        schema = ENTITY_LOG_SCHEMA_WITH_NULL if cfg.n_null_shuffles > 0 else ENTITY_LOG_SCHEMA
+        has_null = cfg.n_null_shuffles > 0
+        has_reuse = cfg.compute_reuse_index
+        if has_null and has_reuse:
+            schema = ENTITY_LOG_SCHEMA_FULL
+        elif has_null:
+            schema = ENTITY_LOG_SCHEMA_WITH_NULL
+        elif has_reuse:
+            schema = ENTITY_LOG_SCHEMA_WITH_REUSE
+        else:
+            schema = ENTITY_LOG_SCHEMA
         table = pa.Table.from_pylist(all_entity_records, schema=schema)
         with pq.ParquetWriter(entity_log_path, schema) as writer:
             writer.write_table(table)
+
+    # Write step timeseries
+    if cfg.write_timeseries and all_timeseries_records:
+        ts_path = logs_dir / "step_timeseries.parquet"
+        # Sort by (run_id, step) as documented contract
+        all_timeseries_records.sort(key=lambda r: (r["run_id"], r["step"]))
+        ts_table = pa.Table.from_pylist(all_timeseries_records, schema=STEP_TIMESERIES_SCHEMA)
+        with pq.ParquetWriter(ts_path, STEP_TIMESERIES_SCHEMA) as writer:
+            writer.write_table(ts_table)
 
     return summaries
