@@ -64,12 +64,18 @@ def main() -> None:
         min_p = 1.0 / 101.0
         finite = np.isfinite(ai) & np.isfinite(null_mean) & np.isfinite(null_std)
         valid = finite & (null_std > 0)
+        zero_std = finite & (null_std == 0)
+        negative_std = finite & (null_std < 0)
         pvalues = np.ones(n_obs, dtype=float)
         z = (ai[valid] - null_mean[valid]) / null_std[valid]
         pvalues[valid] = np.clip(sp_stats.norm.sf(z), min_p, 1.0)
-        # When std=0 and ai > null_mean, use min_p; when ai <= null_mean, p=1 (already set)
-        pvalues[finite & (~valid) & (ai > null_mean)] = min_p
+        # Zero variance: ai exceeds null_mean → min_p; ai <= null_mean → p=1 (already set)
+        pvalues[zero_std & (ai > null_mean)] = min_p
+        # Malformed rows: negative std left as p=1 (conservative) with warning
+        n_neg = int(negative_std.sum())
         n_bad = int((~finite).sum())
+        if n_neg > 0:
+            print(f"Warning: {n_neg} rows with negative null_std treated as p=1.0")
         if n_bad > 0:
             print(f"Warning: {n_bad} rows with non-finite values treated as p=1.0")
         print(f"Note: approximated p-values from null_mean/null_std ({n_obs:,} observations)")
