@@ -30,12 +30,22 @@ def _run_single_rule(args: tuple[BlockWorldConfig, int, int]) -> _WorkerResult:
     cfg, rule_seed, sim_seed = args
 
     from alife_discovery.config.constants import ENTITY_SNAPSHOT_INTERVAL
-    from alife_discovery.domain.block_world import BlockWorld, generate_block_rule_table
+    from alife_discovery.domain.block_world import (
+        BlockRuleTable,
+        BlockWorld,
+        PartnerRuleTable,
+        generate_block_rule_table,
+        generate_partner_specific_rule_table,
+    )
     from alife_discovery.domain.entity import detect_entities
     from alife_discovery.metrics.assembly import compute_entity_metrics
 
     run_id = f"bw_rs{rule_seed}_ss{sim_seed}"
-    rule_table = generate_block_rule_table(rule_seed)
+    rule_table: BlockRuleTable | PartnerRuleTable
+    if cfg.partner_specific_rules:
+        rule_table = generate_partner_specific_rule_table(rule_seed)
+    else:
+        rule_table = generate_block_rule_table(rule_seed)
     rng = random.Random(sim_seed)
     world = BlockWorld.create(cfg, rng)
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections import Counter
+from pathlib import Path
 from random import Random
 
 import pytest
@@ -13,6 +14,7 @@ from alife_discovery.domain.block_world import (
     BlockRuleTable,
     BlockWorld,
     generate_block_rule_table,
+    generate_partner_specific_rule_table,
 )
 
 
@@ -618,3 +620,58 @@ class TestConfigSpecificCatalyst:
             bonds_formed += len(world.bonds)
         # With catalysis active, effective prob = 1.0
         assert bonds_formed >= 450
+
+
+class TestPartnerSpecificRules:
+    """Tests for partner-specific rule table generation and bond formation."""
+
+    def test_default_is_false(self) -> None:
+        config = BlockWorldConfig()
+        assert config.partner_specific_rules is False
+
+    def test_partner_rule_table_size(self) -> None:
+        """Partner-specific table has 3×3×5 = 45 entries."""
+        table = generate_partner_specific_rule_table(rule_seed=0)
+        assert len(table) == 45
+
+    def test_partner_rule_table_keys(self) -> None:
+        """Keys are (self_type, partner_type, neighbor_count)."""
+        table = generate_partner_specific_rule_table(rule_seed=0)
+        for key, val in table.items():
+            self_type, partner_type, n_count = key
+            assert self_type in BLOCK_TYPES
+            assert partner_type in BLOCK_TYPES
+            assert 0 <= n_count <= 4
+            assert 0.0 <= val <= 1.0
+
+    def test_partner_rule_table_deterministic(self) -> None:
+        t1 = generate_partner_specific_rule_table(rule_seed=42)
+        t2 = generate_partner_specific_rule_table(rule_seed=42)
+        assert t1 == t2
+
+    def test_partner_specific_bonds_form(self) -> None:
+        """Partner-specific mode forms bonds using per-partner lookup."""
+        config = BlockWorldConfig(
+            grid_width=10, grid_height=10, n_blocks=10, steps=20,
+            partner_specific_rules=True,
+        )
+        rng = Random(42)
+        world = BlockWorld.create(config, rng)
+        table = generate_partner_specific_rule_table(rule_seed=0)
+        # Run a few steps — should not crash
+        for _ in range(5):
+            world.step(table, 0.01, rng, update_mode=config.update_mode)
+        # Some bonds may have formed
+        assert isinstance(world.bonds, set)
+
+    def test_partner_specific_integration(self, tmp_path: Path) -> None:
+        """End-to-end: partner-specific rules produce valid parquet output."""
+        from alife_discovery.simulation.engine import run_block_world_search
+
+        config = BlockWorldConfig(
+            grid_width=10, grid_height=10, n_blocks=10, steps=20,
+            partner_specific_rules=True,
+        )
+        summaries = run_block_world_search(n_rules=2, out_dir=tmp_path, config=config)
+        assert len(summaries) == 2
+        assert (tmp_path / "logs" / "entity_log.parquet").exists()

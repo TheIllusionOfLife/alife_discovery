@@ -471,6 +471,8 @@ class BlockWorldConfig:
     """Bond probability multiplier when a K-type block is among neighbors (>= 1.0)."""
     catalyst_config_specific: bool = False
     """When True, K only catalyzes if it has both M and C in its own neighborhood."""
+    partner_specific_rules: bool = False
+    """When True, use (self_type, partner_type, n_count) rule table instead of dominant-type."""
     drift_probability: float = 1.0
     """Probability of attempting drift each step (0 < p <= 1.0)."""
     write_timeseries: bool = False
