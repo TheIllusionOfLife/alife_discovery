@@ -66,6 +66,14 @@ def main() -> None:
     ai_arr = np.array([v["ai"] for v in unique.values()], dtype=float)
     count_arr = np.array([v["count"] for v in unique.values()], dtype=float)
 
+    if len(size_arr) == 0:
+        lines.append("No entities found in input.")
+        report = "\n".join(lines)
+        report_path = args.out_dir / "multi_metric_report.txt"
+        report_path.write_text(report)
+        print(report)
+        return
+
     # Correlation
     if len(size_arr) > 1 and size_arr.std() > 0 and ai_arr.std() > 0:
         corr = float(np.corrcoef(size_arr, ai_arr)[0, 1])

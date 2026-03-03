@@ -101,9 +101,17 @@ def run_rules_parallel(
         raise ValueError("n_rules must be >= 1")
 
     cfg = config or BlockWorldConfig()
+
+    if cfg.write_timeseries:
+        raise NotImplementedError(
+            "write_timeseries is not supported by run_rules_parallel. "
+            "Use run_block_world_search for timeseries output."
+        )
     if n_workers is None:
         cpu = os.cpu_count() or 2
         n_workers = max(1, cpu - 1)
+    elif n_workers < 1:
+        raise ValueError(f"n_workers must be >= 1, got {n_workers}")
 
     logs_dir = Path(out_dir) / "logs"
     logs_dir.mkdir(parents=True, exist_ok=True)

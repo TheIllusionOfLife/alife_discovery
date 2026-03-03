@@ -41,8 +41,15 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--n-rules", type=_positive_int, default=100)
     p.add_argument("--seeds", type=_positive_int, default=3)
     p.add_argument("--steps", type=_positive_int, default=200)
-    p.add_argument("--kappa", type=float, default=3.0)
-    p.add_argument("--n-null", type=int, default=100)
+
+    def _positive_float(value: str) -> float:
+        fv = float(value)
+        if fv <= 0:
+            raise argparse.ArgumentTypeError(f"must be > 0, got {fv}")
+        return fv
+
+    p.add_argument("--kappa", type=_positive_float, default=3.0)
+    p.add_argument("--n-null", type=_positive_int, default=100)
     p.add_argument("--out-dir", type=Path, default=Path("data/config_catalyst"))
     p.add_argument("--plot", action="store_true")
     return p.parse_args()
@@ -169,12 +176,14 @@ def main() -> None:
     if args.plot:
         plotter = Path(__file__).parent / "plot_config_catalyst.py"
         if plotter.exists():
-            log_args = []
-            for label in conditions:
-                log_path = args.out_dir / label / "entity_log_combined.parquet"
-                if log_path.exists():
+            log_paths = {
+                label: args.out_dir / label / "entity_log_combined.parquet" for label in conditions
+            }
+            all_exist = all(p.exists() for p in log_paths.values())
+            if all_exist:
+                log_args = []
+                for label, log_path in log_paths.items():
                     log_args.extend([f"--{label.replace('_', '-')}-file", str(log_path)])
-            if log_args:
                 sys.stdout.flush()
                 subprocess.run(
                     [sys.executable, str(plotter)]

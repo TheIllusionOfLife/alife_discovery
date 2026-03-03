@@ -168,8 +168,10 @@ class BlockWorld:
         mode = update_mode if update_mode is not None else UpdateMode.SEQUENTIAL
         if mode == UpdateMode.SYNCHRONOUS:
             self._step_synchronous(rule_table, noise_level, rng)
-        else:
+        elif mode == UpdateMode.SEQUENTIAL:
             self._step_sequential(rule_table, noise_level, rng)
+        else:
+            raise ValueError(f"unsupported update_mode: {mode}")
 
     def _step_sequential(
         self, rule_table: BlockRuleTable | PartnerRuleTable, noise_level: float, rng: Random
@@ -283,13 +285,15 @@ class BlockWorld:
 
         if self.partner_specific_rules:
             # Per-partner probability: (self_type, partner_type, neighbor_count)
+            catalyst_factor = self._catalyst_factor(neighbor_ids)
             for neighbor_id in neighbor_ids:
                 partner_type = self.blocks[neighbor_id].block_type
                 prob = rule_table.get(
                     (block.block_type, partner_type, neighbor_count),  # type: ignore[arg-type]
                     0.0,
                 )
-                prob = self._apply_catalyst(prob, neighbor_ids)
+                if catalyst_factor > 1.0:
+                    prob = min(prob * catalyst_factor, 1.0)
                 bond = frozenset({block_id, neighbor_id})
                 if bond not in self.bonds:
                     if rng.random() < prob:
@@ -310,10 +314,10 @@ class BlockWorld:
                     if rng.random() < prob:
                         self.bonds.add(bond)
 
-    def _apply_catalyst(self, prob: float, neighbor_ids: list[int]) -> float:
-        """Apply catalyst multiplier to bond probability if conditions are met."""
+    def _catalyst_factor(self, neighbor_ids: list[int]) -> float:
+        """Return the catalyst multiplier if conditions are met, else 1.0."""
         if self.catalyst_multiplier <= 1.0:
-            return prob
+            return 1.0
         if self.catalyst_config_specific:
             for n in neighbor_ids:
                 if self.blocks[n].block_type != "K":
@@ -324,11 +328,18 @@ class BlockWorld:
                     if nn != n
                 }
                 if "M" in k_neighbor_types and "C" in k_neighbor_types:
-                    return min(prob * self.catalyst_multiplier, 1.0)
+                    return self.catalyst_multiplier
         else:
             has_k_neighbor = any(self.blocks[n].block_type == "K" for n in neighbor_ids)
             if has_k_neighbor:
-                return min(prob * self.catalyst_multiplier, 1.0)
+                return self.catalyst_multiplier
+        return 1.0
+
+    def _apply_catalyst(self, prob: float, neighbor_ids: list[int]) -> float:
+        """Apply catalyst multiplier to bond probability if conditions are met."""
+        factor = self._catalyst_factor(neighbor_ids)
+        if factor > 1.0:
+            return min(prob * factor, 1.0)
         return prob
 
     def _step_bond_break(self, noise_level: float, rng: Random) -> None:

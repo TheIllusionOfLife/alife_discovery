@@ -147,7 +147,10 @@ def main() -> None:
         c_pbar_est = np.exp(coeffs[1])
         lines.append(f"Fitted bond survival parameter s ≈ {s_est:.4f}")
         lines.append(f"Fitted c·p̄ ≈ {c_pbar_est:.4f}")
-        lines.append(f"Predicted k_max from s: ~{int(-np.log(2) / np.log(s_est)) + 1}")
+        if coeffs[0] != 0 and np.log(s_est) != 0:
+            lines.append(f"Predicted k_max from s: ~{int(-np.log(2) / np.log(s_est)) + 1}")
+        else:
+            lines.append("Predicted k_max: undefined (flat birth-rate fit)")
     else:
         lines.append("Insufficient data for compact approximation fit")
 

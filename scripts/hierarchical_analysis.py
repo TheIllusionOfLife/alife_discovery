@@ -54,6 +54,12 @@ def main() -> None:
     run_ids = table.column("run_id").to_pylist()
     entity_hashes = table.column("entity_hash").to_pylist()
 
+    if n_obs == 0:
+        print("No observations found in input.")
+        report_path = args.out_dir / "hierarchical_report.txt"
+        report_path.write_text("No observations found in input.\n")
+        return
+
     # 1. Per-unique-type excess
     type_pvalues: dict[str, list[float]] = {}
     for h, pv in zip(entity_hashes, pvalues, strict=True):

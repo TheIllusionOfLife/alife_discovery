@@ -436,7 +436,9 @@ def compute_entity_metrics(
                 )
                 record["assembly_index_null_mean"] = null_mean
                 record["assembly_index_null_std"] = null_std
-                record["assembly_index_null_pvalue"] = float((null_samples >= a_idx).mean())
+                record["assembly_index_null_pvalue"] = float(
+                    (1 + (null_samples >= a_idx).sum()) / (len(null_samples) + 1)
+                )
             else:
                 # Skip null sampling for large entities to avoid mixing
                 # approximate observed AI with exact null AI

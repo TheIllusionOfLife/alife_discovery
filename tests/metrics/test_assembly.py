@@ -471,6 +471,30 @@ class TestAssemblyIndexNullImproved:
 
         assert records[0]["assembly_index_null_pvalue"] == 1.0
 
+    def test_pvalue_never_zero_with_conservative_formula(self) -> None:
+        """Regression: (k+1)/(n+1) formula ensures p > 0 for any n_shuffles > 0."""
+        from unittest.mock import MagicMock, patch
+
+        from alife_discovery.domain.entity import Entity
+
+        g = make_graph(
+            [(0, "M"), (1, "C"), (2, "K"), (3, "M"), (4, "C")],
+            [(0, 1), (1, 2), (2, 3), (3, 4), (0, 3)],
+        )
+        fake_entity = MagicMock(spec=Entity)
+
+        with (
+            patch("alife_discovery.domain.entity.canonicalize_entity", return_value=g),
+            patch("alife_discovery.domain.entity.entity_graph_hash", return_value="fakeNZ"),
+        ):
+            records = compute_entity_metrics(
+                [fake_entity], step=0, run_id="test_run", n_null_shuffles=50
+            )
+
+        pv = records[0]["assembly_index_null_pvalue"]
+        assert pv > 0.0, "p-value must never be zero with (k+1)/(n+1) formula"
+        assert pv <= 1.0
+
 
 class TestAssemblyIndexNullTyped:
     """Tests for label-aware null model (preserves degree + permutes node types)."""

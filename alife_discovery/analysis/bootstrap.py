@@ -20,6 +20,10 @@ def clopper_pearson_upper(k: int, n: int, alpha: float = 0.05) -> float:
     Interpretation: "if excess exists, it is < returned_value with
     ``1 - alpha`` confidence."
     """
+    if n < 1:
+        raise ValueError("n must be >= 1")
+    if not (0 < alpha < 1):
+        raise ValueError("alpha must be in (0, 1)")
     if k < 0:
         raise ValueError("k must be >= 0")
     if k > n:
@@ -53,10 +57,8 @@ def bootstrap_excess_ci(
 
     rng = np.random.default_rng(rng_seed)
     n = len(excess_rates)
-    boot_means = np.empty(n_iter, dtype=float)
-    for i in range(n_iter):
-        sample = rng.choice(excess_rates, size=n, replace=True)
-        boot_means[i] = sample.mean()
+    samples = rng.choice(excess_rates, size=(n_iter, n), replace=True)
+    boot_means = samples.mean(axis=1)
 
     lo = float(np.percentile(boot_means, 100 * alpha / 2))
     hi = float(np.percentile(boot_means, 100 * (1 - alpha / 2)))

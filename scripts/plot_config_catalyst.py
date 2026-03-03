@@ -56,6 +56,8 @@ def main() -> None:
     ax = axes[0]
     for label, data in conditions.items():
         ai = data["assembly_index"]
+        if len(ai) == 0:
+            continue
         bins = np.arange(0, int(ai.max()) + 2) - 0.5
         ax.hist(ai, bins=bins, alpha=0.5, label=label, density=True)
     ax.set_xlabel("Assembly index")
@@ -67,6 +69,8 @@ def main() -> None:
     ax = axes[1]
     for label, data in conditions.items():
         sz = data["entity_size"]
+        if len(sz) == 0:
+            continue
         bins = np.arange(0, int(sz.max()) + 2) - 0.5
         ax.hist(sz, bins=bins, alpha=0.5, label=label, density=True)
     ax.set_xlabel("Entity size")

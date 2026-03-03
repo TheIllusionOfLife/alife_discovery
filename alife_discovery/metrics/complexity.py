@@ -49,9 +49,6 @@ def typed_motif_census(g: nx.Graph) -> dict[str, Any]:
 
     nodes = list(g.nodes())
     if len(nodes) < 3:
-        # Handle small graphs: check for wedges with 2 edges
-        if len(nodes) == 2 and g.number_of_edges() == 1:
-            pass  # single edge, no 3-node motifs
         return {
             "triangles": 0,
             "open_wedges": 0,

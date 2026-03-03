@@ -35,7 +35,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--n-rules", type=_positive_int, default=100)
     p.add_argument("--seeds", type=_positive_int, default=3)
     p.add_argument("--steps", type=_positive_int, default=200)
-    p.add_argument("--n-null", type=int, default=100)
+    p.add_argument("--n-null", type=_positive_int, default=100)
     p.add_argument("--out-dir", type=Path, default=Path("data/partner_specific"))
     return p.parse_args()
 
