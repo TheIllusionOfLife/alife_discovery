@@ -98,9 +98,7 @@ def main() -> None:
         lines.append(f"  mean_ai: {ai.mean():.4f}, max_ai: {ai.max():.0f}")
         lines.append(f"  mean_size: {sz.mean():.4f}, max_size: {sz.max():.0f}")
         if "assembly_index_null_pvalue" in tbl.column_names:
-            pv = np.array(
-                tbl.column("assembly_index_null_pvalue").to_pylist(), dtype=float
-            )
+            pv = np.array(tbl.column("assembly_index_null_pvalue").to_pylist(), dtype=float)
             sig = float((pv < 0.05).mean()) * 100
             lines.append(f"  pct_excess_p05: {sig:.1f}%")
         lines.append("")

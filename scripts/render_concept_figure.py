@@ -26,9 +26,7 @@ def parse_args() -> argparse.Namespace:
     return p.parse_args()
 
 
-def render_concept_figure(
-    out_dir: Path, *, return_fig: bool = False
-) -> plt.Figure | None:
+def render_concept_figure(out_dir: Path, *, return_fig: bool = False) -> plt.Figure | None:
     """Create the conceptual positioning figure."""
     fig, ax = plt.subplots(figsize=(6, 4))
 
@@ -96,8 +94,14 @@ def render_concept_figure(
         cx = r["xy"][0] + r["width"] / 2
         cy = r["xy"][1] + r["height"] / 2
         ax.text(
-            cx, cy, r["label"], ha="center", va="center",
-            fontsize=7, color="white", fontweight="bold",
+            cx,
+            cy,
+            r["label"],
+            ha="center",
+            va="center",
+            fontsize=7,
+            color="white",
+            fontweight="bold",
         )
 
     # Future work region (dashed)

@@ -81,8 +81,7 @@ def main() -> None:
         mean_ai = float(ai_arr[mask].mean())
         total_copies = int(count_arr[mask].sum())
         lines.append(
-            f"  size={sz}: {n} types, mean_ai={mean_ai:.2f}, "
-            f"total_copies={total_copies:,}"
+            f"  size={sz}: {n} types, mean_ai={mean_ai:.2f}, total_copies={total_copies:,}"
         )
 
     lines.append("")

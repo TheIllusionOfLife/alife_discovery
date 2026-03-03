@@ -524,9 +524,7 @@ class TestAssemblyIndexNullTyped:
             [(0, "M"), (1, "C"), (2, "K"), (3, "M")],
             [(0, 1), (1, 2), (2, 3), (3, 0)],
         )
-        result = assembly_index_null_typed(
-            g, n_shuffles=7, rng_seed=0, return_samples=True
-        )
+        result = assembly_index_null_typed(g, n_shuffles=7, rng_seed=0, return_samples=True)
         assert len(result) == 3
         mean, std, samples = result
         assert len(samples) == 7

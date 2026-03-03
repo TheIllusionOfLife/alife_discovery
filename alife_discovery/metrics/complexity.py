@@ -63,15 +63,11 @@ def typed_motif_census(g: nx.Graph) -> dict[str, Any]:
         edges = sum(1 for a, b in [(u, v), (v, w), (u, w)] if g.has_edge(a, b))
         if edges == 3:
             # Triangle
-            types = tuple(sorted(
-                g.nodes[n].get("block_type", "?") for n in (u, v, w)
-            ))
+            types = tuple(sorted(g.nodes[n].get("block_type", "?") for n in (u, v, w)))
             triangles.append(types)
         elif edges == 2:
             # Open wedge
-            types = tuple(sorted(
-                g.nodes[n].get("block_type", "?") for n in (u, v, w)
-            ))
+            types = tuple(sorted(g.nodes[n].get("block_type", "?") for n in (u, v, w)))
             open_wedges.append(types)
 
     return {

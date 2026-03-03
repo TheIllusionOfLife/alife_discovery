@@ -16,9 +16,7 @@ class TestRunRulesParallel:
         """Same config → identical entity records regardless of n_workers."""
         from alife_discovery.simulation.engine import run_block_world_search
 
-        config = BlockWorldConfig(
-            grid_width=10, grid_height=10, n_blocks=10, steps=20
-        )
+        config = BlockWorldConfig(grid_width=10, grid_height=10, n_blocks=10, steps=20)
 
         # Sequential (engine)
         seq_dir = tmp_path / "seq"
@@ -45,16 +43,17 @@ class TestRunRulesParallel:
 
     def test_parallel_single_worker(self, tmp_path: Path) -> None:
         """n_workers=1 should still produce valid output."""
-        config = BlockWorldConfig(
-            grid_width=10, grid_height=10, n_blocks=10, steps=20
-        )
+        config = BlockWorldConfig(grid_width=10, grid_height=10, n_blocks=10, steps=20)
         run_rules_parallel(n_rules=2, out_dir=tmp_path, config=config, n_workers=1)
         assert (tmp_path / "logs" / "entity_log.parquet").exists()
 
     def test_parallel_with_null_shuffles(self, tmp_path: Path) -> None:
         """Null shuffle columns present in parallel output."""
         config = BlockWorldConfig(
-            grid_width=10, grid_height=10, n_blocks=10, steps=20,
+            grid_width=10,
+            grid_height=10,
+            n_blocks=10,
+            steps=20,
             n_null_shuffles=5,
         )
         run_rules_parallel(n_rules=2, out_dir=tmp_path, config=config, n_workers=2)
@@ -63,19 +62,13 @@ class TestRunRulesParallel:
 
     def test_parallel_zero_rules_raises(self, tmp_path: Path) -> None:
         """n_rules < 1 raises ValueError."""
-        config = BlockWorldConfig(
-            grid_width=10, grid_height=10, n_blocks=10, steps=20
-        )
+        config = BlockWorldConfig(grid_width=10, grid_height=10, n_blocks=10, steps=20)
         with pytest.raises(ValueError, match="n_rules must be >= 1"):
             run_rules_parallel(n_rules=0, out_dir=tmp_path, config=config)
 
     def test_parallel_returns_summaries(self, tmp_path: Path) -> None:
         """Returns list of run summary dicts."""
-        config = BlockWorldConfig(
-            grid_width=10, grid_height=10, n_blocks=10, steps=20
-        )
-        summaries = run_rules_parallel(
-            n_rules=3, out_dir=tmp_path, config=config, n_workers=2
-        )
+        config = BlockWorldConfig(grid_width=10, grid_height=10, n_blocks=10, steps=20)
+        summaries = run_rules_parallel(n_rules=3, out_dir=tmp_path, config=config, n_workers=2)
         assert len(summaries) == 3
         assert all("run_id" in s for s in summaries)

@@ -50,9 +50,7 @@ def main() -> None:
     table = pq.read_table(args.input)
     n_obs = table.num_rows
 
-    pvalues = np.array(
-        table.column("assembly_index_null_pvalue").to_pylist(), dtype=float
-    )
+    pvalues = np.array(table.column("assembly_index_null_pvalue").to_pylist(), dtype=float)
     run_ids = table.column("run_id").to_pylist()
     entity_hashes = table.column("entity_hash").to_pylist()
 
@@ -75,18 +73,14 @@ def main() -> None:
     )
 
     # 3. Block bootstrap CI on overall excess rate
-    boot_lo, boot_hi = bootstrap_excess_ci(
-        run_excess_rates, n_iter=args.n_bootstrap, rng_seed=42
-    )
+    boot_lo, boot_hi = bootstrap_excess_ci(run_excess_rates, n_iter=args.n_bootstrap, rng_seed=42)
 
     # 4. Clopper-Pearson upper bound (run-level: how many runs have any excess?)
     runs_with_excess = int((run_excess_rates > 0).sum())
     cp_upper = clopper_pearson_upper(k=runs_with_excess, n=n_runs, alpha=args.alpha)
 
     # 5. Detection power
-    min_excess = detection_power(
-        n_observations=n_obs, n_types=n_types, alpha=args.alpha
-    )
+    min_excess = detection_power(n_observations=n_obs, n_types=n_types, alpha=args.alpha)
 
     # 6. KS test for p-value uniformity
     # Filter out p-values from trivial entities (size=1, ai=0) where p=1.0 always
@@ -108,7 +102,7 @@ def main() -> None:
         "",
         "--- Per-Unique-Type Excess ---",
         f"Types with majority excess (>50% obs at p<{args.alpha}): "
-        f"{type_excess_count}/{n_types} ({type_excess_count/n_types*100:.1f}%)",
+        f"{type_excess_count}/{n_types} ({type_excess_count / n_types * 100:.1f}%)",
         "",
         "--- Per-Run Excess Distribution ---",
         f"Mean run excess rate: {run_excess_rates.mean():.4f}",
@@ -120,8 +114,7 @@ def main() -> None:
         "",
         "--- Clopper-Pearson Upper Bound ---",
         f"Upper bound on run-level excess rate (95%): {cp_upper:.4f}",
-        f"Interpretation: if run-level excess exists, it is < {cp_upper:.1%} "
-        f"with 95% confidence",
+        f"Interpretation: if run-level excess exists, it is < {cp_upper:.1%} with 95% confidence",
         "",
         "--- Detection Power ---",
         f"Minimum detectable excess at 80% power: {min_excess:.4f} ({min_excess:.2%})",

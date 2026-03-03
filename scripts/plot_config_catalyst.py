@@ -36,9 +36,7 @@ def _load_data(path: Path) -> dict[str, np.ndarray]:
         "entity_size": np.array(tbl.column("entity_size").to_pylist(), dtype=float),
     }
     if "assembly_index_null_pvalue" in tbl.column_names:
-        data["pvalue"] = np.array(
-            tbl.column("assembly_index_null_pvalue").to_pylist(), dtype=float
-        )
+        data["pvalue"] = np.array(tbl.column("assembly_index_null_pvalue").to_pylist(), dtype=float)
     return data
 
 

@@ -127,9 +127,7 @@ def _condition_summary(label: str, tbl: pa.Table) -> list[str]:
         f"  mean_size: {sz_arr.mean():.4f}, max_size: {sz_arr.max():.0f}",
     ]
     if "assembly_index_null_pvalue" in tbl.column_names:
-        pv = np.array(
-            tbl.column("assembly_index_null_pvalue").to_pylist(), dtype=float
-        )
+        pv = np.array(tbl.column("assembly_index_null_pvalue").to_pylist(), dtype=float)
         sig = float((pv < 0.05).mean()) * 100
         lines.append(f"  pct_excess_p05: {sig:.1f}%")
     lines.append("")

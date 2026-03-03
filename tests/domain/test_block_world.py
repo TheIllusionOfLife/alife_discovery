@@ -545,8 +545,11 @@ class TestConfigSpecificCatalyst:
     def test_backward_compat_uniform_catalyst(self) -> None:
         """config_specific=False → same as uniform catalyst (backward compat)."""
         config = BlockWorldConfig(
-            grid_width=10, grid_height=10, n_blocks=3,
-            catalyst_multiplier=5.0, catalyst_config_specific=False,
+            grid_width=10,
+            grid_height=10,
+            n_blocks=3,
+            catalyst_multiplier=5.0,
+            catalyst_config_specific=False,
         )
         world = BlockWorld.create(config, Random(0))
         ids = list(world.blocks.keys())
@@ -570,8 +573,11 @@ class TestConfigSpecificCatalyst:
     def test_config_specific_no_catalysis_without_both_types(self) -> None:
         """K has only M neighbors → no catalysis in config_specific mode."""
         config = BlockWorldConfig(
-            grid_width=10, grid_height=10, n_blocks=4,
-            catalyst_multiplier=10.0, catalyst_config_specific=True,
+            grid_width=10,
+            grid_height=10,
+            n_blocks=4,
+            catalyst_multiplier=10.0,
+            catalyst_config_specific=True,
         )
         world = BlockWorld.create(config, Random(0))
         ids = list(world.blocks.keys())
@@ -597,8 +603,11 @@ class TestConfigSpecificCatalyst:
     def test_config_specific_catalyzes_with_both_types(self) -> None:
         """K has both M and C neighbors → catalysis active."""
         config = BlockWorldConfig(
-            grid_width=10, grid_height=10, n_blocks=4,
-            catalyst_multiplier=10.0, catalyst_config_specific=True,
+            grid_width=10,
+            grid_height=10,
+            n_blocks=4,
+            catalyst_multiplier=10.0,
+            catalyst_config_specific=True,
         )
         world = BlockWorld.create(config, Random(0))
         ids = list(world.blocks.keys())
@@ -652,7 +661,10 @@ class TestPartnerSpecificRules:
     def test_partner_specific_bonds_form(self) -> None:
         """Partner-specific mode forms bonds using per-partner lookup."""
         config = BlockWorldConfig(
-            grid_width=10, grid_height=10, n_blocks=10, steps=20,
+            grid_width=10,
+            grid_height=10,
+            n_blocks=10,
+            steps=20,
             partner_specific_rules=True,
         )
         rng = Random(42)
@@ -669,7 +681,10 @@ class TestPartnerSpecificRules:
         from alife_discovery.simulation.engine import run_block_world_search
 
         config = BlockWorldConfig(
-            grid_width=10, grid_height=10, n_blocks=10, steps=20,
+            grid_width=10,
+            grid_height=10,
+            n_blocks=10,
+            steps=20,
             partner_specific_rules=True,
         )
         summaries = run_block_world_search(n_rules=2, out_dir=tmp_path, config=config)
