@@ -511,16 +511,21 @@ $\sim$100 steps, well before our 500-step horizon. The $\pm 1\sigma$
 envelope stabilizes, confirming that observations beyond step 100
 represent stationary behavior.
 
-\textbf{Why max size = 6.} Entity lifetime analysis reveals that
-multi-block entities are transient: median lifetime is 1 snapshot
-interval. Bond survival rate between consecutive snapshots averages
-$\sim$0.4, meaning 60\% of bonds break per interval due to drift-induced
-separation. Growth transitions from size $k$ to $k+1$ become
-exponentially rarer: the probability of simultaneously maintaining $k$
-existing bonds while adding a new one decays geometrically. The mean
-bond probability across rule tables ($\bar{p} \approx 0.5$) combined
-with the $\sim$0.4 bond survival rate creates a natural ceiling at
-approximately 6 blocks.
+\textbf{Why max size = 6.} We formalize the size ceiling via a
+birth-death model. Let $b_k$ denote the empirical rate at which entities
+grow from size $k$ to $k{+}1$ per snapshot interval, and $d_k$ the rate
+of shrinking from $k$ to $k{-}1$. The maximum sustainable size is
+$k_{\max} = \max\{k : b_k / d_k \geq 1\}$.
+
+Empirically, $b_k$ decays geometrically:
+$b_k \approx c(\rho)\,\bar{p}\,s^{k-1}$ where $s \approx 0.4$ is the
+per-interval bond survival probability and $\bar{p} \approx 0.5$ is the
+mean bond formation probability. Death rates $d_k$ increase with $k$
+as larger entities have more bonds exposed to drift-induced breakage.
+The crossover $b_k = d_k$ occurs at $k \approx 6$, consistent with the
+observed maximum. This geometric decay in growth probability explains
+why assembly index tracks entity size: no structural motif can persist
+long enough to accumulate complexity beyond the size ceiling.
 
 We additionally report graph automorphism group sizes for observed entity
 types as a supplementary complexity indicator. Full multi-metric
