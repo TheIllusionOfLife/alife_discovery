@@ -33,13 +33,21 @@ def detect_entities(world: BlockWorld) -> list[Entity]:
 
     Single isolated blocks (no bonds) are included as size-1 entities.
     """
+    # Build adjacency dict once: O(|bonds|) instead of O(|V|×|bonds|) per BFS
+    adjacency: dict[int, list[int]] = {}
+    for bond in world.bonds:
+        endpoints = list(bond)
+        a, b = endpoints[0], endpoints[1]
+        adjacency.setdefault(a, []).append(b)
+        adjacency.setdefault(b, []).append(a)
+
     visited: set[int] = set()
     entities: list[Entity] = []
 
     for block_id in world.blocks:
         if block_id in visited:
             continue
-        # BFS from block_id
+        # BFS from block_id using adjacency dict
         component: set[int] = set()
         queue = [block_id]
         while queue:
@@ -47,11 +55,9 @@ def detect_entities(world: BlockWorld) -> list[Entity]:
             if current in component:
                 continue
             component.add(current)
-            for bond in world.bonds:
-                if current in bond:
-                    other = next(b for b in bond if b != current)
-                    if other not in component:
-                        queue.append(other)
+            for other in adjacency.get(current, []):
+                if other not in component:
+                    queue.append(other)
         visited |= component
         positions = {bid: (world.blocks[bid].x, world.blocks[bid].y) for bid in component}
         block_types = {bid: world.blocks[bid].block_type for bid in component}
