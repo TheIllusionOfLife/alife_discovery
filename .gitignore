@@ -55,6 +55,9 @@ viz/node_modules/
 viz/dist/
 .playwright-cli/
 
+# Regenerable intermediate figures (paper uses fig3_*, not these)
+paper/figures/experiment1_*.pdf
+
 # Zenodo staging
 zenodo_staging/
 
