@@ -40,8 +40,8 @@ edge-removal and reuse-aware AT formulations. A bond-shuffle null model
 with empirical $p$-values confirms zero significant excess at every size
 class. Parameter sweeps over density, grid size, and drift strength, and
 a catalytic positive control, corroborate the result. We characterize
-this as a boundary condition for emergent complexity in objective-free
-systems.
+this as a boundary condition: under low-expressiveness random bonding
+rules, assembly complexity is entirely size-determined.
 \end{abstract}
 
 Submission type: \textbf{Full Paper}\\
@@ -560,8 +560,12 @@ it detects ecological differences (more bonds, larger entities) while
 correctly reporting no structural specificity.
 
 Together, these results characterize a \emph{boundary condition} for
-emergent complexity. Below this boundary---defined by uniform random
-local bonding rules---entity assembly is fully explained by size.
+emergent complexity. Below this boundary---defined by low-expressiveness
+random local bonding rules with a 3-tuple context---entity assembly is
+fully explained by size. We emphasize that this conclusion is scoped to
+the rule class tested: uniform random bond probabilities conditioned on
+(self type, neighbor count, dominant type). Richer rule representations,
+structured rule sampling, or adaptation could produce different outcomes.
 Crossing this boundary likely requires one or more of: (1) biased rule
 sampling favoring specific motifs, (2) explicit catalytic mechanisms
 where specific configurations (not just types) promote bonding,
@@ -571,13 +575,16 @@ where specific configurations (not just types) promote bonding,
 \subsection{Rule Table Expressiveness}
 
 Our 3-tuple context (self type, neighbor count, dominant type)
-excludes spatial arrangement information.
-This design choice keeps the rule space tractable (60 entries) but may
-contribute to the negative result by preventing the emergence of
-orientation-dependent bonding. Future work could test richer contexts
-(e.g., 2-hop neighborhoods, spatial orientation of neighbors, or
-partner-specific bond probabilities) to separate rule expressiveness
-from randomness as factors in the negative result.
+excludes spatial arrangement information and partner-specific identity.
+This design choice keeps the rule space tractable (60 entries) but
+limits expressiveness: the negative result may partly reflect this
+low-expressiveness regime rather than a universal property of random
+bonding. Testable hypotheses include: (i)~partner-specific rules
+(conditioning on partner type) could enable motif-selective bonding;
+(ii)~spatially-oriented rules could produce direction-dependent
+structures; and (iii)~rule evolution could discover structure-promoting
+parameter regions. These extensions would help disentangle rule
+expressiveness from randomness as factors in the negative result.
 
 \subsection{Relation to Prior Work}
 
@@ -623,12 +630,14 @@ assembly: observed assembly indices are entirely explained by entity
 size, with zero significant excess over a bond-shuffle null model under
 both edge-removal and reuse-aware AT formulations.
 
-This robust negative result establishes that emergent structural
-complexity requires more than random local interactions---it requires
-structural bias in the rules, even without explicit fitness functions.
-By characterizing this boundary condition, we constrain the design space
-for future objective-free ALife systems and provide a concrete
-experimental baseline against which interventions can be measured.
+This robust negative result establishes that, under low-expressiveness
+random bonding rules, emergent structural complexity does not arise
+from local interactions alone. Structural bias in the rules---whether
+through motif-selective bonding, partner-specific conditions, or
+adaptation---appears necessary even without explicit fitness functions.
+By characterizing this boundary condition for a specific rule class, we
+provide a concrete experimental baseline against which richer
+rule representations and objective-free interventions can be measured.
 
 
 \section*{Acknowledgements}
