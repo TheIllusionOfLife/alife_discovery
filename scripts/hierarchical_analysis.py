@@ -21,6 +21,7 @@ from pathlib import Path
 
 import numpy as np
 import pyarrow.parquet as pq
+from scipy import stats as sp_stats
 
 from alife_discovery.analysis.bootstrap import (
     bootstrap_excess_ci,
@@ -50,7 +51,39 @@ def main() -> None:
     table = pq.read_table(args.input)
     n_obs = table.num_rows
 
-    pvalues = np.array(table.column("assembly_index_null_pvalue").to_pylist(), dtype=float)
+    col_names = table.column_names
+    if "assembly_index_null_pvalue" in col_names:
+        pvalues = np.array(table.column("assembly_index_null_pvalue").to_pylist(), dtype=float)
+    elif "assembly_index_null_mean" in col_names and "assembly_index_null_std" in col_names:
+        # Approximate p-values from normal distribution: p ≈ sf(z) = 1 - Φ((ai - μ) / σ)
+        # Uses survival function (sf) for numerical stability in the upper tail.
+        ai = np.array(table.column("assembly_index").to_pylist(), dtype=float)
+        null_mean = np.array(table.column("assembly_index_null_mean").to_pylist(), dtype=float)
+        null_std = np.array(table.column("assembly_index_null_std").to_pylist(), dtype=float)
+        # Floor for exact-zero p-values: 1/(n_shuffles+1) matches empirical shuffle resolution
+        min_p = 1.0 / 101.0
+        finite = np.isfinite(ai) & np.isfinite(null_mean) & np.isfinite(null_std)
+        valid = finite & (null_std > 0)
+        zero_std = finite & (null_std == 0)
+        negative_std = finite & (null_std < 0)
+        pvalues = np.ones(n_obs, dtype=float)
+        z = (ai[valid] - null_mean[valid]) / null_std[valid]
+        pvalues[valid] = np.clip(sp_stats.norm.sf(z), min_p, 1.0)
+        # Zero variance: ai exceeds null_mean → min_p; ai <= null_mean → p=1 (already set)
+        pvalues[zero_std & (ai > null_mean)] = min_p
+        # Malformed rows: negative std left as p=1 (conservative) with warning
+        n_neg = int(negative_std.sum())
+        n_bad = int((~finite).sum())
+        if n_neg > 0:
+            print(f"Warning: {n_neg} rows with negative null_std treated as p=1.0")
+        if n_bad > 0:
+            print(f"Warning: {n_bad} rows with non-finite values treated as p=1.0")
+        print(f"Note: approximated p-values from null_mean/null_std ({n_obs:,} observations)")
+    else:
+        raise ValueError(
+            "Input must have 'assembly_index_null_pvalue' or "
+            "'assembly_index_null_mean'+'assembly_index_null_std' columns"
+        )
     run_ids = table.column("run_id").to_pylist()
     entity_hashes = table.column("entity_hash").to_pylist()
 

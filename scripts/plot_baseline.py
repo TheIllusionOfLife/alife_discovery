@@ -4,7 +4,7 @@
 Reads entity_log_combined.parquet and produces:
   - experiment1_ai_cn_scatter.pdf  — scatter (a_i vs n_i, coloured by entity size)
   - experiment1_ai_cn_heatmap.pdf  — 2-D histogram with log-colorscale + marginals
-  - experiment1_size_dist.pdf      — entity size bar chart with MAX_ENTITY_SIZE reference
+  - experiment1_size_dist.pdf      — entity size bar chart
 
 Usage:
     uv run python scripts/plot_baseline.py \\
@@ -22,8 +22,6 @@ import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 import numpy as np
 import pyarrow.parquet as pq
-
-from alife_discovery.config.constants import MAX_ENTITY_SIZE
 
 # ---------------------------------------------------------------------------
 # Data loading
@@ -221,24 +219,15 @@ def plot_size_dist(
     out_path: Path,
     title: str | None = None,
 ) -> None:
-    """Bar chart of entity_size observation counts with MAX_ENTITY_SIZE reference line."""
+    """Bar chart of entity_size observation counts."""
     sz = data["entity_size"]
     sizes, counts = np.unique(sz, return_counts=True)
 
     fig, ax = plt.subplots(figsize=(6, 4))
     ax.bar(sizes, counts, color="teal", alpha=0.85, zorder=2)
-    ax.axvline(
-        MAX_ENTITY_SIZE,
-        color="crimson",
-        linestyle="--",
-        linewidth=1.4,
-        label=f"DP approx. threshold ({MAX_ENTITY_SIZE})",
-        zorder=3,
-    )
     ax.set_xlabel("Entity Size (nodes)")
     ax.set_ylabel("Observation Count")
     ax.set_xticks(sizes)
-    ax.legend()
     ax.set_title(title or "Entity size distribution")
     ax.grid(axis="y", alpha=0.3, zorder=1)
 
