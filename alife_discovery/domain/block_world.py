@@ -21,6 +21,9 @@ BlockType = Literal["M", "C", "K"]
 # Rule table type: (self_type, neighbor_count, dominant_type) -> bond_probability
 BlockRuleTable = dict[tuple[str, int, str], float]
 
+# Partner-specific rule table: (self_type, partner_type, neighbor_count) -> bond_probability
+PartnerRuleTable = dict[tuple[str, str, int], float]
+
 # Maximum neighbor_count value used as rule-table key (caps observed neighbors for any radius)
 MAX_NEIGHBOR_COUNT = 4
 
@@ -46,6 +49,8 @@ class BlockWorld:
     bonds: set[frozenset[int]]  # each element is frozenset of 2 block IDs
     observation_range: int = 1  # Manhattan radius for bond formation/pruning
     catalyst_multiplier: float = 1.0  # bond prob multiplier when K neighbor present
+    catalyst_config_specific: bool = False  # K only catalyzes with both M+C neighbors
+    partner_specific_rules: bool = False  # use per-partner rule table
     drift_probability: float = 1.0  # probability of attempting drift each step
 
     @classmethod
@@ -100,6 +105,8 @@ class BlockWorld:
             bonds=set(),
             observation_range=config.observation_range,
             catalyst_multiplier=config.catalyst_multiplier,
+            catalyst_config_specific=config.catalyst_config_specific,
+            partner_specific_rules=config.partner_specific_rules,
             drift_probability=config.drift_probability,
         )
 
@@ -145,7 +152,7 @@ class BlockWorld:
 
     def step(
         self,
-        rule_table: BlockRuleTable,
+        rule_table: BlockRuleTable | PartnerRuleTable,
         noise_level: float,
         rng: Random,
         update_mode: object = None,
@@ -161,10 +168,14 @@ class BlockWorld:
         mode = update_mode if update_mode is not None else UpdateMode.SEQUENTIAL
         if mode == UpdateMode.SYNCHRONOUS:
             self._step_synchronous(rule_table, noise_level, rng)
-        else:
+        elif mode == UpdateMode.SEQUENTIAL:
             self._step_sequential(rule_table, noise_level, rng)
+        else:
+            raise ValueError(f"unsupported update_mode: {mode}")
 
-    def _step_sequential(self, rule_table: BlockRuleTable, noise_level: float, rng: Random) -> None:
+    def _step_sequential(
+        self, rule_table: BlockRuleTable | PartnerRuleTable, noise_level: float, rng: Random
+    ) -> None:
         """Random-sequential update: one block at a time."""
         order = list(self.blocks.keys())
         rng.shuffle(order)
@@ -174,7 +185,7 @@ class BlockWorld:
         self._step_bond_break(noise_level, rng)
 
     def _step_synchronous(
-        self, rule_table: BlockRuleTable, noise_level: float, rng: Random
+        self, rule_table: BlockRuleTable | PartnerRuleTable, noise_level: float, rng: Random
     ) -> None:
         """Synchronous update: drift targets computed from frozen positions, then applied."""
         order = list(self.blocks.keys())
@@ -258,7 +269,12 @@ class BlockWorld:
                 stale.add(bond)
         self.bonds -= stale
 
-    def _try_bond_form(self, block_id: int, rule_table: BlockRuleTable, rng: Random) -> None:
+    def _try_bond_form(
+        self,
+        block_id: int,
+        rule_table: BlockRuleTable | PartnerRuleTable,
+        rng: Random,
+    ) -> None:
         """Form bonds with blocks within observation_range based on rule table."""
         block = self.blocks[block_id]
         neighbor_ids = self.neighbors_of(block_id, radius=self.observation_range)
@@ -266,19 +282,65 @@ class BlockWorld:
             return
         # Cap neighbor_count to keep rule table at 60 entries for any radius
         neighbor_count = min(len(neighbor_ids), MAX_NEIGHBOR_COUNT)
-        neighbor_types = [self.blocks[n].block_type for n in neighbor_ids]
-        type_counts = Counter(neighbor_types)
-        dominant_type = type_counts.most_common(1)[0][0]
-        prob = rule_table.get((block.block_type, neighbor_count, dominant_type), 0.0)
-        if self.catalyst_multiplier > 1.0:
+
+        if self.partner_specific_rules:
+            # Per-partner probability: (self_type, partner_type, neighbor_count)
+            catalyst_factor = self._catalyst_factor(neighbor_ids)
+            for neighbor_id in neighbor_ids:
+                partner_type = self.blocks[neighbor_id].block_type
+                prob = rule_table.get(
+                    (block.block_type, partner_type, neighbor_count),  # type: ignore[arg-type]
+                    0.0,
+                )
+                if catalyst_factor > 1.0:
+                    prob = min(prob * catalyst_factor, 1.0)
+                bond = frozenset({block_id, neighbor_id})
+                if bond not in self.bonds:
+                    if rng.random() < prob:
+                        self.bonds.add(bond)
+        else:
+            # Standard: single probability from dominant type
+            neighbor_types = [self.blocks[n].block_type for n in neighbor_ids]
+            type_counts = Counter(neighbor_types)
+            dominant_type = type_counts.most_common(1)[0][0]
+            prob = rule_table.get(
+                (block.block_type, neighbor_count, dominant_type),  # type: ignore[arg-type]
+                0.0,
+            )
+            prob = self._apply_catalyst(prob, neighbor_ids)
+            for neighbor_id in neighbor_ids:
+                bond = frozenset({block_id, neighbor_id})
+                if bond not in self.bonds:
+                    if rng.random() < prob:
+                        self.bonds.add(bond)
+
+    def _catalyst_factor(self, neighbor_ids: list[int]) -> float:
+        """Return the catalyst multiplier if conditions are met, else 1.0."""
+        if self.catalyst_multiplier <= 1.0:
+            return 1.0
+        if self.catalyst_config_specific:
+            for n in neighbor_ids:
+                if self.blocks[n].block_type != "K":
+                    continue
+                k_neighbor_types = {
+                    self.blocks[nn].block_type
+                    for nn in self.neighbors_of(n, radius=self.observation_range)
+                    if nn != n
+                }
+                if "M" in k_neighbor_types and "C" in k_neighbor_types:
+                    return self.catalyst_multiplier
+        else:
             has_k_neighbor = any(self.blocks[n].block_type == "K" for n in neighbor_ids)
             if has_k_neighbor:
-                prob = min(prob * self.catalyst_multiplier, 1.0)
-        for neighbor_id in neighbor_ids:
-            bond = frozenset({block_id, neighbor_id})
-            if bond not in self.bonds:
-                if rng.random() < prob:
-                    self.bonds.add(bond)
+                return self.catalyst_multiplier
+        return 1.0
+
+    def _apply_catalyst(self, prob: float, neighbor_ids: list[int]) -> float:
+        """Apply catalyst multiplier to bond probability if conditions are met."""
+        factor = self._catalyst_factor(neighbor_ids)
+        if factor > 1.0:
+            return min(prob * factor, 1.0)
+        return prob
 
     def _step_bond_break(self, noise_level: float, rng: Random) -> None:
         """Break each bond once per step with probability noise_level.
@@ -302,4 +364,20 @@ def generate_block_rule_table(rule_seed: int) -> BlockRuleTable:
         for neighbor_count in range(MAX_NEIGHBOR_COUNT + 1):  # 0..MAX_NEIGHBOR_COUNT
             for dominant_type in dominant_types:
                 table[(self_type, neighbor_count, dominant_type)] = rng.random()
+    return table
+
+
+def generate_partner_specific_rule_table(rule_seed: int) -> PartnerRuleTable:
+    """Generate a random partner-specific bond-formation rule table.
+
+    Keys: (self_type, partner_type, neighbor_count) → 3×3×5 = 45 entries.
+    This provides richer expressiveness than the dominant-type table (60 entries)
+    by conditioning directly on the partner block's type.
+    """
+    rng = Random(rule_seed)
+    table: PartnerRuleTable = {}
+    for self_type in BLOCK_TYPES:
+        for partner_type in BLOCK_TYPES:
+            for neighbor_count in range(MAX_NEIGHBOR_COUNT + 1):
+                table[(self_type, partner_type, neighbor_count)] = rng.random()
     return table

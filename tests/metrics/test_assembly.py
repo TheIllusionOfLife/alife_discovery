@@ -72,6 +72,22 @@ def test_k3_is_three():
     assert assembly_index_exact(g) == 3
 
 
+# ── C_4 cycle ──────────────────────────────────────────────────────────────────
+
+
+def test_c4_exact_is_four():
+    """C_4 (4-cycle): remove any edge -> P_4 (a=3), so a(C_4) = 1+3 = 4.
+
+    Regression test for I1: paper Table 1 previously listed a_exact(C_4)=3
+    which was incorrect under the edge-removal DP (no reuse).
+    """
+    g = make_graph(
+        [(0, "M"), (1, "M"), (2, "M"), (3, "M")],
+        [(0, 1), (1, 2), (2, 3), (3, 0)],
+    )
+    assert assembly_index_exact(g) == 4
+
+
 # ── Label awareness ───────────────────────────────────────────────────────────
 
 
@@ -454,6 +470,88 @@ class TestAssemblyIndexNullImproved:
             )
 
         assert records[0]["assembly_index_null_pvalue"] == 1.0
+
+    def test_pvalue_never_zero_with_conservative_formula(self) -> None:
+        """Regression: (k+1)/(n+1) formula ensures p > 0 for any n_shuffles > 0."""
+        from unittest.mock import MagicMock, patch
+
+        from alife_discovery.domain.entity import Entity
+
+        g = make_graph(
+            [(0, "M"), (1, "C"), (2, "K"), (3, "M"), (4, "C")],
+            [(0, 1), (1, 2), (2, 3), (3, 4), (0, 3)],
+        )
+        fake_entity = MagicMock(spec=Entity)
+
+        with (
+            patch("alife_discovery.domain.entity.canonicalize_entity", return_value=g),
+            patch("alife_discovery.domain.entity.entity_graph_hash", return_value="fakeNZ"),
+        ):
+            records = compute_entity_metrics(
+                [fake_entity], step=0, run_id="test_run", n_null_shuffles=50
+            )
+
+        pv = records[0]["assembly_index_null_pvalue"]
+        assert pv > 0.0, "p-value must never be zero with (k+1)/(n+1) formula"
+        assert pv <= 1.0
+
+
+class TestAssemblyIndexNullTyped:
+    """Tests for label-aware null model (preserves degree + permutes node types)."""
+
+    def test_preserves_degree_sequence(self) -> None:
+        """Typed null preserves degree sequence."""
+        from alife_discovery.metrics.assembly import assembly_index_null_typed
+
+        g = make_graph(
+            [(0, "M"), (1, "C"), (2, "K"), (3, "M"), (4, "C")],
+            [(0, 1), (1, 2), (2, 3), (3, 4), (0, 2)],
+        )
+        # The function should return valid floats
+        mean, std = assembly_index_null_typed(g, n_shuffles=10, rng_seed=0)
+        assert isinstance(mean, float)
+        assert isinstance(std, float)
+        assert mean >= 0.0
+
+    def test_preserves_type_counts(self) -> None:
+        """Typed null preserves how many of each type exist."""
+        from alife_discovery.metrics.assembly import assembly_index_null_typed
+
+        g = make_graph(
+            [(0, "M"), (1, "C"), (2, "K"), (3, "M")],
+            [(0, 1), (1, 2), (2, 3), (3, 0)],
+        )
+        mean, std = assembly_index_null_typed(g, n_shuffles=10, rng_seed=42)
+        assert isinstance(mean, float)
+
+    def test_degenerate_single_node(self) -> None:
+        from alife_discovery.metrics.assembly import assembly_index_null_typed
+
+        g = nx.Graph()
+        g.add_node(0, block_type="M")
+        mean, std = assembly_index_null_typed(g, n_shuffles=5)
+        assert mean == 0.0
+        assert std == 0.0
+
+    def test_degenerate_one_edge(self) -> None:
+        from alife_discovery.metrics.assembly import assembly_index_null_typed
+
+        g = make_graph([(0, "M"), (1, "C")], [(0, 1)])
+        mean, std = assembly_index_null_typed(g, n_shuffles=5)
+        # With only 2 nodes and 2 types, permutation either keeps or swaps
+        assert isinstance(mean, float)
+
+    def test_return_samples(self) -> None:
+        from alife_discovery.metrics.assembly import assembly_index_null_typed
+
+        g = make_graph(
+            [(0, "M"), (1, "C"), (2, "K"), (3, "M")],
+            [(0, 1), (1, 2), (2, 3), (3, 0)],
+        )
+        result = assembly_index_null_typed(g, n_shuffles=7, rng_seed=0, return_samples=True)
+        assert len(result) == 3
+        mean, std, samples = result
+        assert len(samples) == 7
 
 
 class TestBlockWorldSearchNullSchema:

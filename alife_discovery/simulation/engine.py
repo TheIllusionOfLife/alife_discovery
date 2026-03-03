@@ -380,7 +380,13 @@ def run_block_world_search(
     Returns list of run summary dicts.
     """
     from alife_discovery.config.constants import ENTITY_SNAPSHOT_INTERVAL
-    from alife_discovery.domain.block_world import BlockWorld, generate_block_rule_table
+    from alife_discovery.domain.block_world import (
+        BlockRuleTable,
+        BlockWorld,
+        PartnerRuleTable,
+        generate_block_rule_table,
+        generate_partner_specific_rule_table,
+    )
     from alife_discovery.domain.entity import detect_entities
     from alife_discovery.io.schemas import (
         ENTITY_LOG_SCHEMA,
@@ -405,7 +411,11 @@ def run_block_world_search(
         sim_seed = cfg.sim_seed + i
         run_id = f"bw_rs{rule_seed}_ss{sim_seed}"
 
-        rule_table = generate_block_rule_table(rule_seed)
+        rule_table: BlockRuleTable | PartnerRuleTable
+        if cfg.partner_specific_rules:
+            rule_table = generate_partner_specific_rule_table(rule_seed)
+        else:
+            rule_table = generate_block_rule_table(rule_seed)
         rng = random.Random(sim_seed)
         world = BlockWorld.create(cfg, rng)
 
