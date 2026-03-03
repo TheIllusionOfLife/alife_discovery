@@ -469,6 +469,8 @@ class BlockWorldConfig:
     """When True, compute AT-standard reuse-aware assembly index alongside edge-removal DP."""
     catalyst_multiplier: float = 1.0
     """Bond probability multiplier when a K-type block is among neighbors (>= 1.0)."""
+    catalyst_config_specific: bool = False
+    """When True, K only catalyzes if it has both M and C in its own neighborhood."""
     drift_probability: float = 1.0
     """Probability of attempting drift each step (0 < p <= 1.0)."""
     write_timeseries: bool = False

@@ -46,6 +46,7 @@ class BlockWorld:
     bonds: set[frozenset[int]]  # each element is frozenset of 2 block IDs
     observation_range: int = 1  # Manhattan radius for bond formation/pruning
     catalyst_multiplier: float = 1.0  # bond prob multiplier when K neighbor present
+    catalyst_config_specific: bool = False  # K only catalyzes with both M+C neighbors
     drift_probability: float = 1.0  # probability of attempting drift each step
 
     @classmethod
@@ -100,6 +101,7 @@ class BlockWorld:
             bonds=set(),
             observation_range=config.observation_range,
             catalyst_multiplier=config.catalyst_multiplier,
+            catalyst_config_specific=config.catalyst_config_specific,
             drift_probability=config.drift_probability,
         )
 
@@ -271,9 +273,28 @@ class BlockWorld:
         dominant_type = type_counts.most_common(1)[0][0]
         prob = rule_table.get((block.block_type, neighbor_count, dominant_type), 0.0)
         if self.catalyst_multiplier > 1.0:
-            has_k_neighbor = any(self.blocks[n].block_type == "K" for n in neighbor_ids)
-            if has_k_neighbor:
-                prob = min(prob * self.catalyst_multiplier, 1.0)
+            if self.catalyst_config_specific:
+                # K only catalyzes if it has both M and C in its own neighborhood
+                catalyze = False
+                for n in neighbor_ids:
+                    if self.blocks[n].block_type != "K":
+                        continue
+                    k_neighbor_types = {
+                        self.blocks[nn].block_type
+                        for nn in self.neighbors_of(n, radius=self.observation_range)
+                        if nn != n
+                    }
+                    if "M" in k_neighbor_types and "C" in k_neighbor_types:
+                        catalyze = True
+                        break
+                if catalyze:
+                    prob = min(prob * self.catalyst_multiplier, 1.0)
+            else:
+                has_k_neighbor = any(
+                    self.blocks[n].block_type == "K" for n in neighbor_ids
+                )
+                if has_k_neighbor:
+                    prob = min(prob * self.catalyst_multiplier, 1.0)
         for neighbor_id in neighbor_ids:
             bond = frozenset({block_id, neighbor_id})
             if bond not in self.bonds:

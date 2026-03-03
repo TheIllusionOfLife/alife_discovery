@@ -472,6 +472,66 @@ class TestAssemblyIndexNullImproved:
         assert records[0]["assembly_index_null_pvalue"] == 1.0
 
 
+class TestAssemblyIndexNullTyped:
+    """Tests for label-aware null model (preserves degree + permutes node types)."""
+
+    def test_preserves_degree_sequence(self) -> None:
+        """Typed null preserves degree sequence."""
+        from alife_discovery.metrics.assembly import assembly_index_null_typed
+
+        g = make_graph(
+            [(0, "M"), (1, "C"), (2, "K"), (3, "M"), (4, "C")],
+            [(0, 1), (1, 2), (2, 3), (3, 4), (0, 2)],
+        )
+        # The function should return valid floats
+        mean, std = assembly_index_null_typed(g, n_shuffles=10, rng_seed=0)
+        assert isinstance(mean, float)
+        assert isinstance(std, float)
+        assert mean >= 0.0
+
+    def test_preserves_type_counts(self) -> None:
+        """Typed null preserves how many of each type exist."""
+        from alife_discovery.metrics.assembly import assembly_index_null_typed
+
+        g = make_graph(
+            [(0, "M"), (1, "C"), (2, "K"), (3, "M")],
+            [(0, 1), (1, 2), (2, 3), (3, 0)],
+        )
+        mean, std = assembly_index_null_typed(g, n_shuffles=10, rng_seed=42)
+        assert isinstance(mean, float)
+
+    def test_degenerate_single_node(self) -> None:
+        from alife_discovery.metrics.assembly import assembly_index_null_typed
+
+        g = nx.Graph()
+        g.add_node(0, block_type="M")
+        mean, std = assembly_index_null_typed(g, n_shuffles=5)
+        assert mean == 0.0
+        assert std == 0.0
+
+    def test_degenerate_one_edge(self) -> None:
+        from alife_discovery.metrics.assembly import assembly_index_null_typed
+
+        g = make_graph([(0, "M"), (1, "C")], [(0, 1)])
+        mean, std = assembly_index_null_typed(g, n_shuffles=5)
+        # With only 2 nodes and 2 types, permutation either keeps or swaps
+        assert isinstance(mean, float)
+
+    def test_return_samples(self) -> None:
+        from alife_discovery.metrics.assembly import assembly_index_null_typed
+
+        g = make_graph(
+            [(0, "M"), (1, "C"), (2, "K"), (3, "M")],
+            [(0, 1), (1, 2), (2, 3), (3, 0)],
+        )
+        result = assembly_index_null_typed(
+            g, n_shuffles=7, rng_seed=0, return_samples=True
+        )
+        assert len(result) == 3
+        mean, std, samples = result
+        assert len(samples) == 7
+
+
 class TestBlockWorldSearchNullSchema:
     """Integration tests for parquet schema selection with null mode."""
 

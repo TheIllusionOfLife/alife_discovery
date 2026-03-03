@@ -295,6 +295,78 @@ def assembly_index_null(
     return (float(arr.mean()), float(arr.std()))
 
 
+@overload
+def assembly_index_null_typed(
+    graph: nx.Graph,
+    n_shuffles: int = ...,
+    rng_seed: int = ...,
+    *,
+    return_samples: Literal[False] = ...,
+) -> tuple[float, float]: ...
+
+
+@overload
+def assembly_index_null_typed(
+    graph: nx.Graph,
+    n_shuffles: int = ...,
+    rng_seed: int = ...,
+    *,
+    return_samples: Literal[True],
+) -> tuple[float, float, np.ndarray]: ...
+
+
+def assembly_index_null_typed(
+    graph: nx.Graph,
+    n_shuffles: int = 20,
+    rng_seed: int = 0,
+    *,
+    return_samples: bool = False,
+) -> tuple[float, float] | tuple[float, float, np.ndarray]:
+    """Label-aware null: preserve graph structure, permute node-type labels.
+
+    For each shuffle trial, randomly permute the ``block_type`` labels across
+    nodes (preserving type counts but randomizing which nodes carry which type),
+    then compute assembly index on the relabeled graph. This tests whether the
+    *typed* arrangement of nodes contributes to assembly complexity beyond what
+    the topology alone provides.
+
+    Degenerate cases follow the same conventions as ``assembly_index_null``.
+    """
+    if n_shuffles < 1:
+        raise ValueError("n_shuffles must be >= 1")
+
+    if graph.number_of_nodes() <= 1:
+        if return_samples:
+            return (0.0, 0.0, np.zeros(1, dtype=float))
+        return (0.0, 0.0)
+
+    n_edges = graph.number_of_edges()
+    if n_edges < 1:
+        if return_samples:
+            return (0.0, 0.0, np.zeros(1, dtype=float))
+        return (0.0, 0.0)
+
+    # Collect type labels
+    nodes = list(graph.nodes())
+    labels = [graph.nodes[n]["block_type"] for n in nodes]
+
+    rng = np.random.default_rng(rng_seed)
+    results: list[int] = []
+
+    for _ in range(n_shuffles):
+        shuffled_labels = list(labels)
+        rng.shuffle(shuffled_labels)
+        g_copy = graph.copy()
+        for node, label in zip(nodes, shuffled_labels, strict=True):
+            g_copy.nodes[node]["block_type"] = label
+        results.append(assembly_index_exact(g_copy))
+
+    arr = np.array(results, dtype=float)
+    if return_samples:
+        return (float(arr.mean()), float(arr.std()), arr)
+    return (float(arr.mean()), float(arr.std()))
+
+
 def compute_entity_metrics(
     entities: list[Any],
     step: int,

@@ -509,3 +509,112 @@ class TestCatalyticK:
         for _ in range(10):
             world2.step(rule_table, 0.01, rng2)
         assert len(world2.bonds) == bonds_baseline
+
+
+class TestConfigSpecificCatalyst:
+    """Tests for catalyst_config_specific mode.
+
+    Config-specific: K only catalyzes when it has BOTH M and C in its own
+    neighborhood. An isolated K or K with only one type does not catalyze.
+    """
+
+    @staticmethod
+    def _place(world: BlockWorld, block_id: int, x: int, y: int) -> None:
+        old = (world.blocks[block_id].x, world.blocks[block_id].y)
+        if old in world.grid and world.grid[old] == block_id:
+            del world.grid[old]
+        world.blocks[block_id].x = x
+        world.blocks[block_id].y = y
+        world.grid[(x, y)] = block_id
+
+    @staticmethod
+    def _uniform_rule_table(prob: float) -> BlockRuleTable:
+        rule_table: BlockRuleTable = {}
+        for st in BLOCK_TYPES:
+            for nc in range(5):
+                for dt in list(BLOCK_TYPES) + ["Empty"]:
+                    rule_table[(st, nc, dt)] = prob
+        return rule_table
+
+    def test_default_is_false(self) -> None:
+        config = BlockWorldConfig()
+        assert config.catalyst_config_specific is False
+
+    def test_backward_compat_uniform_catalyst(self) -> None:
+        """config_specific=False → same as uniform catalyst (backward compat)."""
+        config = BlockWorldConfig(
+            grid_width=10, grid_height=10, n_blocks=3,
+            catalyst_multiplier=5.0, catalyst_config_specific=False,
+        )
+        world = BlockWorld.create(config, Random(0))
+        ids = list(world.blocks.keys())
+        # M focal, K neighbor (no C neighbor) — uniform still catalyzes
+        world.blocks[ids[0]].block_type = "M"
+        world.blocks[ids[1]].block_type = "K"
+        world.blocks[ids[2]].block_type = "M"
+        self._place(world, ids[0], 5, 5)
+        self._place(world, ids[1], 5, 6)
+        self._place(world, ids[2], 0, 0)  # far away
+
+        rule_table = self._uniform_rule_table(0.1)
+        bonds_formed = 0
+        for seed in range(500):
+            world.bonds.clear()
+            world._try_bond_form(ids[0], rule_table, Random(seed))
+            bonds_formed += len(world.bonds)
+        # With multiplier=5, effective prob = 0.5 → ~250/500
+        assert bonds_formed > 200  # significantly above 50 (=0.1*500)
+
+    def test_config_specific_no_catalysis_without_both_types(self) -> None:
+        """K has only M neighbors → no catalysis in config_specific mode."""
+        config = BlockWorldConfig(
+            grid_width=10, grid_height=10, n_blocks=4,
+            catalyst_multiplier=10.0, catalyst_config_specific=True,
+        )
+        world = BlockWorld.create(config, Random(0))
+        ids = list(world.blocks.keys())
+        # M focal at (5,5), K at (5,6), M at (5,7), M at (0,0)
+        world.blocks[ids[0]].block_type = "M"  # focal
+        world.blocks[ids[1]].block_type = "K"  # K neighbor
+        world.blocks[ids[2]].block_type = "M"  # K's other neighbor (same type)
+        world.blocks[ids[3]].block_type = "M"  # far away
+        self._place(world, ids[0], 5, 5)
+        self._place(world, ids[1], 5, 6)
+        self._place(world, ids[2], 5, 7)
+        self._place(world, ids[3], 0, 0)
+
+        rule_table = self._uniform_rule_table(0.1)
+        bonds_formed = 0
+        for seed in range(500):
+            world.bonds.clear()
+            world._try_bond_form(ids[0], rule_table, Random(seed))
+            bonds_formed += len(world.bonds)
+        # No catalysis → rate stays ~0.1
+        assert bonds_formed < 150
+
+    def test_config_specific_catalyzes_with_both_types(self) -> None:
+        """K has both M and C neighbors → catalysis active."""
+        config = BlockWorldConfig(
+            grid_width=10, grid_height=10, n_blocks=4,
+            catalyst_multiplier=10.0, catalyst_config_specific=True,
+        )
+        world = BlockWorld.create(config, Random(0))
+        ids = list(world.blocks.keys())
+        # M focal at (5,5), K at (5,6), M at (6,6), C at (4,6)
+        world.blocks[ids[0]].block_type = "M"  # focal
+        world.blocks[ids[1]].block_type = "K"  # K neighbor
+        world.blocks[ids[2]].block_type = "M"  # K's neighbor (M)
+        world.blocks[ids[3]].block_type = "C"  # K's neighbor (C)
+        self._place(world, ids[0], 5, 5)
+        self._place(world, ids[1], 5, 6)
+        self._place(world, ids[2], 6, 6)
+        self._place(world, ids[3], 4, 6)
+
+        rule_table = self._uniform_rule_table(0.1)
+        bonds_formed = 0
+        for seed in range(500):
+            world.bonds.clear()
+            world._try_bond_form(ids[0], rule_table, Random(seed))
+            bonds_formed += len(world.bonds)
+        # With catalysis active, effective prob = 1.0
+        assert bonds_formed >= 450
