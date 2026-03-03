@@ -286,7 +286,8 @@ class BlockWorld:
             for neighbor_id in neighbor_ids:
                 partner_type = self.blocks[neighbor_id].block_type
                 prob = rule_table.get(
-                    (block.block_type, partner_type, neighbor_count), 0.0  # type: ignore[arg-type]
+                    (block.block_type, partner_type, neighbor_count),  # type: ignore[arg-type]
+                    0.0,
                 )
                 prob = self._apply_catalyst(prob, neighbor_ids)
                 bond = frozenset({block_id, neighbor_id})
@@ -299,7 +300,8 @@ class BlockWorld:
             type_counts = Counter(neighbor_types)
             dominant_type = type_counts.most_common(1)[0][0]
             prob = rule_table.get(
-                (block.block_type, neighbor_count, dominant_type), 0.0  # type: ignore[arg-type]
+                (block.block_type, neighbor_count, dominant_type),  # type: ignore[arg-type]
+                0.0,
             )
             prob = self._apply_catalyst(prob, neighbor_ids)
             for neighbor_id in neighbor_ids:
@@ -324,9 +326,7 @@ class BlockWorld:
                 if "M" in k_neighbor_types and "C" in k_neighbor_types:
                     return min(prob * self.catalyst_multiplier, 1.0)
         else:
-            has_k_neighbor = any(
-                self.blocks[n].block_type == "K" for n in neighbor_ids
-            )
+            has_k_neighbor = any(self.blocks[n].block_type == "K" for n in neighbor_ids)
             if has_k_neighbor:
                 return min(prob * self.catalyst_multiplier, 1.0)
         return prob
