@@ -55,16 +55,23 @@ def main() -> None:
     if "assembly_index_null_pvalue" in col_names:
         pvalues = np.array(table.column("assembly_index_null_pvalue").to_pylist(), dtype=float)
     elif "assembly_index_null_mean" in col_names and "assembly_index_null_std" in col_names:
-        # Approximate p-values from normal distribution: p ≈ 1 - Φ((ai - null_mean) / null_std)
+        # Approximate p-values from normal distribution: p ≈ sf(z) = 1 - Φ((ai - μ) / σ)
+        # Uses survival function (sf) for numerical stability in the upper tail.
         ai = np.array(table.column("assembly_index").to_pylist(), dtype=float)
         null_mean = np.array(table.column("assembly_index_null_mean").to_pylist(), dtype=float)
         null_std = np.array(table.column("assembly_index_null_std").to_pylist(), dtype=float)
+        # Floor for exact-zero p-values: 1/(n_shuffles+1) matches empirical shuffle resolution
+        min_p = 1.0 / 101.0
+        finite = np.isfinite(ai) & np.isfinite(null_mean) & np.isfinite(null_std)
+        valid = finite & (null_std > 0)
         pvalues = np.ones(n_obs, dtype=float)
-        valid = null_std > 0
-        z = np.where(valid, (ai - null_mean) / np.where(valid, null_std, 1.0), 0.0)
-        pvalues[valid] = 1.0 - sp_stats.norm.cdf(z[valid])
-        # When std=0 and ai > null_mean, p=0; when ai <= null_mean, p=1 (already set)
-        pvalues[(~valid) & (ai > null_mean)] = 0.0
+        z = (ai[valid] - null_mean[valid]) / null_std[valid]
+        pvalues[valid] = np.clip(sp_stats.norm.sf(z), min_p, 1.0)
+        # When std=0 and ai > null_mean, use min_p; when ai <= null_mean, p=1 (already set)
+        pvalues[finite & (~valid) & (ai > null_mean)] = min_p
+        n_bad = int((~finite).sum())
+        if n_bad > 0:
+            print(f"Warning: {n_bad} rows with non-finite values treated as p=1.0")
         print(f"Note: approximated p-values from null_mean/null_std ({n_obs:,} observations)")
     else:
         raise ValueError(
