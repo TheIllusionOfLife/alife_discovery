@@ -21,6 +21,7 @@ from pathlib import Path
 
 import numpy as np
 import pyarrow.parquet as pq
+from scipy import stats as sp_stats
 
 from alife_discovery.analysis.bootstrap import (
     bootstrap_excess_ci,
@@ -50,7 +51,26 @@ def main() -> None:
     table = pq.read_table(args.input)
     n_obs = table.num_rows
 
-    pvalues = np.array(table.column("assembly_index_null_pvalue").to_pylist(), dtype=float)
+    col_names = table.column_names
+    if "assembly_index_null_pvalue" in col_names:
+        pvalues = np.array(table.column("assembly_index_null_pvalue").to_pylist(), dtype=float)
+    elif "assembly_index_null_mean" in col_names and "assembly_index_null_std" in col_names:
+        # Approximate p-values from normal distribution: p ≈ 1 - Φ((ai - null_mean) / null_std)
+        ai = np.array(table.column("assembly_index").to_pylist(), dtype=float)
+        null_mean = np.array(table.column("assembly_index_null_mean").to_pylist(), dtype=float)
+        null_std = np.array(table.column("assembly_index_null_std").to_pylist(), dtype=float)
+        pvalues = np.ones(n_obs, dtype=float)
+        valid = null_std > 0
+        z = np.where(valid, (ai - null_mean) / np.where(valid, null_std, 1.0), 0.0)
+        pvalues[valid] = 1.0 - sp_stats.norm.cdf(z[valid])
+        # When std=0 and ai > null_mean, p=0; when ai <= null_mean, p=1 (already set)
+        pvalues[(~valid) & (ai > null_mean)] = 0.0
+        print(f"Note: approximated p-values from null_mean/null_std ({n_obs:,} observations)")
+    else:
+        raise ValueError(
+            "Input must have 'assembly_index_null_pvalue' or "
+            "'assembly_index_null_mean'+'assembly_index_null_std' columns"
+        )
     run_ids = table.column("run_id").to_pylist()
     entity_hashes = table.column("entity_hash").to_pylist()
 
