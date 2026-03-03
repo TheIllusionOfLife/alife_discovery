@@ -115,7 +115,9 @@ The simulation takes place on a two-dimensional toroidal grid of size
 $W \times H$ (default $20 \times 20$). The world is populated with $N$
 blocks (default 30), each assigned one of three types: \texttt{M}
 (membrane), \texttt{C} (cytosol), or \texttt{K} (catalyst), drawn
-proportionally at initialization (50\%, 30\%, 20\%).
+proportionally at initialization (50\%, 30\%, 20\%---a protocell-inspired
+membrane-dominated composition where structural elements outnumber
+catalytic components).
 
 At each time step, blocks are processed in a random-sequential order.
 For each block, two phases occur: \emph{drift} and \emph{bonding}.
@@ -224,12 +226,16 @@ where $C_i$ are connected components of $G - e$.
 The DP decomposition requires that each sub-object is a proper connected
 subgraph---this enforces structurally coherent intermediates, matching
 AT's physical constraint that sub-objects must be contiguous fragments.
+Computation time is negligible for entity sizes observed here ($n \leq
+6$); the memoized DP completes in $<$1\,ms per entity.
 
 \textbf{Reuse-aware (AT-standard).} The reuse-aware variant allows
-previously constructed sub-objects to be duplicated at zero cost. For
-each joining edge $e \in E$, we partition the remaining edges
-$S_1 \cup S_2 = E \setminus \{e\}$ into two sub-objects; when
-$S_1 \cong S_2$ (isomorphic by canonical key), the duplicate is free:
+previously constructed sub-objects to be duplicated at zero cost. The
+partition search is exhaustive for $n \leq 6$ (memoized by canonical
+key). For each joining edge $e \in E$, we partition the remaining edges
+$S_1 \cup S_2 = E \setminus \{e\}$ (a partition of remaining edges
+into two disjoint sets) into two sub-objects; when $S_1 \cong S_2$
+(isomorphic by canonical key), the duplicate is free:
 \begin{equation}
     a_r(G) = \min_{e,\, S_1,\, S_2}
     \left[1 + \begin{cases}
@@ -272,13 +278,18 @@ $n_{\text{shuffle}} = 100$ randomized graphs via double-edge swaps
 compute both the classical threshold test ($a_i > \mu_{\text{null}} +
 2\sigma_{\text{null}}$) and an \textbf{empirical $p$-value}:
 \begin{equation}
-    p = \frac{1}{n_{\text{shuffle}}} \sum_{j=1}^{n_{\text{shuffle}}}
-    \mathbf{1}[a(G_j^{\text{null}}) \geq a_i]
+    p = \frac{1 + \sum_{j=1}^{n_{\text{shuffle}}}
+    \mathbf{1}[a(G_j^{\text{null}}) \geq a_i]}{n_{\text{shuffle}} + 1}
 \end{equation}
-The empirical $p$-value is the primary significance test, avoiding the
-normality assumption of the $\mu + 2\sigma$ threshold. It also handles
-the edge case where $\sigma_{\text{null}} = 0$ (e.g., single-edge
-graphs), where the $\mu + 2\sigma$ threshold degenerates.
+The $(k{+}1)/(n{+}1)$ form avoids zero $p$-values and provides a
+conservative estimate \citep{gotelli2013nullmodels}. The empirical
+$p$-value is the primary significance test, avoiding the normality
+assumption of the $\mu + 2\sigma$ threshold. It also handles the edge
+case where $\sigma_{\text{null}} = 0$ (e.g., single-edge graphs), where
+the $\mu + 2\sigma$ threshold degenerates. For small graphs ($n \leq
+4$), the space of degree-preserving rewirings is limited; the null has
+low discriminative power at these sizes, but observed $a_i$ matches
+$|E|{-}1$ exactly for all small entities.
 
 \subsection{Catalytic K Positive Control}
 
@@ -313,7 +324,7 @@ results at those densities confirm the negative result generalizes.
 
 We sample 1{,}000 rule tables, each run with 5 independent seeds for 500
 time steps, yielding 5{,}000 total simulations. Entity observations are
-logged at regular intervals, producing a combined dataset of over 7
+logged every 10 simulation steps, producing a combined dataset of over 7
 million observations. The full pipeline is illustrated in
 \Cref{fig:methods}. Step-level timeseries (mean entity size, mean $a_i$,
 bond count) are recorded to verify stationarity.
@@ -383,7 +394,6 @@ convergence rather than discovery of qualitatively new structures.
     \caption{
         Entity size distribution across all observations (log scale).
         Each additional block reduces frequency by $\sim$10$\times$.
-        Dashed line: DP approximation threshold (16 blocks).
     }
     \label{fig:sizedist}
 \end{figure}
@@ -455,7 +465,7 @@ ${\geq}\,Y\%$ at 80\% power, confirming adequate sensitivity.
         Unique types       & 71        & 281 \\
         Max entity size    & 6         & 6 \\
         Max $a_i$ (no reuse)& 5        & 6 \\
-        Max $a_i$ (reuse)  & ---       & 4 \\
+        Max $a_i$ (reuse)  & ---$^*$   & 4 \\
         Mean $a_i$         & 0.058     & 0.060 \\
         Excess ($\mu+2\sigma$)& 0.0\% & 0.0\% \\
         Excess ($p < 0.05$)& 0.0\%    & 0.0\% \\
@@ -464,6 +474,7 @@ ${\geq}\,Y\%$ at 80\% power, confirming adequate sensitivity.
     \caption{
         Comparison of experimental scales. The negative result is stable
         across a 42$\times$ increase in observations.
+        $^*$Reuse-aware formulation was added after the pilot run.
     }
     \label{tab:scaleup}
 \end{table}
@@ -483,8 +494,10 @@ grid produces similar results to $20 \times 20$ at matched density
 ratios, confirming that the negative result is not an artifact of grid
 size.
 
-\textbf{Catalytic K control.} With $\kappa = 3.0$, catalytic conditions
-produce more bonds and larger entities than baseline, confirming that the
+\textbf{Catalytic K control.} With $\kappa = 3.0$ (the primary test
+point; additional values $\kappa \in \{1.5, 2.0, 5.0, 10.0\}$ were also
+tested with identical qualitative results), catalytic conditions produce
+more bonds and larger entities than baseline, confirming that the
 catalyst mechanism is active. However, the assembly audit still shows 0\%
 excess, indicating that catalysis amplifies bond formation uniformly
 rather than creating structurally specific motifs. The measurement
@@ -520,7 +533,9 @@ $k_{\max} = \max\{k : b_k / d_k \geq 1\}$.
 Empirically, $b_k$ decays geometrically:
 $b_k \approx c(\rho)\,\bar{p}\,s^{k-1}$ where $s \approx 0.4$ is the
 per-interval bond survival probability and $\bar{p} \approx 0.5$ is the
-mean bond formation probability. Death rates $d_k$ increase with $k$
+simple (unweighted) mean bond formation probability across rule entries.
+Context-weighted averaging (weighting by observation frequency per
+context) yields a similar estimate. Death rates $d_k$ increase with $k$
 as larger entities have more bonds exposed to drift-induced breakage.
 The crossover $b_k = d_k$ occurs at $k \approx 6$, consistent with the
 observed maximum. This geometric decay in growth probability explains
@@ -638,10 +653,10 @@ stationarity (\Cref{fig:stationarity}), may miss very slow transients in
 larger systems. Third, entity observations at each step are not fully
 independent (the same entity may persist across steps); our significance
 testing uses all observations but the 0\% excess holds identically when
-restricted to unique types. Fourth, we report a single complexity
-metric (assembly index); full multi-metric comparison incorporating
-motif frequency, compression-based complexity, and the automorphism
-counts reported in \S3.6 is deferred to future work.
+restricted to unique types. Fourth, while we supplement the assembly index with automorphism counts
+and typed-motif census (\S3.6), a full multi-metric comparison
+incorporating compression-based complexity and information-theoretic
+measures is deferred to future work.
 
 
 \section{Conclusion}
@@ -655,9 +670,11 @@ assembly: observed assembly indices are entirely explained by entity
 size, with zero significant excess over a bond-shuffle null model under
 both edge-removal and reuse-aware AT formulations.
 
-This robust negative result establishes that, under low-expressiveness
-random bonding rules, emergent structural complexity does not arise
-from local interactions alone. Structural bias in the rules---whether
+This robust negative result---whose reporting is itself valuable given
+the underrepresentation of negative results in the literature
+\citep{fanelli2012negativeresults}---establishes that, under
+low-expressiveness random bonding rules, emergent structural complexity
+does not arise from local interactions alone. Structural bias in the rules---whether
 through motif-selective bonding, partner-specific conditions, or
 adaptation---appears necessary even without explicit fitness functions.
 By characterizing this boundary condition for a specific rule class, we
