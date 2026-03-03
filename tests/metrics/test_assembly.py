@@ -72,6 +72,22 @@ def test_k3_is_three():
     assert assembly_index_exact(g) == 3
 
 
+# ── C_4 cycle ──────────────────────────────────────────────────────────────────
+
+
+def test_c4_exact_is_four():
+    """C_4 (4-cycle): remove any edge -> P_4 (a=3), so a(C_4) = 1+3 = 4.
+
+    Regression test for I1: paper Table 1 previously listed a_exact(C_4)=3
+    which was incorrect under the edge-removal DP (no reuse).
+    """
+    g = make_graph(
+        [(0, "M"), (1, "M"), (2, "M"), (3, "M")],
+        [(0, 1), (1, 2), (2, 3), (3, 0)],
+    )
+    assert assembly_index_exact(g) == 4
+
+
 # ── Label awareness ───────────────────────────────────────────────────────────
 
 

@@ -33,10 +33,10 @@ FORMAL ASSEMBLY GRAMMAR SPEC
    - P_n (n-1 edges, path): a = n-1
    - K_3 (triangle, 3 edges): a = 3
      (remove any edge -> P_3 with a=2, so a(K_3) = 1+2 = 3)
-   - C_4 (4-cycle, 4 edges): a = 3
-     (remove any edge -> P_3 with a=2, so a(C_4) = 1+2 = 3)
+   - C_4 (4-cycle, 4 edges): a = 4
+     (remove any edge -> P_4 with a=3, so a(C_4) = 1+3 = 4)
    NOTE: C_4=2 appears in literature only under binary-doubling grammar with
-   reuse. The simpler DP used here gives C_4=3.
+   reuse. The simpler DP used here gives C_4=4.
 
 5. LABEL CONSERVATION
    Node labels (block_type in {M, C, K}) are preserved through composition.
