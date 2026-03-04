@@ -7,6 +7,7 @@ import json
 import random
 from collections import deque
 from pathlib import Path
+from typing import Any
 
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -379,7 +380,7 @@ def run_block_world_search(
     Writes entity_log.parquet to out_dir/logs/entity_log.parquet.
     Returns list of run summary dicts.
     """
-    from alife_discovery.config.constants import ENTITY_SNAPSHOT_INTERVAL
+    from alife_discovery.config.constants import ENTITY_SNAPSHOT_INTERVAL, FLUSH_THRESHOLD
     from alife_discovery.domain.block_world import (
         BlockRuleTable,
         BlockWorld,
@@ -402,86 +403,102 @@ def run_block_world_search(
     logs_dir.mkdir(parents=True, exist_ok=True)
     entity_log_path = logs_dir / "entity_log.parquet"
 
-    all_entity_records: list[dict] = []
-    all_timeseries_records: list[dict] = []
+    has_null = cfg.n_null_shuffles > 0
+    has_reuse = cfg.compute_reuse_index
+    if has_null and has_reuse:
+        entity_schema = ENTITY_LOG_SCHEMA_FULL
+    elif has_null:
+        entity_schema = ENTITY_LOG_SCHEMA_WITH_NULL
+    elif has_reuse:
+        entity_schema = ENTITY_LOG_SCHEMA_WITH_REUSE
+    else:
+        entity_schema = ENTITY_LOG_SCHEMA
+
+    entity_writer = pq.ParquetWriter(entity_log_path, entity_schema)
+    entity_buffer: list[dict[str, Any]] = []
+    ts_writer: pq.ParquetWriter | None = None
+    timeseries_path = logs_dir / "step_timeseries.parquet"
+    ts_buffer: list[dict[str, Any]] = []
     summaries: list[dict] = []
 
-    for i in range(n_rules):
-        rule_seed = cfg.rule_seed + i
-        sim_seed = cfg.sim_seed + i
-        run_id = f"bw_rs{rule_seed}_ss{sim_seed}"
+    try:
+        for i in range(n_rules):
+            rule_seed = cfg.rule_seed + i
+            sim_seed = cfg.sim_seed + i
+            run_id = f"bw_rs{rule_seed}_ss{sim_seed}"
 
-        rule_table: BlockRuleTable | PartnerRuleTable
-        if cfg.partner_specific_rules:
-            rule_table = generate_partner_specific_rule_table(rule_seed)
-        else:
-            rule_table = generate_block_rule_table(rule_seed)
-        rng = random.Random(sim_seed)
-        world = BlockWorld.create(cfg, rng)
+            rule_table: BlockRuleTable | PartnerRuleTable
+            if cfg.partner_specific_rules:
+                rule_table = generate_partner_specific_rule_table(rule_seed)
+            else:
+                rule_table = generate_block_rule_table(rule_seed)
+            rng = random.Random(sim_seed)
+            world = BlockWorld.create(cfg, rng)
 
-        for step in range(cfg.steps):
-            world.step(rule_table, cfg.noise_level, rng, update_mode=cfg.update_mode)
+            for step in range(cfg.steps):
+                world.step(rule_table, cfg.noise_level, rng, update_mode=cfg.update_mode)
 
-            if (step + 1) % ENTITY_SNAPSHOT_INTERVAL == 0 or step == cfg.steps - 1:
-                entities = detect_entities(world)
-                records = compute_entity_metrics(
-                    entities,
-                    step=step,
-                    run_id=run_id,
-                    n_null_shuffles=cfg.n_null_shuffles,
-                    compute_reuse=cfg.compute_reuse_index,
-                )
-                all_entity_records.extend(records)
-
-                if cfg.write_timeseries:
-                    sizes = [r["entity_size"] for r in records]
-                    ais = [r["assembly_index"] for r in records]
-                    all_timeseries_records.append(
-                        {
-                            "run_id": run_id,
-                            "step": step,
-                            "mean_entity_size": sum(sizes) / len(sizes) if sizes else 0.0,
-                            "mean_assembly_index": sum(ais) / len(ais) if ais else 0.0,
-                            "n_entities": len(entities),
-                            "n_bonds": len(world.bonds),
-                        }
+                if (step + 1) % ENTITY_SNAPSHOT_INTERVAL == 0 or step == cfg.steps - 1:
+                    entities = detect_entities(world)
+                    records = compute_entity_metrics(
+                        entities,
+                        step=step,
+                        run_id=run_id,
+                        n_null_shuffles=cfg.n_null_shuffles,
+                        compute_reuse=cfg.compute_reuse_index,
                     )
+                    entity_buffer.extend(records)
+                    if len(entity_buffer) >= FLUSH_THRESHOLD:
+                        entity_writer.write_table(
+                            pa.Table.from_pylist(entity_buffer, schema=entity_schema)
+                        )
+                        entity_buffer.clear()
 
-        # Final snapshot summary
-        final_entities = detect_entities(world)
-        summaries.append(
-            {
-                "run_id": run_id,
-                "rule_seed": rule_seed,
-                "sim_seed": sim_seed,
-                "n_entities_final": len(final_entities),
-                "n_bonds_final": len(world.bonds),
-            }
-        )
+                    if cfg.write_timeseries:
+                        sizes = [r["entity_size"] for r in records]
+                        ais = [r["assembly_index"] for r in records]
+                        ts_buffer.append(
+                            {
+                                "run_id": run_id,
+                                "step": step,
+                                "mean_entity_size": sum(sizes) / len(sizes) if sizes else 0.0,
+                                "mean_assembly_index": sum(ais) / len(ais) if ais else 0.0,
+                                "n_entities": len(entities),
+                                "n_bonds": len(world.bonds),
+                            }
+                        )
+                        if len(ts_buffer) >= FLUSH_THRESHOLD:
+                            if ts_writer is None:
+                                ts_writer = pq.ParquetWriter(
+                                    timeseries_path, STEP_TIMESERIES_SCHEMA
+                                )
+                            ts_writer.write_table(
+                                pa.Table.from_pylist(ts_buffer, schema=STEP_TIMESERIES_SCHEMA)
+                            )
+                            ts_buffer.clear()
 
-    # Write entity log — select schema from 4-way dispatch table
-    if all_entity_records:
-        has_null = cfg.n_null_shuffles > 0
-        has_reuse = cfg.compute_reuse_index
-        if has_null and has_reuse:
-            schema = ENTITY_LOG_SCHEMA_FULL
-        elif has_null:
-            schema = ENTITY_LOG_SCHEMA_WITH_NULL
-        elif has_reuse:
-            schema = ENTITY_LOG_SCHEMA_WITH_REUSE
-        else:
-            schema = ENTITY_LOG_SCHEMA
-        table = pa.Table.from_pylist(all_entity_records, schema=schema)
-        with pq.ParquetWriter(entity_log_path, schema) as writer:
-            writer.write_table(table)
-
-    # Write step timeseries
-    if cfg.write_timeseries and all_timeseries_records:
-        ts_path = logs_dir / "step_timeseries.parquet"
-        # Sort by (run_id, step) as documented contract
-        all_timeseries_records.sort(key=lambda r: (r["run_id"], r["step"]))
-        ts_table = pa.Table.from_pylist(all_timeseries_records, schema=STEP_TIMESERIES_SCHEMA)
-        with pq.ParquetWriter(ts_path, STEP_TIMESERIES_SCHEMA) as writer:
-            writer.write_table(ts_table)
+            # Final snapshot summary
+            final_entities = detect_entities(world)
+            summaries.append(
+                {
+                    "run_id": run_id,
+                    "rule_seed": rule_seed,
+                    "sim_seed": sim_seed,
+                    "n_entities_final": len(final_entities),
+                    "n_bonds_final": len(world.bonds),
+                }
+            )
+    finally:
+        if entity_buffer:
+            entity_writer.write_table(pa.Table.from_pylist(entity_buffer, schema=entity_schema))
+            entity_buffer.clear()
+        entity_writer.close()
+        if cfg.write_timeseries and ts_buffer:
+            if ts_writer is None:
+                ts_writer = pq.ParquetWriter(timeseries_path, STEP_TIMESERIES_SCHEMA)
+            ts_writer.write_table(pa.Table.from_pylist(ts_buffer, schema=STEP_TIMESERIES_SCHEMA))
+            ts_buffer.clear()
+        if ts_writer is not None:
+            ts_writer.close()
 
     return summaries

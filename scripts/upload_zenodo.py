@@ -40,6 +40,8 @@ from pathlib import Path
 
 import requests
 
+from alife_discovery.io.paths import resolve_within_base
+
 ZENODO_API = "https://zenodo.org/api"
 SANDBOX_API = "https://sandbox.zenodo.org/api"
 
@@ -227,6 +229,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--publish", action="store_true")
     parser.add_argument("--sandbox", action="store_true")
     parser.add_argument("--no-verify-checksums", action="store_true")
+    parser.add_argument(
+        "--base-dir",
+        type=Path,
+        default=None,
+        help="Trusted root directory for artifact paths in metadata (default: repository root)",
+    )
     return parser.parse_args()
 
 
@@ -269,16 +277,28 @@ def _build_metadata(args: argparse.Namespace) -> dict:
     return meta
 
 
-def _load_and_verify(args: argparse.Namespace, meta: dict) -> list[Path]:
+def _default_base_dir() -> Path:
+    """Return the repository root inferred from this script's location."""
+    return Path(__file__).resolve().parent.parent
+
+
+def _load_and_verify(args: argparse.Namespace, meta: dict, base_dir: Path) -> list[Path]:
     artifacts = meta.get("artifacts", [])
     if not artifacts:
         print("ERROR: no artifacts in metadata.", file=sys.stderr)
         sys.exit(1)
     paths: list[Path] = []
     for entry in artifacts:
-        p = Path(entry["path"])
+        try:
+            p = resolve_within_base(Path(entry["path"]), base_dir)
+        except ValueError as exc:
+            print(f"ERROR: invalid artifact path: {exc}", file=sys.stderr)
+            sys.exit(1)
         if not p.exists():
             print(f"ERROR: not found: {p}", file=sys.stderr)
+            sys.exit(1)
+        if not p.is_file():
+            print(f"ERROR: not a file: {p}", file=sys.stderr)
             sys.exit(1)
         if not args.no_verify_checksums:
             expected = entry.get("sha256")
@@ -296,6 +316,9 @@ def _load_and_verify(args: argparse.Namespace, meta: dict) -> list[Path]:
 def main() -> int:
     args = parse_args()
     base_url = SANDBOX_API if args.sandbox else ZENODO_API
+    trusted_base_dir = (
+        _default_base_dir() if args.base_dir is None else Path(args.base_dir).resolve()
+    )
 
     if args.fetch_bibtex:
         print(fetch_bibtex(base_url, args.fetch_bibtex))
@@ -325,7 +348,7 @@ def main() -> int:
 
     with open(args.metadata) as f:
         meta = json.load(f)
-    artifact_paths = _load_and_verify(args, meta)
+    artifact_paths = _load_and_verify(args, meta, trusted_base_dir)
 
     if args.new_version:
         draft = create_new_version(base_url, token, args.new_version)

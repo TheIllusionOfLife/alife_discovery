@@ -27,6 +27,7 @@ from alife_discovery.analysis.bootstrap import (
     bootstrap_excess_ci,
     clopper_pearson_upper,
     detection_power,
+    detection_power_simulated,
     ks_pvalue_uniformity,
 )
 
@@ -41,7 +42,23 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--out-dir", type=Path, default=Path("data/hierarchical_analysis"))
     p.add_argument("--alpha", type=float, default=0.05)
     p.add_argument("--n-bootstrap", type=int, default=10_000)
+    p.add_argument("--power-sim-trials", type=int, default=10_000)
     return p.parse_args()
+
+
+def _holm_bonferroni(p_values: list[float]) -> list[float]:
+    """Apply Holm-Bonferroni correction to p-values."""
+    n = len(p_values)
+    if n == 0:
+        return []
+    indexed = sorted(enumerate(p_values), key=lambda x: x[1])
+    corrected = [0.0] * n
+    running = 0.0
+    for rank, (idx, pval) in enumerate(indexed):
+        adjusted = pval * (n - rank)
+        running = max(running, adjusted)
+        corrected[idx] = min(running, 1.0)
+    return corrected
 
 
 def main() -> None:
@@ -93,14 +110,21 @@ def main() -> None:
         report_path.write_text("No observations found in input.\n")
         return
 
-    # 1. Per-unique-type excess
+    # 1. Per-unique-type excess using one-sided binomial tests and Holm correction
     type_pvalues: dict[str, list[float]] = {}
     for h, pv in zip(entity_hashes, pvalues, strict=True):
         type_pvalues.setdefault(h, []).append(pv)
     n_types = len(type_pvalues)
-    type_excess_count = sum(
-        1 for pvs in type_pvalues.values() if np.mean([p < args.alpha for p in pvs]) > 0.5
-    )
+    type_test_rows: list[tuple[str, int, int, float]] = []
+    for h, pvs in type_pvalues.items():
+        successes = int(np.sum(np.array(pvs) < args.alpha))
+        n_trials = len(pvs)
+        pval = float(
+            sp_stats.binomtest(successes, n_trials, args.alpha, alternative="greater").pvalue
+        )
+        type_test_rows.append((h, successes, n_trials, pval))
+    corrected = _holm_bonferroni([row[3] for row in type_test_rows])
+    type_excess_count = sum(1 for cp in corrected if cp < args.alpha)
 
     # 2. Per-run excess distribution
     run_pvalues: dict[str, list[float]] = {}
@@ -120,6 +144,13 @@ def main() -> None:
 
     # 5. Detection power
     min_excess = detection_power(n_observations=n_obs, n_types=n_types, alpha=args.alpha)
+    simulated_power = detection_power_simulated(
+        n_types=n_types,
+        true_excess_rate=min_excess,
+        alpha=args.alpha,
+        n_trials=args.power_sim_trials,
+        rng_seed=42,
+    )
 
     # 6. KS test for p-value uniformity
     # Filter out p-values from trivial entities (size=1, ai=0) where p=1.0 always
@@ -140,7 +171,7 @@ def main() -> None:
         f"Total runs: {n_runs}",
         "",
         "--- Per-Unique-Type Excess ---",
-        f"Types with majority excess (>50% obs at p<{args.alpha}): "
+        f"Types significant after one-sided binomial + Holm correction (q<{args.alpha}): "
         f"{type_excess_count}/{n_types} ({type_excess_count / n_types * 100:.1f}%)",
         "",
         "--- Per-Run Excess Distribution ---",
@@ -157,7 +188,8 @@ def main() -> None:
         "",
         "--- Detection Power ---",
         f"Minimum detectable excess at 80% power: {min_excess:.4f} ({min_excess:.2%})",
-        f"With {n_obs:,} observations across {n_types} types, we would detect "
+        f"Simulated power at threshold ({args.power_sim_trials:,} trials): {simulated_power:.3f}",
+        f"With {n_obs:,} observations across {n_types} independent types, we would detect "
         f"excess >= {min_excess:.2%} at 80% power",
         "",
         "--- P-Value Uniformity (KS Test) ---",

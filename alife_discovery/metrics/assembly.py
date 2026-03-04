@@ -60,6 +60,9 @@ _ASSEMBLY_CACHE: dict[str, int] = {}
 # Separate cache for reuse-aware assembly index
 _ASSEMBLY_REUSE_CACHE: dict[str, int] = {}
 
+# Cache null-model summary stats by (entity_hash, n_shuffles).
+_NULL_STATS_CACHE: dict[tuple[str, int], tuple[float, float, float]] = {}
+
 
 def _canonical_key(graph: nx.Graph) -> str:
     """Canonical string for a labeled graph, used for memoization.
@@ -428,17 +431,23 @@ def compute_entity_metrics(
 
         if n_null_shuffles > 0:
             if n_nodes <= MAX_ENTITY_SIZE:
-                null_mean, null_std, null_samples = assembly_index_null(
-                    g,
-                    n_shuffles=n_null_shuffles,
-                    rng_seed=int(hashlib.sha256(h.encode()).hexdigest()[:8], 16),
-                    return_samples=True,
-                )
-                record["assembly_index_null_mean"] = null_mean
-                record["assembly_index_null_std"] = null_std
-                record["assembly_index_null_pvalue"] = float(
-                    (1 + (null_samples >= a_idx).sum()) / (len(null_samples) + 1)
-                )
+                cache_key = (h, n_null_shuffles)
+                cached = _NULL_STATS_CACHE.get(cache_key)
+                if cached is None:
+                    null_mean, null_std, null_samples = assembly_index_null(
+                        g,
+                        n_shuffles=n_null_shuffles,
+                        rng_seed=int(hashlib.sha256(h.encode()).hexdigest()[:8], 16),
+                        return_samples=True,
+                    )
+                    null_pvalue = float(
+                        (1 + (null_samples >= a_idx).sum()) / (len(null_samples) + 1)
+                    )
+                    cached = (null_mean, null_std, null_pvalue)
+                    _NULL_STATS_CACHE[cache_key] = cached
+                record["assembly_index_null_mean"] = cached[0]
+                record["assembly_index_null_std"] = cached[1]
+                record["assembly_index_null_pvalue"] = cached[2]
             else:
                 # Skip null sampling for large entities to avoid mixing
                 # approximate observed AI with exact null AI

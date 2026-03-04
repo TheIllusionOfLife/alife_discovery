@@ -2,6 +2,15 @@
 
 Objective-free artificial life (ALife) research integrating Assembly Theory (AT) to study emergent structure without optimization targets.
 
+## Project Tracks (Important)
+
+This repository currently contains two active research tracks:
+
+- **Track A (Phase-based agent world)**: `alife_discovery.run_search` and phase comparison tooling.
+- **Track B (Block-world Assembly Theory)**: scripts under `scripts/` using `run_block_world_search`.
+
+The current paper in [`paper/main.tex`](paper/main.tex) is based on **Track B** outputs.
+
 ## What This Repository Contains
 
 - Deterministic, seed-driven grid-world simulation with shared rule tables
@@ -34,6 +43,13 @@ uv run pytest -q
 ```
 
 ## Common Commands
+
+Paper-track (Track B) baseline:
+
+```bash
+uv run python scripts/baseline_analysis.py --n-rules 100 --seeds 5 --steps 500 --out-dir data/experiment1_large
+uv run python scripts/assembly_audit.py --n-rules 1000 --seeds 5 --steps 500 --n-null 100 --reuse --out-dir data/assembly_audit_v3
+```
 
 Run a single-phase batch search:
 
@@ -147,6 +163,11 @@ tectonic paper/main.tex
 ```
 
 The compiled PDF is written to `paper/main.pdf`.
+
+For anonymous-review-safe paper reproduction guidance, see:
+
+- `docs/repro_paper_anonymous.md`
+- `docs/paper_result_manifest.json`
 
 ## Documentation Map
 

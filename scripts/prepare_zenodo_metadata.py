@@ -54,6 +54,47 @@ def _parse_binding(raw: str) -> dict[str, str]:
     return {"paper_ref": ref, "file_path": path}
 
 
+def _redact_argv(argv: list[str]) -> list[str]:
+    """Redact potentially sensitive argv values before persisting metadata.
+
+    This is intentionally conservative: values for flags containing secret-like
+    tokens are replaced, and key=value forms are redacted by key name.
+    """
+    sensitive_tokens = ("token", "secret", "password", "passwd", "api_key", "apikey", "key")
+    redacted: list[str] = []
+    redact_next = False
+    for arg in argv:
+        if redact_next:
+            redacted.append("<redacted>")
+            redact_next = False
+            continue
+        lowered = arg.lower()
+        if lowered.startswith("--"):
+            key = lowered.lstrip("-")
+            if "=" in arg:
+                left, right = arg.split("=", 1)
+                if any(tok in left.lower() for tok in sensitive_tokens):
+                    redacted.append(f"{left}=<redacted>")
+                else:
+                    redacted.append(f"{left}={right}")
+                continue
+            if any(tok in key for tok in sensitive_tokens):
+                redacted.append(arg)
+                redact_next = True
+                continue
+            redacted.append(arg)
+            continue
+        if "=" in arg:
+            left, right = arg.split("=", 1)
+            if any(tok in left.lower() for tok in sensitive_tokens):
+                redacted.append(f"{left}=<redacted>")
+            else:
+                redacted.append(f"{left}={right}")
+            continue
+        redacted.append(arg)
+    return redacted
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("files", type=Path, nargs="+")
@@ -65,6 +106,11 @@ def main() -> int:
     parser.add_argument("--paper-binding", action="append", default=[])
     parser.add_argument("--zenodo-doi", default=None)
     parser.add_argument("--output", type=Path, default=Path("zenodo_metadata.json"))
+    parser.add_argument(
+        "--no-redact-argv",
+        action="store_true",
+        help="Store raw argv in metadata_generation_argv (default is redacted).",
+    )
     args = parser.parse_args()
 
     artifacts = []
@@ -86,8 +132,9 @@ def main() -> int:
         "experiment_name": args.experiment_name,
         "artifact_source_commit": _detect_git_commit(),
         "entrypoint": args.entrypoint,
-        # Never pass secrets via CLI — argv is safe here
-        "metadata_generation_argv": list(sys.argv[1:]),
+        "metadata_generation_argv": (
+            list(sys.argv[1:]) if args.no_redact_argv else _redact_argv(list(sys.argv[1:]))
+        ),
         "seed_range": {"start": args.seed_start, "end": args.seed_end},
         "steps": args.steps,
         "artifacts": artifacts,

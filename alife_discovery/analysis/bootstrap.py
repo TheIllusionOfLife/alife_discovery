@@ -73,22 +73,51 @@ def detection_power(
 ) -> float:
     """Minimum detectable excess rate at given power.
 
-    Uses a normal approximation for the binomial test. Returns the
-    smallest true excess rate that would be detected (rejected at
-    significance ``alpha``) with probability ``power``, given
-    ``n_observations`` independent tests across ``n_types`` unique types.
-
-    The effective sample size is ``n_types`` (testing per unique type),
-    not ``n_observations``.
+    Uses a normal approximation for one-sided detection of non-zero excess.
+    Effective sample size is ``n_types`` (unique types), while
+    ``n_observations`` is retained for interface compatibility.
     """
-    n_eff = n_types
+    del n_observations
+    if n_types < 1:
+        raise ValueError("n_types must be >= 1")
+    if not (0.0 < alpha < 1.0):
+        raise ValueError("alpha must be in (0, 1)")
+    if not (0.0 < power < 1.0):
+        raise ValueError("power must be in (0, 1)")
     z_alpha = stats.norm.ppf(1 - alpha)
     z_beta = stats.norm.ppf(power)
-    # Minimum detectable proportion difference from 0
-    # Using normal approximation: p = ((z_alpha + z_beta) / sqrt(n_eff))^2 / 4
-    # Simplified: p_min ≈ (z_alpha + z_beta)^2 / (4 * n_eff)
-    min_excess = ((z_alpha + z_beta) ** 2) / (4 * n_eff)
+    min_excess = ((z_alpha + z_beta) ** 2) / (4 * n_types)
     return float(min_excess)
+
+
+def detection_power_simulated(
+    *,
+    n_types: int,
+    true_excess_rate: float,
+    alpha: float = 0.05,
+    n_trials: int = 50_000,
+    rng_seed: int = 0,
+) -> float:
+    """Monte Carlo estimate of power for non-zero excess detection.
+
+    Decision rule mirrors the approximation used in ``detection_power``:
+    reject when observed excess count exceeds z-threshold under null p=0.
+    """
+    if n_types < 1:
+        raise ValueError("n_types must be >= 1")
+    if not (0.0 <= true_excess_rate <= 1.0):
+        raise ValueError("true_excess_rate must be in [0, 1]")
+    if not (0.0 < alpha < 1.0):
+        raise ValueError("alpha must be in (0, 1)")
+    if n_trials < 1:
+        raise ValueError("n_trials must be >= 1")
+
+    z_alpha = stats.norm.ppf(1 - alpha)
+    k_crit = int(np.ceil((z_alpha**2) / 4.0))
+
+    rng = np.random.default_rng(rng_seed)
+    samples = rng.binomial(n=n_types, p=true_excess_rate, size=n_trials)
+    return float(np.mean(samples >= k_crit))
 
 
 def ks_pvalue_uniformity(pvalues: np.ndarray) -> tuple[float, float]:
