@@ -28,7 +28,7 @@
     {
       "path": "data/config_catalyst/baseline/entity_log_combined.parquet",
       "sha256": "2725358d91b875ddddf817eb9351546a0263a88b988550adf9fbd5b1c099f06a",
-      "description": "Config-catalyst experiment: baseline condition"
+      "description": "Config-catalyst experiment: baseline condition (identical to partner_specific/standard)"
     },
     {
       "path": "data/config_catalyst/uniform_catalyst/entity_log_combined.parquet",
@@ -53,7 +53,7 @@
     {
       "path": "data/partner_specific/standard/entity_log_combined.parquet",
       "sha256": "2725358d91b875ddddf817eb9351546a0263a88b988550adf9fbd5b1c099f06a",
-      "description": "Partner-specific experiment: standard rules condition"
+      "description": "Partner-specific experiment: standard rules condition (identical to config_catalyst/baseline)"
     },
     {
       "path": "data/partner_specific/partner_specific/entity_log_combined.parquet",
