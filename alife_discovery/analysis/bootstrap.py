@@ -73,22 +73,62 @@ def detection_power(
 ) -> float:
     """Minimum detectable excess rate at given power.
 
-    Uses a normal approximation for the binomial test. Returns the
-    smallest true excess rate that would be detected (rejected at
-    significance ``alpha``) with probability ``power``, given
-    ``n_observations`` independent tests across ``n_types`` unique types.
+    We use the same historical closed-form approximation used by this project:
+    ``p_min ≈ (z_{1-α} + z_{power})^2 / (4n)``, where ``n = n_types``.
+    This is a small-rate heuristic (not an exact binomial power calculation),
+    retained for backward compatibility with prior reports.
 
-    The effective sample size is ``n_types`` (testing per unique type),
-    not ``n_observations``.
+    ``n_observations`` is accepted for interface compatibility; effective
+    independent units are unique types (``n_types``).
     """
-    n_eff = n_types
+    del n_observations
+    if n_types < 1:
+        raise ValueError("n_types must be >= 1")
+    if not (0.0 < alpha < 1.0):
+        raise ValueError("alpha must be in (0, 1)")
+    if not (0.0 < power < 1.0):
+        raise ValueError("power must be in (0, 1)")
     z_alpha = stats.norm.ppf(1 - alpha)
     z_beta = stats.norm.ppf(power)
-    # Minimum detectable proportion difference from 0
-    # Using normal approximation: p = ((z_alpha + z_beta) / sqrt(n_eff))^2 / 4
-    # Simplified: p_min ≈ (z_alpha + z_beta)^2 / (4 * n_eff)
-    min_excess = ((z_alpha + z_beta) ** 2) / (4 * n_eff)
+    min_excess = ((z_alpha + z_beta) ** 2) / (4 * n_types)
     return float(min_excess)
+
+
+def detection_power_simulated(
+    *,
+    n_types: int,
+    true_excess_rate: float,
+    alpha: float = 0.05,
+    n_trials: int = 50_000,
+    rng_seed: int = 0,
+) -> float:
+    """Monte Carlo power estimate for the same heuristic threshold.
+
+    We simulate ``K ~ Binomial(n_types, true_excess_rate)`` and estimate
+    ``P(K >= k_crit)`` with:
+
+    ``k_crit = ceil(z_{1-α}^2 / 4)``.
+
+    This critical count follows from the project's historical threshold
+    ``p_hat >= z_{1-α}^2 / (4 n_types)``, hence the apparent cancellation of
+    ``n_types`` in ``k_crit``. This function is therefore a consistency check
+    for the legacy approximation, not a replacement for exact binomial power.
+    """
+    if n_types < 1:
+        raise ValueError("n_types must be >= 1")
+    if not (0.0 <= true_excess_rate <= 1.0):
+        raise ValueError("true_excess_rate must be in [0, 1]")
+    if not (0.0 < alpha < 1.0):
+        raise ValueError("alpha must be in (0, 1)")
+    if n_trials < 1:
+        raise ValueError("n_trials must be >= 1")
+
+    z_alpha = stats.norm.ppf(1 - alpha)
+    k_crit = int(np.ceil((z_alpha**2) / 4.0))
+
+    rng = np.random.default_rng(rng_seed)
+    samples = rng.binomial(n=n_types, p=true_excess_rate, size=n_trials)
+    return float(np.mean(samples >= k_crit))
 
 
 def ks_pvalue_uniformity(pvalues: np.ndarray) -> tuple[float, float]:

@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "paper_source": "paper/main.tex",
+  "anonymous": true,
+  "track": "block_world_assembly",
+  "claims": [
+    {
+      "id": "baseline_scale",
+      "description": "5000 simulations, ~7.1M entity observations",
+      "command": "uv run python scripts/baseline_analysis.py --n-rules 1000 --seeds 5 --steps 500 --out-dir data/experiment1_large",
+      "artifacts": [
+        "data/experiment1_large/entity_log_combined.parquet"
+      ]
+    },
+    {
+      "id": "audit_zero_excess",
+      "description": "0% significant excess with empirical p-values",
+      "command": "uv run python scripts/assembly_audit.py --n-rules 1000 --seeds 5 --steps 500 --n-null 100 --reuse --out-dir data/assembly_audit_v3",
+      "artifacts": [
+        "data/assembly_audit_v3/entity_log_combined.parquet",
+        "data/assembly_audit_v3/audit_summary.txt"
+      ]
+    },
+    {
+      "id": "hierarchical_robustness",
+      "description": "Run-level and type-level robustness analysis",
+      "command": "uv run python scripts/hierarchical_analysis.py --input data/assembly_audit_v3/entity_log_combined.parquet --out-dir data/hierarchical_analysis",
+      "artifacts": [
+        "data/hierarchical_analysis/hierarchical_report.txt"
+      ]
+    }
+  ]
+}

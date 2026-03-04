@@ -349,7 +349,7 @@ Pick 2–3 levers you most want to highlight:
 | Rule samples | 100 | 1,000 |
 | Seeds per rule | 3 | 5 |
 | Steps per sim | 200 | 500 |
-| Null shuffles | 20 | 20 |
+| Null shuffles | 20 | 100 |
 | Total simulations | 300 (100 × 3) | 5,000 (1,000 × 5) |
 | Entity observations | 170,192 | 7,079,166 |
 
@@ -365,7 +365,7 @@ Pick 2–3 levers you most want to highlight:
 
 #### Entity gallery (1000 rules × 5 seeds × 500 steps)
 
-- **282 unique entity types** (up from 72 at 100 rules — 3.9× increase)
+- **281 unique entity types** (up from 72 at 100 rules — 3.9× increase)
 - Top-10 entity ranking is **stable across scales** (same hash values, same order)
 - Top entities: all size 2 (a_i=1) with very high copy counts (up to 108,352)
 - Rank 7–10: size 3 entities with a_i=2
@@ -384,7 +384,7 @@ Pick 2–3 levers you most want to highlight:
 | Metric | 100 rules | 1,000 rules | Change |
 |--------|-----------|-------------|--------|
 | Total observations | 170,192 | 7,079,166 | 41× |
-| Unique entity types | 72 | 282 | 3.9× |
+| Unique entity types | 72 | 281 | 3.9× |
 | Max entity size | 6 | 6 | unchanged |
 | Max a_i | 6 | 6 | unchanged |
 | Mean a_i | 0.0576 | 0.0595 | +3.3% |
@@ -398,7 +398,7 @@ The large-scale experiments provide a **robust negative result**: 10× more rule
 
 This is itself a **meaningful contribution** to the ALIFE literature:
 
-1. **Objective-free rule sampling produces entities, but not complex ones.** The system reliably generates entities (282 types at scale), but the entity ecology is dominated by size-1 and size-2 objects. The tail of the size distribution falls off steeply.
+1. **Objective-free rule sampling produces entities, but not complex ones.** The system reliably generates entities (281 types at scale), but the entity ecology is dominated by size-1 and size-2 objects. The tail of the size distribution falls off steeply.
 
 2. **Assembly index is size-driven in this regime.** The shuffle-bond null model shows zero excess assembly at every entity size, meaning the observed a_i values are entirely explained by the number of edges in the entity graph, not by any structural specificity.
 

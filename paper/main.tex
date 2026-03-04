@@ -424,20 +424,22 @@ The bond-shuffle null model reveals that observed assembly indices are
 either the classical $\mu + 2\sigma$ threshold or the empirical $p < 0.05$
 test. The mean excess is exactly 0.000 at every size class (1--6 blocks).
 With $n_{\text{shuffle}} = 100$ (each applying $\max(4, |E|)$ double-edge
-swaps), the null model is well-mixed: a KS test confirms that the
-empirical $p$-value distribution is consistent with uniformity among
-non-trivial entities ($a_i > 0$).
+swaps), the null model is well-mixed, but a KS test on empirical
+$p$-values for non-trivial entities ($a_i > 0$) rejects strict
+uniformity. The observed deviation is concentrated at conservative
+high-$p$ mass (many ties near $p{=}1$), consistent with the discrete null
+in the small-entity regime, and does not produce any excess positives.
 
 \textbf{Hierarchical robustness.} Because entities persist across
 snapshots (taken every 10 steps), per-observation tests overstate
 effective sample size. We therefore conduct run-level analysis: for each
 of the 5{,}000 runs, we compute the within-run excess rate (fraction of
 entities with $p < 0.05$). A block bootstrap (resampling runs, not
-observations) yields a 95\% CI of $[0.0\%, 0.0\%]$ on the overall
-excess rate. A one-sided Clopper-Pearson bound confirms that if
+observations) \citep{efron1993bootstrap} yields a 95\% CI of $[0.0\%, 0.0\%]$ on the overall
+excess rate. A one-sided Clopper-Pearson bound \citep{clopper1934use} confirms that if
 run-level excess exists, it is ${<}\,0.1\%$ with 95\% confidence.
 With 281 unique types, we would detect a true excess rate
-${\geq}\,0.6\%$ at 80\% power, confirming adequate sensitivity.
+${\geq}\,0.55\%$ at 80\% power, confirming adequate sensitivity.
 
 \begin{figure}[t]
     \centering

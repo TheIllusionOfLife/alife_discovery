@@ -9,6 +9,7 @@ from alife_discovery.analysis.bootstrap import (
     bootstrap_excess_ci,
     clopper_pearson_upper,
     detection_power,
+    detection_power_simulated,
     ks_pvalue_uniformity,
 )
 
@@ -84,6 +85,17 @@ class TestDetectionPower:
     def test_returns_positive(self) -> None:
         min_excess = detection_power(n_observations=1000, n_types=50, alpha=0.05)
         assert min_excess > 0.0
+
+    def test_simulated_power_matches_target_approximately(self) -> None:
+        min_excess = detection_power(n_observations=100_000, n_types=281, alpha=0.05)
+        simulated = detection_power_simulated(
+            n_types=281,
+            true_excess_rate=min_excess,
+            alpha=0.05,
+            n_trials=20_000,
+            rng_seed=42,
+        )
+        assert 0.72 <= simulated <= 0.88
 
 
 class TestKsPvalueUniformity:

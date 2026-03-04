@@ -57,6 +57,7 @@ uv run python scripts/prepare_zenodo_metadata.py \
 ```bash
 uv run python scripts/upload_zenodo.py \
   --metadata zenodo_staging/zenodo_metadata.json \
+  --base-dir . \
   --title "Objective-Free Entity Assembly in Block Worlds: Experiment Data" \
   --description "Large-scale experiment data (1000 rules x 5 seeds x 500 steps) for the ALIFE 2026 paper." \
   --version v1.0 \
@@ -72,6 +73,7 @@ Repeat the Step 2 command with the `--publish` flag added:
 ```bash
 uv run python scripts/upload_zenodo.py \
   --metadata zenodo_staging/zenodo_metadata.json \
+  --base-dir . \
   --title "Objective-Free Entity Assembly in Block Worlds: Experiment Data" \
   --description "Large-scale experiment data (1000 rules x 5 seeds x 500 steps) for the ALIFE 2026 paper." \
   --version v1.0 \

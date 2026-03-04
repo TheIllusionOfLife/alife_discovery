@@ -596,3 +596,25 @@ class TestBlockWorldSearchNullSchema:
         table = pq.read_table(parquet_path)
         assert "assembly_index_null_mean" not in table.column_names
         assert "assembly_index_null_std" not in table.column_names
+
+
+class TestNullCache:
+    def test_null_stats_cache_reused_across_runs(self, tmp_path: Path) -> None:
+        from alife_discovery.config.types import BlockWorldConfig
+        from alife_discovery.metrics.assembly import _NULL_STATS_CACHE
+        from alife_discovery.simulation.engine import run_block_world_search
+
+        _NULL_STATS_CACHE.clear()
+        config = BlockWorldConfig(
+            grid_width=10,
+            grid_height=10,
+            n_blocks=10,
+            steps=20,
+            n_null_shuffles=5,
+        )
+        run_block_world_search(n_rules=1, out_dir=tmp_path / "a", config=config)
+        cache_size_after_first = len(_NULL_STATS_CACHE)
+        assert cache_size_after_first > 0
+
+        run_block_world_search(n_rules=1, out_dir=tmp_path / "b", config=config)
+        assert len(_NULL_STATS_CACHE) == cache_size_after_first

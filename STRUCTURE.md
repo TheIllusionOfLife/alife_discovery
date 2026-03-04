@@ -11,8 +11,8 @@
 - `run_search.py`: root-level shim → `alife_discovery.experiments.search.main`
 - `visualize.py`: root-level shim → `alife_discovery.viz.cli.main`
 - `docs/legacy/`: archived historical proposal/review docs
-- `docs/stage_b_results.md`: Stage B experimental results
-- `docs/stage_c_results.md`: Stage C experimental results
+- `docs/repro_paper_anonymous.md`: anonymous-safe reproduction workflow for paper claims
+- `docs/paper_result_manifest.json`: machine-readable claim-to-artifact map
 - `legacy/`: archived material from the prior `objectless_alife` research direction
 - `alife_discovery/`: application source package (layered subpackages)
 - `tests/`: test modules
