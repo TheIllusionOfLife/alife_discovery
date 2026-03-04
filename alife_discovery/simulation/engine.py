@@ -419,6 +419,7 @@ def run_block_world_search(
     ts_writer: pq.ParquetWriter | None = None
     timeseries_path = logs_dir / "step_timeseries.parquet"
     ts_buffer: list[dict[str, Any]] = []
+    last_ts_key: tuple[str, int] | None = None
     summaries: list[dict] = []
 
     try:
@@ -457,14 +458,29 @@ def run_block_world_search(
                     if cfg.write_timeseries:
                         sizes = [r["entity_size"] for r in records]
                         ais = [r["assembly_index"] for r in records]
+                        ts_row = {
+                            "run_id": run_id,
+                            "step": step,
+                            "mean_entity_size": sum(sizes) / len(sizes) if sizes else 0.0,
+                            "mean_assembly_index": sum(ais) / len(ais) if ais else 0.0,
+                            "n_entities": len(entities),
+                            "n_bonds": len(world.bonds),
+                        }
+                        ts_key = (run_id, step)
+                        if last_ts_key is not None and ts_key < last_ts_key:
+                            raise ValueError(
+                                "step_timeseries ordering contract violated: rows must be sorted "
+                                "by (run_id, step)"
+                            )
+                        last_ts_key = ts_key
                         ts_buffer.append(
                             {
-                                "run_id": run_id,
-                                "step": step,
-                                "mean_entity_size": sum(sizes) / len(sizes) if sizes else 0.0,
-                                "mean_assembly_index": sum(ais) / len(ais) if ais else 0.0,
-                                "n_entities": len(entities),
-                                "n_bonds": len(world.bonds),
+                                "run_id": ts_row["run_id"],
+                                "step": ts_row["step"],
+                                "mean_entity_size": ts_row["mean_entity_size"],
+                                "mean_assembly_index": ts_row["mean_assembly_index"],
+                                "n_entities": ts_row["n_entities"],
+                                "n_bonds": ts_row["n_bonds"],
                             }
                         )
                         if len(ts_buffer) >= FLUSH_THRESHOLD:

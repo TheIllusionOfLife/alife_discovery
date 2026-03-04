@@ -73,9 +73,13 @@ def detection_power(
 ) -> float:
     """Minimum detectable excess rate at given power.
 
-    Uses a normal approximation for one-sided detection of non-zero excess.
-    Effective sample size is ``n_types`` (unique types), while
-    ``n_observations`` is retained for interface compatibility.
+    We use the same historical closed-form approximation used by this project:
+    ``p_min ≈ (z_{1-α} + z_{power})^2 / (4n)``, where ``n = n_types``.
+    This is a small-rate heuristic (not an exact binomial power calculation),
+    retained for backward compatibility with prior reports.
+
+    ``n_observations`` is accepted for interface compatibility; effective
+    independent units are unique types (``n_types``).
     """
     del n_observations
     if n_types < 1:
@@ -98,10 +102,17 @@ def detection_power_simulated(
     n_trials: int = 50_000,
     rng_seed: int = 0,
 ) -> float:
-    """Monte Carlo estimate of power for non-zero excess detection.
+    """Monte Carlo power estimate for the same heuristic threshold.
 
-    Decision rule mirrors the approximation used in ``detection_power``:
-    reject when observed excess count exceeds z-threshold under null p=0.
+    We simulate ``K ~ Binomial(n_types, true_excess_rate)`` and estimate
+    ``P(K >= k_crit)`` with:
+
+    ``k_crit = ceil(z_{1-α}^2 / 4)``.
+
+    This critical count follows from the project's historical threshold
+    ``p_hat >= z_{1-α}^2 / (4 n_types)``, hence the apparent cancellation of
+    ``n_types`` in ``k_crit``. This function is therefore a consistency check
+    for the legacy approximation, not a replacement for exact binomial power.
     """
     if n_types < 1:
         raise ValueError("n_types must be >= 1")
