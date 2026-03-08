@@ -96,10 +96,10 @@ def compute_transition_rates(
     return b_k, d_k
 
 
-def _fit_s(b_k: dict[int, float]) -> float | None:
-    """Fit bond survival parameter s from birth-rate decay.
+def _fit_s(b_k: dict[int, float]) -> tuple[float, float] | None:
+    """Fit bond survival parameter s and c·p̄ from birth-rate decay.
 
-    Returns s estimate or None if insufficient data.
+    Returns (s, c_pbar) or None if insufficient data.
     """
     ks = sorted(k for k in b_k if b_k[k] > 0 and k > 1)
     if len(ks) < 2:
@@ -107,7 +107,7 @@ def _fit_s(b_k: dict[int, float]) -> float | None:
     log_bk = np.array([np.log(b_k[k]) for k in ks])
     k_arr = np.array(ks, dtype=float)
     coeffs = np.polyfit(k_arr - 1, log_bk, 1)
-    return float(np.exp(coeffs[0]))
+    return float(np.exp(coeffs[0])), float(np.exp(coeffs[1]))
 
 
 def bootstrap_s(
@@ -129,11 +129,12 @@ def bootstrap_s(
     s_estimates: list[float] = []
     for _ in range(n_boot):
         sampled_ids = rng.choice(run_ids_list, size=n_runs, replace=True)
-        resampled = {rid: sizes_by_run_step[rid] for rid in sampled_ids}
+        # Use integer index as key to preserve duplicates from with-replacement sampling
+        resampled = {f"boot_{i}": sizes_by_run_step[rid] for i, rid in enumerate(sampled_ids)}
         b_k_boot, _ = compute_transition_rates(resampled)
-        s_val = _fit_s(b_k_boot)
-        if s_val is not None:
-            s_estimates.append(s_val)
+        fit = _fit_s(b_k_boot)
+        if fit is not None:
+            s_estimates.append(fit[0])
 
     if not s_estimates:
         return (float("nan"), float("nan"))
@@ -183,14 +184,9 @@ def main() -> None:
     # b_k ≈ c(ρ) · p̄ · s^(k-1), d_k ≈ 1 - s^k
     # where s = bond survival probability, p̄ = mean bond formation prob
     # Fit s from observed b_k decay
-    s_est = _fit_s(b_k)
-    ks = sorted(k for k in b_k if b_k[k] > 0 and k > 1)
-    if s_est is not None and len(ks) >= 2:
-        log_bk = np.array([np.log(b_k[k]) for k in ks])
-        k_arr = np.array(ks, dtype=float)
-        # Linear fit: log(b_k) ≈ log(c·p̄) + (k-1)·log(s)
-        coeffs = np.polyfit(k_arr - 1, log_bk, 1)
-        c_pbar_est = np.exp(coeffs[1])
+    fit = _fit_s(b_k)
+    if fit is not None:
+        s_est, c_pbar_est = fit
         lines.append(f"Fitted bond survival parameter s ≈ {s_est:.4f}")
         lines.append(f"Fitted c·p̄ ≈ {c_pbar_est:.4f}")
         if np.log(s_est) != 0:
