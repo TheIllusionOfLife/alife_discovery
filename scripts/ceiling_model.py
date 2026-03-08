@@ -96,6 +96,53 @@ def compute_transition_rates(
     return b_k, d_k
 
 
+def _fit_s(b_k: dict[int, float]) -> tuple[float, float] | None:
+    """Fit bond survival parameter s and c·p̄ from birth-rate decay.
+
+    Returns (s, c_pbar) or None if insufficient data.
+    """
+    ks = sorted(k for k in b_k if b_k[k] > 0 and k > 1)
+    if len(ks) < 2:
+        return None
+    log_bk = np.array([np.log(b_k[k]) for k in ks])
+    k_arr = np.array(ks, dtype=float)
+    coeffs = np.polyfit(k_arr - 1, log_bk, 1)
+    return float(np.exp(coeffs[0])), float(np.exp(coeffs[1]))
+
+
+def bootstrap_s(
+    sizes_by_run_step: dict[str, dict[int, list[int]]],
+    n_boot: int = 1000,
+    rng_seed: int = 42,
+) -> tuple[float, float]:
+    """Bootstrap 95% CI for bond survival parameter s.
+
+    Resamples run_ids with replacement, refits s on each bootstrap replicate.
+
+    Returns:
+        (ci_lower_2p5, ci_upper_97p5) — 95% bootstrap CI for s.
+    """
+    rng = np.random.default_rng(rng_seed)
+    run_ids_list = list(sizes_by_run_step.keys())
+    n_runs = len(run_ids_list)
+
+    s_estimates: list[float] = []
+    for _ in range(n_boot):
+        sampled_ids = rng.choice(run_ids_list, size=n_runs, replace=True)
+        # Use integer index as key to preserve duplicates from with-replacement sampling
+        resampled = {f"boot_{i}": sizes_by_run_step[rid] for i, rid in enumerate(sampled_ids)}
+        b_k_boot, _ = compute_transition_rates(resampled)
+        fit = _fit_s(b_k_boot)
+        if fit is not None:
+            s_estimates.append(fit[0])
+
+    if not s_estimates:
+        return (float("nan"), float("nan"))
+
+    arr = np.array(s_estimates)
+    return (float(np.percentile(arr, 2.5)), float(np.percentile(arr, 97.5)))
+
+
 def main() -> None:
     args = parse_args()
     args.out_dir.mkdir(parents=True, exist_ok=True)
@@ -137,20 +184,21 @@ def main() -> None:
     # b_k ≈ c(ρ) · p̄ · s^(k-1), d_k ≈ 1 - s^k
     # where s = bond survival probability, p̄ = mean bond formation prob
     # Fit s from observed b_k decay
-    ks = sorted(k for k in b_k if b_k[k] > 0 and k > 1)
-    if len(ks) >= 2:
-        log_bk = np.array([np.log(b_k[k]) for k in ks])
-        k_arr = np.array(ks, dtype=float)
-        # Linear fit: log(b_k) ≈ log(c·p̄) + (k-1)·log(s)
-        coeffs = np.polyfit(k_arr - 1, log_bk, 1)
-        s_est = np.exp(coeffs[0])
-        c_pbar_est = np.exp(coeffs[1])
+    fit = _fit_s(b_k)
+    if fit is not None:
+        s_est, c_pbar_est = fit
         lines.append(f"Fitted bond survival parameter s ≈ {s_est:.4f}")
         lines.append(f"Fitted c·p̄ ≈ {c_pbar_est:.4f}")
-        if coeffs[0] != 0 and np.log(s_est) != 0:
+        if np.log(s_est) != 0:
             lines.append(f"Predicted k_max from s: ~{int(-np.log(2) / np.log(s_est)) + 1}")
         else:
             lines.append("Predicted k_max: undefined (flat birth-rate fit)")
+
+        # Bootstrap 95% CI for s
+        print("Computing bootstrap CI for s (n_boot=1000)...", flush=True)
+        ci_lo, ci_hi = bootstrap_s(sizes_by_run_step, n_boot=1000, rng_seed=42)
+        lines.append(f"Bootstrap 95% CI for s: [{ci_lo:.4f}, {ci_hi:.4f}]")
+        print(f"95% CI for s: [{ci_lo:.4f}, {ci_hi:.4f}]")
     else:
         lines.append("Insufficient data for compact approximation fit")
 

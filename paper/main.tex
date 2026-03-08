@@ -320,7 +320,13 @@ the $\mu + 2\sigma$ threshold degenerates. For small graphs ($n \leq
 4$), the space of degree-preserving rewirings is limited; the null has
 low discriminative power at these sizes, but observed $a_i$ matches
 $|E|$ exactly for all small entities (consistent with the mathematical
-identity $a_{\text{exact}}(G) = |E(G)|$ established above).
+identity $a_{\text{exact}}(G) = |E(G)|$ established above). We
+additionally verify using exact enumeration over all connected graphs
+with the given degree sequence (via the graph atlas
+\citep{read1998atlas}): for all 9 unique degree sequences with $n \leq
+4$, exactly one connected topology exists per sequence (100\%
+degenerate), confirming the null assigns $p = 1$ at these sizes and
+that 0\% excess cannot be an artifact of null degeneracy.
 
 \subsection{Catalytic K Positive Control}
 
@@ -530,7 +536,51 @@ $n = 170{,}016$ observations with mean $a_i = 0.059$ and 0\% excess
 $a_i = 0.058$, 0\% excess) within noise. This confirms that the
 boundary condition extends to richer rule representations: uniform
 random partner-specific rules do not produce structurally specific
-assembly.
+assembly (\Cref{fig:expressiveness}).
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\columnwidth]{figures/fig_partner_specific.pdf}
+    \caption{
+        Rule expressiveness comparison. Standard rules (60-entry dominant-type
+        context, blue) vs.\ partner-specific rules (45-entry per-partner context,
+        red). Left: assembly index distribution (non-trivial entities, log scale).
+        Right: excess rate by size class ($p < 0.05$). Both conditions show 0\%
+        excess across all size classes.
+    }
+    \label{fig:expressiveness}
+\end{figure}
+
+\subsection{Motif-Gated Catalyst Control}
+\label{sec:results:motif_catalyst}
+
+To test whether the 0\% excess result is an artifact of the catalyst's
+uniform neighborhood sensitivity, we ran a structurally constrained
+variant: K amplifies bond probability only when it simultaneously
+neighbors both an M-type and a C-type block (motif-gated condition).
+This restricts catalysis to specific local configurations
+($n = 170{,}098$ observations, 100 rules, 3 seeds, 200 steps,
+$n_{\text{shuffle}} = 100$). The motif-gated condition produces
+$\text{max}_{a_i} = 7$ and $\text{max\_size} = 7$ (slightly larger
+entities than standard catalyst, max\_size = 6), confirming the
+structural constraint is ecologically active. Nevertheless, the assembly
+audit yields 0\% excess ($p < 0.05$), matching both the baseline and
+the uniform-catalyst conditions (\Cref{fig:config_catalyst}).
+Structural specificity does not emerge even when catalysis is gated on
+a specific two-type motif.
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\columnwidth]{figures/config_catalyst_comparison.pdf}
+    \caption{
+        Motif-gated catalyst comparison. Assembly index distribution (left),
+        entity size distribution (centre), and excess rate (right) for baseline,
+        uniform-$\kappa$, and motif-gated-$\kappa$ conditions. All three
+        conditions show 0\% excess; the motif-gated variant produces slightly
+        larger entities (max\_size = 7) but identical null outcomes.
+    }
+    \label{fig:config_catalyst}
+\end{figure}
 
 \subsection{Sensitivity Analysis}
 
@@ -585,7 +635,8 @@ of shrinking from $k$ to $k{-}1$. The maximum sustainable size is
 $k_{\max} = \max\{k : b_k / d_k \geq 1\}$.
 
 Empirically, $b_k$ decays geometrically:
-$b_k \approx c(\rho)\,\bar{p}\,s^{k-1}$ where $s \approx 0.4$ is the
+$b_k \approx c(\rho)\,\bar{p}\,s^{k-1}$ where $s \approx 0.14$
+(bootstrap 95\% CI: $[0.08, 0.21]$) is the empirically fitted
 per-interval bond survival probability and $\bar{p} \approx 0.5$ is the
 simple (unweighted) mean bond formation probability across rule entries
 (each entry $\sim \text{Uniform}(0,1)$, so $\mathrm{E}[\bar{p}] = 0.5$
@@ -595,10 +646,18 @@ estimate ($\bar{p}_{\text{weighted}} \approx 0.5$), since monomer-dominated
 contexts account for 94.6\% of observations and are uniformly spread
 across rule entries. Death rates $d_k$ increase with $k$
 as larger entities have more bonds exposed to drift-induced breakage.
-The crossover $b_k = d_k$ occurs at $k \approx 6$, consistent with the
-observed maximum. This geometric decay in growth probability explains
-why assembly index tracks entity size: no structural motif can persist
-long enough to accumulate complexity beyond the size ceiling.
+This geometric decay in growth probability is qualitatively consistent
+with the observed size ceiling; we note that the fitted $s$ predicts
+$k_{\max} \approx 1$ under the model, while the empirical $k_{\max} = 6$,
+reflecting that the aggregate birth-rate model is a simplified
+approximation (it treats all size-$k$ entities as equivalent and
+ignores individual bond-state variability). The model captures the
+direction of the constraint---exponentially diminishing growth
+probability---but not the exact crossover, which depends on structural
+and bond-state heterogeneity not represented in aggregate rates. This
+geometric decay explains why assembly index tracks entity size: no
+structural motif can persist long enough to accumulate complexity
+beyond the size ceiling.
 
 We additionally computed graph automorphism group sizes and typed
 three-node motif counts (triangles and open wedges) for all 281 unique
@@ -701,6 +760,12 @@ rule expressiveness where each bond decision can depend on the specific
 partner type, structural specificity does not emerge from uniform random
 rule sampling.
 
+We further extended the boundary to structural catalytic constraints:
+a motif-gated catalyst (K amplifies bonds only when co-located with
+both M and C neighbors) also yields 0\% excess, despite producing
+slightly larger entities (max\_size = 7), confirming that even
+configuration-specific local constraints do not suffice.
+
 Remaining untested extensions include: (i)~spatially-oriented rules
 that produce direction-dependent structures; and (ii)~rule evolution or
 adaptation that discovers structure-promoting parameter regions. These
@@ -744,14 +809,14 @@ measures is deferred to future work.
 
 We have presented a systematic application of Assembly Theory to an
 objective-free artificial life system. Across 5{,}000 simulations, 7.1M
-entity observations, parameter sweeps over 11 conditions, a catalytic
-positive control, and a partner-specific rule expressiveness test, we
-find that uniform random bonding rules produce a stable entity ecology
-but no structurally non-trivial assembly within this rule class.
-Observed assembly indices are entirely explained by entity size, with
-zero significant excess over a bond-shuffle null model under both
-edge-removal and reuse-aware AT formulations, and under both standard
-and partner-specific rule tables.
+entity observations, parameter sweeps over 11 conditions, a catalytic positive control,
+a partner-specific rule expressiveness test, and a motif-gated catalyst
+control, we find that uniform random bonding rules produce a stable
+entity ecology but no structurally non-trivial assembly within this
+rule class. Observed assembly indices are entirely explained by entity
+size, with zero significant excess over a bond-shuffle null model under
+both edge-removal and reuse-aware AT formulations, and under standard,
+partner-specific, and motif-gated catalyst rule tables.
 
 We note explicitly that under the edge-removal formulation,
 $a_{\text{exact}}(G) = |E(G)|$ is a mathematical identity for connected
