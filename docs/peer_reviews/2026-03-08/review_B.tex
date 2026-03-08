@@ -1,0 +1,106 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+
+\title{Review of ``Objective-Free Entity Assembly in Block Worlds''}
+\author{Anonymous Reviewer}
+\date{March 6, 2026}
+
+\begin{document}
+\maketitle
+
+\section*{Executive Summary}
+This manuscript tackles an important objective-free ALife question with a strong experimental design: large simulation volume, dual Assembly Theory (AT) formulations, null-model auditing, parameter sweeps, and a catalytic control. A final whole-paper consistency check suggests the overall argument is coherent, but two paper-wide tensions still reduce interpretability: the no-reuse assembly metric appears to be edge-count-driven by construction, and several claims are phrased more strongly than the statistical resolution supports in a small-entity regime. The reuse-aware analysis and robustness checks remain the most informative components, and they can support a clear boundary-condition result if claims, equations, and inference units are aligned consistently across sections. With focused revisions on formal definitions, inferential framing, and tone calibration, the paper can serve as a credible negative-result baseline for follow-on objective-free work.
+
+\section*{Prioritized Findings}
+\textbf{The findings below are ranked by confidence (highest to lower confidence).}
+
+\begin{enumerate}
+\item \textbf{Very high confidence: The no-reuse equation likely makes one central result definitional.}  
+Under edge-addition from isolated vertices, each edge is added once, so the recurrence appears equivalent to $a_{\text{exact}}(G)=|E(G)|$ for connected entities. If true, ``size-driven'' behavior for this metric is expected a priori rather than empirically discovered.
+
+\item \textbf{High confidence: Null-model resolution is limited where most data live.}  
+The entity distribution is dominated by very small graphs, where degree-preserving swap nulls have low state-space diversity and coarse p-value granularity. This constrains how strongly ``0\% excess'' can be interpreted.
+
+\item \textbf{High confidence: Statistical emphasis should track the effective unit of inference.}  
+Run-level and type-level checks are present but secondary in narrative emphasis. Promoting those units over per-snapshot counts would improve coherence between methods, results, and conclusions.
+
+\item \textbf{Medium-high confidence: Reuse-aware formalism needs stricter specification.}  
+The current recurrence mixes edge-set partitions with object-level language; connectivity of intermediates, typed-graph constraints, and canonicalization assumptions should be stated explicitly for auditability.
+
+\item \textbf{Medium confidence: One cross-section identity appears inconsistent.}  
+A statement tied to $|E|-1$ conflicts with calibration examples and surrounding definitions. Harmonizing this across text, equations, and tables is necessary for internal consistency.
+
+\item \textbf{Medium confidence: Mechanism-level quantitative claims are plausible but under-supported.}  
+The birth--death crossover explanation for the size ceiling is reasonable, yet estimation details, uncertainty bands, and fit diagnostics are not sufficiently reported.
+
+\item \textbf{Medium confidence: Positive control interpretation should be sharpened.}  
+The catalytic control demonstrates ecological sensitivity (more/larger entities), but it is not a structure-selective control. A motif-targeted control would better validate structural-detection sensitivity.
+
+\item \textbf{Medium confidence: Tone and scope still need paper-wide calibration.}  
+Conclusions should consistently be framed as conditional on the tested rule expressiveness, parameter ranges, and time horizon rather than generalized to objective-free systems broadly.
+\end{enumerate}
+
+\section*{Section Recommendations}
+
+\subsection*{Narrative Coherence}
+\begin{itemize}
+\item Keep one through-line from introduction to conclusion: ``scoped boundary condition under low-expressiveness random rules.''
+\item Distinguish clearly between mathematical consequences of definitions and empirical findings from simulation.
+\item Use the same inferential unit in claim sentences and figure/table interpretations.
+\end{itemize}
+
+\subsection*{Abstract \& Introduction}
+\begin{itemize}
+\item Replace universal wording with conditional language anchored to the tested regime.
+\item Add one concise sentence stating what is newly contributed beyond prior AT or objective-free baselines.
+\item Flag early that the reuse-aware formulation carries most of the nontrivial structural signal.
+\end{itemize}
+
+\subsection*{Methods: Dynamics \& Rule Table}
+\begin{itemize}
+\item Define neighborhood semantics once (radius, metric, and drift/bond consistency) and reference it uniformly.
+\item Specify tie-breaking, random-seed policy, and any deterministic ordering used in canonicalization.
+\item Include a compact reproducibility table of constants, sampling cadence, and logging rules.
+\end{itemize}
+
+\subsection*{Methods: Assembly Formalism}
+\begin{itemize}
+\item State explicitly whether $a_{\text{exact}}$ reduces to $|E|$ for connected typed graphs, and cite or prove the claim.
+\item Rewrite reuse-aware recursion using graph objects with connected intermediates, not only edge-set notation.
+\item Add one worked micro-example that traces both formulations step-by-step.
+\end{itemize}
+
+\subsection*{Methods: Null Model \& Inference}
+\begin{itemize}
+\item For small $n$, supplement swap nulls with exact enumeration or explicitly bounded limitations.
+\item Report p-value discreteness, tie frequency, and effective null support by size class.
+\item State multiplicity handling and explain how many decisions are made at each inference layer.
+\end{itemize}
+
+\subsection*{Results \& Figures}
+\begin{itemize}
+\item Lead each major result with run-level or type-level estimates, then present raw observation totals.
+\item Quantify ``size-driven'' with a compact effect-size summary for $a_{\text{reuse}}$.
+\item Ensure every ``0\%'' or ``exact'' statement specifies denominator, test, and inference unit.
+\item Separate ecological shifts from structural-specificity outcomes in captions and narrative text.
+\end{itemize}
+
+\subsection*{Discussion \& Conclusion}
+\begin{itemize}
+\item Frame the contribution as a baseline map of where complexity was not detected, not a universal impossibility claim.
+\item Separate ``not observed here'' from ``cannot emerge,'' and keep that distinction consistent in all closing claims.
+\item Prioritize falsifiable next experiments (partner-specific rules, motif-gated catalysis, adaptive rules).
+\end{itemize}
+
+\subsection*{Global Consistency}
+\begin{itemize}
+\item Align notation, claim strength, and inference unit in every section where assembly results are interpreted.
+\item Remove any sentence that implies stronger generality than the method and null resolution can support.
+\item Cross-check equations, prose, and tables so identical symbols carry identical meaning throughout.
+\end{itemize}
+
+\end{document}
