@@ -36,12 +36,21 @@ objective-free block world governed by randomly sampled bonding rules,
 using Assembly Theory (AT) as a bias-free measurement framework. Across
 5{,}000 simulations yielding 7.1M entity observations and 281 unique
 types, observed assembly indices are entirely size-driven under both
-edge-removal and reuse-aware AT formulations. A bond-shuffle null model
-with empirical $p$-values confirms zero significant excess at every size
-class. Parameter sweeps over density, grid size, and drift strength, and
-a catalytic positive control, corroborate the result. We characterize
-this as a boundary condition: under low-expressiveness random bonding
-rules, assembly complexity is entirely size-determined.
+edge-removal and reuse-aware AT formulations. Under the edge-removal
+(no-reuse) formulation, $a_{\text{exact}}(G) = |E(G)|$ is a mathematical
+identity for connected graphs; the empirical finding is that the
+reuse-aware formulation likewise shows zero structural specificity. A
+bond-shuffle null model with empirical $p$-values (KS test: $D = 1.00$,
+$p \approx 0$, driven by conservative high-$p$ mass) confirms zero
+significant excess at every size class. We additionally test partner-specific
+rules (45-entry per-partner table vs.\ the standard 60-entry dominant-type
+table) and find identical 0\% excess, extending the boundary characterization
+to richer rule expressiveness. Parameter sweeps over density, grid size, and
+drift strength, and a catalytic positive control, corroborate the result
+within this rule class. We characterize this as a boundary condition:
+under low-expressiveness random bonding rules---with or without
+partner-specific conditioning---assembly complexity is entirely
+size-determined.
 \end{abstract}
 
 Submission type: \textbf{Full Paper}\\
@@ -136,7 +145,7 @@ Algorithm~\ref{alg:step} describes one simulation step.
       \STATE Move $b$ to $c$; prune bonds exceeding observation range
     \ENDIF
   \ENDIF
-  \STATE $\mathbf{n} \gets$ neighbors within observation range
+  \STATE $\mathbf{n} \gets$ von~Neumann 1-neighbors (Manhattan dist.\ $\leq 1$, up to 4 cells)
   \STATE $k \gets \min(|\mathbf{n}|, 4)$; $d \gets$ dominant type of $\mathbf{n}$
   \STATE $p \gets \mathcal{R}[\text{type}(b),\, k,\, d]$
   \IF{catalyst multiplier $\kappa > 1$ \AND any $n_i \in \mathbf{n}$ has type K}
@@ -167,7 +176,9 @@ endpoints independently attempted breaking.
 \subsection{Rule Table}
 
 Each simulation samples a rule table that maps a block's local context to
-a bonding probability. The context is a triple
+a bonding probability. Observation range is the von~Neumann
+1-neighborhood (Manhattan distance $\leq 1$, up to 4 adjacent cells).
+The context is a triple
 $(\text{self\_type}, \text{neighbor\_count}, \text{dominant\_type})$,
 where neighbor\_count is the number of occupied cells within observation
 range (capped at 4 for rule table tractability) and dominant\_type is the
@@ -205,10 +216,11 @@ Entity types are canonicalized using the Weisfeiler--Leman (WL) graph
 hash \citep{weisfeiler1968reduction} with block type as a node
 attribute, implemented via NetworkX \citep{hagberg2008networkx}. The
 SHA-256 digest serves as a unique type identifier. No hash collisions
-were observed in exhaustive checks against canonical isomorphism for all
-281 observed entity types (up to 6 nodes).
+were observed in exhaustive checks against canonical isomorphism (using
+the VF2 algorithm via NetworkX) for all 281 observed entity types (up to 6 nodes).
 
 \subsection{Assembly Index: Two Formulations}
+\label{sec:methods:assembly}
 
 We compute the assembly index under two formulations to address concerns
 about AT alignment \citep{uthamacumaran2024assembly}.
@@ -229,12 +241,26 @@ AT's physical constraint that sub-objects must be contiguous fragments.
 Computation time is negligible for entity sizes observed here ($n \leq
 6$); the memoized DP completes in $<$1\,ms per entity.
 
+\textbf{Remark (mathematical identity).}
+For any connected graph $G$, $a_{\text{exact}}(G) = |E(G)|$.
+This follows by induction on $|E|$: the base case $|E|=1$ gives
+$a=1=|E|$; for the inductive step, removing any edge either disconnects
+$G$ into components whose indices sum to $|E|-1$ (by hypothesis), or
+leaves $G$ connected with $|E|-1$ edges (index $|E|-1$ by hypothesis),
+so adding 1 gives $|E|$ in both cases.
+\emph{This is not an empirical finding; it is a mathematical consequence
+of the no-reuse formulation.} Table~\ref{tab:calibration} confirms this
+identity on reference graphs. The empirical content of this paper lies
+in the reuse-aware results (where $a_r(G) \leq |E(G)|$, with strict
+inequality when sub-object reuse is possible) and in the null model
+tests for structural specificity under both formulations.
+
 \textbf{Reuse-aware (AT-standard).} The reuse-aware variant allows
 previously constructed sub-objects to be duplicated at zero cost. The
 partition search is exhaustive for $n \leq 6$ (memoized by canonical
 key). For each joining edge $e \in E$, we partition the remaining edges
 $S_1 \cup S_2 = E \setminus \{e\}$ (a partition of remaining edges
-into two disjoint sets) into two sub-objects; when $S_1 \cong S_2$
+into two disjoint non-empty sets) into two sub-objects; when $S_1 \cong S_2$
 (isomorphic by canonical key), the duplicate is free:
 \begin{equation}
     a_r(G) = \min_{e,\, S_1,\, S_2}
@@ -289,7 +315,8 @@ case where $\sigma_{\text{null}} = 0$ (e.g., single-edge graphs), where
 the $\mu + 2\sigma$ threshold degenerates. For small graphs ($n \leq
 4$), the space of degree-preserving rewirings is limited; the null has
 low discriminative power at these sizes, but observed $a_i$ matches
-$|E|{-}1$ exactly for all small entities.
+$|E|$ exactly for all small entities (consistent with the mathematical
+identity $a_{\text{exact}}(G) = |E(G)|$ established above).
 
 \subsection{Catalytic K Positive Control}
 
@@ -423,12 +450,15 @@ The bond-shuffle null model reveals that observed assembly indices are
 7.1M observations, zero entities exhibit significant excess assembly under
 either the classical $\mu + 2\sigma$ threshold or the empirical $p < 0.05$
 test. The mean excess is exactly 0.000 at every size class (1--6 blocks).
-With $n_{\text{shuffle}} = 100$ (each applying $\max(4, |E|)$ double-edge
-swaps), the null model is well-mixed, but a KS test on empirical
-$p$-values for non-trivial entities ($a_i > 0$) rejects strict
-uniformity. The observed deviation is concentrated at conservative
-high-$p$ mass (many ties near $p{=}1$), consistent with the discrete null
-in the small-entity regime, and does not produce any excess positives.
+With $n_{\text{shuffle}} = 100$ (each applying $\text{nswap} = \max(4,
+|E|)$ double-edge swaps with $\text{max\_tries} = 10 \cdot
+\text{nswap}$; on failure, the original graph is retained), the null
+model is well-mixed for the small entities ($n \leq 6$) observed here.
+A KS test on empirical $p$-values for non-trivial entities ($a_i > 0$,
+$n = 384{,}040$) rejects strict uniformity ($D = 1.00$, $p \approx 0$).
+The observed deviation is concentrated at conservative high-$p$ mass
+(many ties near $p{=}1$), consistent with the discrete null in the
+small-entity regime, and does not produce any excess positives.
 
 \textbf{Hierarchical robustness.} Because entities persist across
 snapshots (taken every 10 steps), per-observation tests overstate
@@ -480,6 +510,22 @@ ${\geq}\,0.55\%$ at 80\% power, confirming adequate sensitivity.
     }
     \label{tab:scaleup}
 \end{table}
+
+\subsection{Rule Expressiveness Test}
+
+To test whether the 0\% excess result is an artifact of the standard
+rule table's limited expressiveness (60-entry dominant-type context), we
+ran partner-specific rules that condition bond probability on the
+specific partner type (45-entry per-partner table,
+$3 \times 3 \times 5 = 45$ entries). Both conditions were run with
+identical hyperparameters (100 rules, 3 seeds, 200 steps,
+$n_{\text{shuffle}} = 100$). The partner-specific condition yields
+$n = 170{,}016$ observations with mean $a_i = 0.059$ and 0\% excess
+($p < 0.05$), matching the standard condition ($n = 170{,}192$, mean
+$a_i = 0.058$, 0\% excess) within noise. This confirms that the
+boundary condition extends to richer rule representations: uniform
+random partner-specific rules do not produce structurally specific
+assembly.
 
 \subsection{Sensitivity Analysis}
 
@@ -535,9 +581,13 @@ $k_{\max} = \max\{k : b_k / d_k \geq 1\}$.
 Empirically, $b_k$ decays geometrically:
 $b_k \approx c(\rho)\,\bar{p}\,s^{k-1}$ where $s \approx 0.4$ is the
 per-interval bond survival probability and $\bar{p} \approx 0.5$ is the
-simple (unweighted) mean bond formation probability across rule entries.
-Context-weighted averaging (weighting by observation frequency per
-context) yields a similar estimate. Death rates $d_k$ increase with $k$
+simple (unweighted) mean bond formation probability across rule entries
+(each entry $\sim \text{Uniform}(0,1)$, so $\mathrm{E}[\bar{p}] = 0.5$
+exactly). Context-weighted averaging (weighting each rule entry by its
+empirical context-visitation frequency) yields a nearly identical
+estimate ($\bar{p}_{\text{weighted}} \approx 0.5$), since monomer-dominated
+contexts account for 94.6\% of observations and are uniformly spread
+across rule entries. Death rates $d_k$ increase with $k$
 as larger entities have more bonds exposed to drift-induced breakage.
 The crossover $b_k = d_k$ occurs at $k \approx 6$, consistent with the
 observed maximum. This geometric decay in growth probability explains
@@ -571,26 +621,37 @@ explained by entity size alone.
 
 \subsection{Why Assembly is Size-Driven}
 
-The central finding---that assembly index is entirely predicted by entity
-size under uniform random bonding rules---has a clear mechanistic
-explanation. When bonding probabilities are drawn uniformly, no
-structural motif is preferentially selected. The topology of each entity
-graph is effectively random given its size, and the assembly index of a
-random graph is determined by its edge count (which scales with size).
-The null model, which preserves edge count while randomizing topology,
-therefore matches observed assembly exactly.
+The central empirical finding---that assembly index is entirely predicted
+by entity size under uniform random bonding rules---has a clear mechanistic
+explanation. We distinguish two contributions: (1)~a mathematical consequence
+and (2)~a genuine empirical result. Under the edge-removal formulation,
+$a_{\text{exact}}(G) = |E(G)|$ is a mathematical identity (see Remark in
+\S\ref{sec:methods:assembly}), so size-driving of $a_{\text{exact}}$ is
+not surprising. The \emph{empirical} finding is that the reuse-aware
+formulation likewise shows zero structural specificity---$a_r(G)$ could
+in principle be substantially lower than $|E(G)|$ for entities with
+repeated substructures, yet our null model finds no such departure.
+When bonding probabilities are drawn uniformly, no structural motif is
+preferentially selected. The topology of each entity graph is effectively
+random given its size, and the null model, which preserves edge count
+while randomizing topology, therefore matches observed assembly exactly
+under both formulations.
 
 \subsection{AT Formulation Sensitivity}
 
 The reuse-aware assembly index assigns strictly lower values to entities
-with repeated substructures ($a_r \leq a_{\text{exact}}$ always).
-For our observed entities, both formulations yield the same qualitative
-conclusion: zero excess assembly. The $P_4$ and $K_3$ cases where reuse
-matters ($a_{\text{exact}} = 3$ vs.\ $a_r = 2$) occur too rarely and at
-too small a size to affect the statistical result. This dual-formulation
-analysis addresses concerns about AT's sensitivity to implementation
-choices \citep{uthamacumaran2024assembly} and confirms that our negative
-result is formulation-independent.
+with repeated substructures ($a_r \leq a_{\text{exact}}$ always), and
+diverges from $|E|$ when sub-object reuse is possible (e.g., $a_r(K_3)
+= 2$ vs.\ $a_{\text{exact}}(K_3) = 3$). This makes the reuse-aware
+formulation the primary empirical test: its null model asks whether
+observed entities exhibit \emph{more reusable substructure} than size
+alone predicts. The answer is no: zero excess under $a_r$ at every size
+class. The $P_4$ and $K_3$ cases where reuse matters occur but do not
+produce significant excess. This dual-formulation analysis addresses
+concerns about AT's sensitivity to implementation choices
+\citep{uthamacumaran2024assembly} and confirms that our negative
+result is formulation-independent, extending beyond the mathematical
+identity to the substantive reuse-aware measure.
 
 \subsection{Boundary Conditions for Emergent Complexity}
 
@@ -621,12 +682,23 @@ excludes spatial arrangement information and partner-specific identity.
 This design choice keeps the rule space tractable (60 entries) but
 limits expressiveness: the negative result may partly reflect this
 low-expressiveness regime rather than a universal property of random
-bonding. Testable hypotheses include: (i)~partner-specific rules
-(conditioning on partner type) could enable motif-selective bonding;
-(ii)~spatially-oriented rules could produce direction-dependent
-structures; and (iii)~rule evolution could discover structure-promoting
-parameter regions. These extensions would help disentangle rule
-expressiveness from randomness as factors in the negative result.
+bonding.
+
+To directly test whether richer rule expressiveness produces assembly
+excess, we ran partner-specific rules (conditioning on partner type,
+45-entry per-partner table) against the standard rules under identical
+conditions (100 rules, 3 seeds, 200 steps, 100 null shuffles). Both
+conditions yield 0\% excess: standard ($n = 170{,}192$ observations)
+and partner-specific ($n = 170{,}016$ observations) show identical null
+outcomes. This extends the boundary characterization: even under richer
+rule expressiveness where each bond decision can depend on the specific
+partner type, structural specificity does not emerge from uniform random
+rule sampling.
+
+Remaining untested extensions include: (i)~spatially-oriented rules
+that produce direction-dependent structures; and (ii)~rule evolution or
+adaptation that discovers structure-promoting parameter regions. These
+would further disentangle rule expressiveness from randomness.
 
 \subsection{Relation to Prior Work}
 
@@ -665,23 +737,32 @@ measures is deferred to future work.
 
 We have presented a systematic application of Assembly Theory to an
 objective-free artificial life system. Across 5{,}000 simulations, 7.1M
-entity observations, parameter sweeps over 11 conditions, and a
-catalytic positive control, we find that uniform random bonding rules
-produce a stable entity ecology but no structurally non-trivial
-assembly: observed assembly indices are entirely explained by entity
-size, with zero significant excess over a bond-shuffle null model under
-both edge-removal and reuse-aware AT formulations.
+entity observations, parameter sweeps over 11 conditions, a catalytic
+positive control, and a partner-specific rule expressiveness test, we
+find that uniform random bonding rules produce a stable entity ecology
+but no structurally non-trivial assembly within this rule class.
+Observed assembly indices are entirely explained by entity size, with
+zero significant excess over a bond-shuffle null model under both
+edge-removal and reuse-aware AT formulations, and under both standard
+and partner-specific rule tables.
+
+We note explicitly that under the edge-removal formulation,
+$a_{\text{exact}}(G) = |E(G)|$ is a mathematical identity for connected
+graphs; the empirical finding is that the reuse-aware formulation---where
+$a_r(G) < |E(G)|$ when sub-object reuse applies---\emph{also} shows zero
+structural specificity. This dual-formulation negative result, confirmed
+across 7.1M observations, establishes a concrete boundary condition.
 
 This robust negative result---whose reporting is itself valuable given
 the underrepresentation of negative results in the literature
-\citep{fanelli2012negativeresults}---establishes that, under
-low-expressiveness random bonding rules, emergent structural complexity
-does not arise from local interactions alone. Structural bias in the rules---whether
-through motif-selective bonding, partner-specific conditions, or
-adaptation---appears necessary even without explicit fitness functions.
-By characterizing this boundary condition for a specific rule class, we
-provide a concrete experimental baseline against which richer
-rule representations and objective-free interventions can be measured.
+\citep{fanelli2012negativeresults}---establishes that, within this rule
+class, emergent structural complexity does not arise from local
+interactions alone. Structural bias in the rules---whether through
+adaptation, spatially-oriented conditioning, or structured sampling---appears
+necessary even without explicit fitness functions.
+By characterizing this boundary condition precisely, we provide a
+concrete experimental baseline against which richer rule representations
+and objective-free interventions can be measured.
 
 
 \section*{Acknowledgements}
