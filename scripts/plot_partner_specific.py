@@ -18,16 +18,18 @@ import argparse
 from pathlib import Path
 
 import matplotlib
-import matplotlib.pyplot as plt
-import numpy as np
-import pyarrow.parquet as pq
 
 matplotlib.use("Agg")
+
+import matplotlib.pyplot as plt  # noqa: E402
+import numpy as np
+import pyarrow.parquet as pq
 
 _REQUIRED_COLUMNS = [
     "assembly_index",
     "assembly_index_null_mean",
     "assembly_index_null_std",
+    "assembly_index_null_pvalue",
     "entity_size",
 ]
 
@@ -60,25 +62,28 @@ def load_data(path: Path) -> dict[str, np.ndarray]:
     null_std = (
         table.column("assembly_index_null_std").to_numpy(zero_copy_only=False).astype(np.float64)
     )
+    pvalue = (
+        table.column("assembly_index_null_pvalue").to_numpy(zero_copy_only=False).astype(np.float64)
+    )
     size = table.column("entity_size").to_numpy(zero_copy_only=False).astype(np.int64)
     return {
         "ai": ai,
         "null_mean": null_mean,
         "null_std": null_std,
+        "pvalue": pvalue,
         "size": size,
         "n": len(ai),
     }
 
 
 def compute_excess_by_size(data: dict[str, np.ndarray]) -> dict[int, float]:
-    """Fraction of entities with a_i > null_mean + 2*null_std, per size class."""
+    """Fraction of entities with empirical p < 0.05, per size class."""
     result = {}
     for s in range(1, 8):
         mask = data["size"] == s
         if mask.sum() == 0:
             continue
-        threshold = data["null_mean"][mask] + 2 * data["null_std"][mask]
-        excess = (data["ai"][mask] > threshold).mean() * 100
+        excess = (data["pvalue"][mask] < 0.05).mean() * 100
         result[s] = excess
     return result
 
@@ -155,7 +160,7 @@ def main() -> None:
             continue
         datasets[key] = load_data(path)
         d = datasets[key]
-        total_excess = sum((d["ai"] > d["null_mean"] + 2 * d["null_std"])).sum() / d["n"] * 100
+        total_excess = (d["pvalue"] < 0.05).sum() / d["n"] * 100
         print(
             f"{key}: n={d['n']:,}, mean_ai={d['ai'].mean():.4f}, "
             f"max_ai={d['ai'].max():.0f}, overall_excess={total_excess:.1f}%"

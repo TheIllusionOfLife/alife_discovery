@@ -145,8 +145,9 @@ Algorithm~\ref{alg:step} describes one simulation step.
       \STATE Move $b$ to $c$; prune bonds exceeding observation range
     \ENDIF
   \ENDIF
-  \STATE $\mathbf{n} \gets$ von~Neumann 1-neighbors (Manhattan dist.\ $\leq 1$, up to 4 cells)
-  \STATE $k \gets \min(|\mathbf{n}|, 4)$; $d \gets$ dominant type of $\mathbf{n}$
+  \STATE Identify von~Neumann 1-neighborhood (Manhattan dist.\ $\leq 1$, up to 4 cells)
+  \STATE $\mathbf{n} \gets$ occupied blocks in that neighborhood
+  \STATE $k \gets \min(|\mathbf{n}|, 4)$; $d \gets$ dominant type of $\mathbf{n}$ (``Empty'' if $\mathbf{n} = \emptyset$)
   \STATE $p \gets \mathcal{R}[\text{type}(b),\, k,\, d]$
   \IF{catalyst multiplier $\kappa > 1$ \AND any $n_i \in \mathbf{n}$ has type K}
     \STATE $p \gets \min(p \cdot \kappa, 1)$ \hfill \textit{// catalytic amplification}
@@ -243,11 +244,12 @@ Computation time is negligible for entity sizes observed here ($n \leq
 
 \textbf{Remark (mathematical identity).}
 For any connected graph $G$, $a_{\text{exact}}(G) = |E(G)|$.
-This follows by induction on $|E|$: the base case $|E|=1$ gives
-$a=1=|E|$; for the inductive step, removing any edge either disconnects
-$G$ into components whose indices sum to $|E|-1$ (by hypothesis), or
-leaves $G$ connected with $|E|-1$ edges (index $|E|-1$ by hypothesis),
-so adding 1 gives $|E|$ in both cases.
+This follows by induction on $|E|$: the base cases are $|E|=0$
+(single vertex: $a=0$) and $|E|=1$ (single edge: $a=1=|E|$); for the
+inductive step, removing any edge either disconnects $G$ into components
+whose indices sum to $|E|-1$ (by hypothesis), or leaves $G$ connected
+with $|E|-1$ edges (index $|E|-1$ by hypothesis), so adding 1 gives
+$|E|$ in both cases.
 \emph{This is not an empirical finding; it is a mathematical consequence
 of the no-reuse formulation.} Table~\ref{tab:calibration} confirms this
 identity on reference graphs. The empirical content of this paper lies
@@ -269,6 +271,8 @@ into two disjoint non-empty sets) into two sub-objects; when $S_1 \cong S_2$
         a_r(S_1) + a_r(S_2) & \text{else}
     \end{cases}\right]
 \end{equation}
+with base cases $a_r(\emptyset) = 0$ (empty graph) and $a_r(P_2) = 1$
+(single edge).
 
 \Cref{tab:calibration} shows both formulations on reference graphs.
 
@@ -512,6 +516,7 @@ ${\geq}\,0.55\%$ at 80\% power, confirming adequate sensitivity.
 \end{table}
 
 \subsection{Rule Expressiveness Test}
+\label{sec:results:expressiveness}
 
 To test whether the 0\% excess result is an artifact of the standard
 rule table's limited expressiveness (60-entry dominant-type context), we
@@ -720,9 +725,10 @@ against which objective-free interventions can be measured.
 \subsection{Limitations}
 
 Several limitations should be noted. First, although our parameter sweep
-covers density, grid size, and drift strength, the rule table structure
-(3-tuple context) is fixed; testing richer rule representations is
-deferred. Second, the 500-step horizon, while sufficient for
+covers density, grid size, and drift strength, and we additionally test
+partner-specific rules (\S\ref{sec:results:expressiveness}), other rule
+representations---orientation-dependent rules, rule evolution, and
+structured sampling---remain untested. Second, the 500-step horizon, while sufficient for
 stationarity (\Cref{fig:stationarity}), may miss very slow transients in
 larger systems. Third, entity observations at each step are not fully
 independent (the same entity may persist across steps); our significance
