@@ -35,7 +35,14 @@ def degree_sequence(g: nx.Graph) -> tuple[int, ...]:
 
 
 def _label_graph(g: nx.Graph) -> nx.Graph:
-    """Add uniform block_type='M' attribute required by assembly_index_exact."""
+    """Add uniform block_type='M' for untyped topology analysis only.
+
+    assembly_index_exact() requires a block_type node attribute for WL hashing.
+    This function assigns all nodes the same type so that the result reflects
+    pure graph topology, not block-type composition. Do NOT use this for typed
+    entity graphs from alife_discovery/domain/entity.py, which carry
+    heterogeneous M/C/K node attributes.
+    """
     h = g.copy()
     nx.set_node_attributes(h, "M", "block_type")
     return h
@@ -47,7 +54,8 @@ def _group_by_degree_sequence(
     """Single pass over graph atlas: group connected graphs by (n, degree_sequence).
 
     graph_atlas_g() already returns non-isomorphic graphs, so no deduplication
-    is needed. We simply filter for n <= max_n and connectivity.
+    is needed. We filter for 2 <= n <= max_n (excluding n=1 single-node graphs,
+    which have no bonds and are not produced by the simulation) and connectivity.
     """
     groups: dict[tuple[int, tuple[int, ...]], list[nx.Graph]] = {}
     for g in graph_atlas_g():
