@@ -33,7 +33,7 @@ from alife_discovery.domain.entity import (
 )
 from alife_discovery.metrics.assembly import assembly_index_exact
 
-# Block-type colour map: M=blue, C=green, K=red
+# Block-type colour map: M=blue, C=amber, K=purple
 _BLOCK_TYPE_COLORS: dict[str, str] = {
     "M": "#3b82f6",
     "C": "#f59e0b",
