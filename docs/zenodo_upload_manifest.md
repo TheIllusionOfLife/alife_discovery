@@ -14,11 +14,10 @@ Draft deposit: DOI 10.5281/zenodo.18793985
 | `data/catalytic_v2/catalytic/entity_log_combined.parquet` | 398KB | `e5337d32bd1ed...` | Catalytic control (3× multiplier) |
 | `data/catalytic_v2/catalytic_summary.txt` | 1KB | `7b264621194408...` | Catalytic comparison summary |
 | `data/param_sweep_v2/param_sweep_summary.parquet` | 4KB | `b6e4e46ecbc37...` | Parameter sweep summary (11 conditions: 5 density×grid + 6 density×drift) |
-| `data/graph_metrics/graph_metrics.csv` | ~20KB | TBD | Graph automorphism counts and typed motif census for all entity types |
-| `data/graph_metrics/graph_metrics_summary.txt` | ~1KB | TBD | Human-readable graph metrics summary |
+| `data/graph_metrics/graph_metrics.csv` | 39KB | `7282a81c9789fcd0...` | Graph automorphism counts and typed motif census for 284 entity types |
+| `data/graph_metrics/graph_metrics_summary.txt` | 1KB | `754ab2da83f6dd4c...` | Human-readable graph metrics summary |
 
 Full checksums are listed in `checksums_sha256.txt` for programmatic verification.
-Checksums for new graph_metrics files will be computed after the full-scale run completes.
 
 ## Upload instructions
 
