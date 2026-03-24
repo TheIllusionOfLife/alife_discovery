@@ -90,9 +90,11 @@ def main() -> None:
         sub_autos = [r["automorphism_count"] for r in subset]
         sub_tri = [r["n_triangles"] for r in subset]
         sub_wedge = [r["n_open_wedges"] for r in subset]
+        auto_avg = sum(sub_autos) / len(sub_autos)
         print(
             f"  Size {sz}: {len(subset)} types, "
-            f"auto=[{min(sub_autos)}, {max(sub_autos)}] mean={sum(sub_autos) / len(sub_autos):.1f}, "
+            f"auto=[{min(sub_autos)}, {max(sub_autos)}] "
+            f"mean={auto_avg:.1f}, "
             f"tri=[{min(sub_tri)}, {max(sub_tri)}], "
             f"wedges=[{min(sub_wedge)}, {max(sub_wedge)}]"
         )
