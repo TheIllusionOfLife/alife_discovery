@@ -225,6 +225,7 @@ def plot_size_dist(
 
     fig, ax = plt.subplots(figsize=(6, 4))
     ax.bar(sizes, counts, color="teal", alpha=0.85, zorder=2)
+    ax.set_yscale("log")
     ax.set_xlabel("Entity Size (nodes)")
     ax.set_ylabel("Observation Count")
     ax.set_xticks(sizes)
