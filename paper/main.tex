@@ -65,7 +65,7 @@ Data/Code: REDACTED FOR BLIND REVIEW
 The complexity of emergent structures in artificial life (ALife) research
 is heavily shaped, and potentially limited, by the objectives imposed on
 the system
-\citep{bedau2003openproblems, taylor2016openended}. Fitness functions
+\citep{bedau2000openproblems, taylor2016openended}. Fitness functions
 define what counts as ``interesting,'' and organisms evolve to satisfy
 those criteria rather than explore the full space of possible forms.
 Novelty search and minimal-criterion approaches have partially addressed
@@ -302,7 +302,7 @@ with base cases $a_r(\emptyset) = 0$ (empty graph) and $a_r(P_2) = 1$
 
 To test whether observed assembly reflects structural specificity beyond
 entity size, we implement a bond-shuffle null model
-\citep{gotelli2013nullmodels}. For each entity graph $G$, we generate
+\citep{gotelli1996nullmodels}. For each entity graph $G$, we generate
 $n_{\text{shuffle}} = 100$ randomized graphs via double-edge swaps
 \citep{hagberg2008networkx} preserving the degree sequence exactly. We
 compute both the classical threshold test ($a_i > \mu_{\text{null}} +
@@ -312,7 +312,7 @@ compute both the classical threshold test ($a_i > \mu_{\text{null}} +
     \mathbf{1}[a(G_j^{\text{null}}) \geq a_i]}{n_{\text{shuffle}} + 1}
 \end{equation}
 The $(k{+}1)/(n{+}1)$ form avoids zero $p$-values and provides a
-conservative estimate \citep{gotelli2013nullmodels}. The empirical
+conservative estimate \citep{gotelli1996nullmodels}. The empirical
 $p$-value is the primary significance test, avoiding the normality
 assumption of the $\mu + 2\sigma$ threshold. It also handles the edge
 case where $\sigma_{\text{null}} = 0$ (e.g., single-edge graphs), where

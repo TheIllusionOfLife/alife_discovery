@@ -13,15 +13,13 @@ from __future__ import annotations
 
 import argparse
 import csv
-import sys
 from pathlib import Path
-
-from scripts.render_entity_gallery import capture_entities
 
 from alife_discovery.metrics.complexity import (
     graph_automorphism_count,
     typed_motif_census,
 )
+from scripts.render_entity_gallery import capture_entities
 
 
 def main() -> None:
@@ -56,21 +54,26 @@ def main() -> None:
         auto_count = graph_automorphism_count(g)
         motifs = typed_motif_census(g)
 
-        rows.append({
-            "entity_hash": h,
-            "entity_size": rec.entity_size,
-            "assembly_index": rec.assembly_index,
-            "copy_count": rec.total_copy_count,
-            "automorphism_count": auto_count,
-            "n_triangles": motifs["triangles"],
-            "n_open_wedges": motifs["open_wedges"],
-            "typed_triangles": str(motifs["typed_triangles"]),
-            "typed_wedges": str(motifs["typed_wedges"]),
-        })
+        rows.append(
+            {
+                "entity_hash": h,
+                "entity_size": rec.entity_size,
+                "assembly_index": rec.assembly_index,
+                "copy_count": rec.total_copy_count,
+                "automorphism_count": auto_count,
+                "n_triangles": motifs["triangles"],
+                "n_open_wedges": motifs["open_wedges"],
+                "typed_triangles": str(motifs["typed_triangles"]),
+                "typed_wedges": str(motifs["typed_wedges"]),
+            }
+        )
 
     # Save to CSV
     args.out_dir.mkdir(parents=True, exist_ok=True)
     csv_path = args.out_dir / "graph_metrics.csv"
+    if not rows:
+        print("No entities captured, skipping CSV write")
+        return
     with open(csv_path, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
         writer.writeheader()
@@ -81,8 +84,6 @@ def main() -> None:
     print(f"\n--- Graph Metrics Summary ({len(rows)} entity types) ---")
     sizes = [r["entity_size"] for r in rows]
     autos = [r["automorphism_count"] for r in rows]
-    triangles = [r["n_triangles"] for r in rows]
-    wedges = [r["n_open_wedges"] for r in rows]
 
     for sz in sorted(set(sizes)):
         subset = [r for r in rows if r["entity_size"] == sz]
@@ -91,7 +92,7 @@ def main() -> None:
         sub_wedge = [r["n_open_wedges"] for r in subset]
         print(
             f"  Size {sz}: {len(subset)} types, "
-            f"auto=[{min(sub_autos)}, {max(sub_autos)}] mean={sum(sub_autos)/len(sub_autos):.1f}, "
+            f"auto=[{min(sub_autos)}, {max(sub_autos)}] mean={sum(sub_autos) / len(sub_autos):.1f}, "
             f"tri=[{min(sub_tri)}, {max(sub_tri)}], "
             f"wedges=[{min(sub_wedge)}, {max(sub_wedge)}]"
         )
@@ -116,9 +117,11 @@ def main() -> None:
             sub_autos = [r["automorphism_count"] for r in subset]
             sub_tri = [r["n_triangles"] for r in subset]
             sub_wedge = [r["n_open_wedges"] for r in subset]
+            auto_mean = sum(sub_autos) / len(sub_autos)
             f.write(
                 f"Size {sz}: {len(subset)} types, "
-                f"auto=[{min(sub_autos)}, {max(sub_autos)}] mean={sum(sub_autos)/len(sub_autos):.1f}, "
+                f"auto=[{min(sub_autos)}, {max(sub_autos)}] "
+                f"mean={auto_mean:.1f}, "
                 f"tri=[{min(sub_tri)}, {max(sub_tri)}], "
                 f"wedges=[{min(sub_wedge)}, {max(sub_wedge)}]\n"
             )
