@@ -49,19 +49,19 @@ def _heatmap(
         col = np.searchsorted(x_unique, xi)
         grid[row, col] = zi
     if grid.size == 0:
-        ax.set_title(title, fontsize=9)
+        ax.set_title(title, fontsize=13)
         ax.text(0.5, 0.5, "No data", ha="center", va="center", transform=ax.transAxes)
         return
     im = ax.imshow(grid, origin="lower", aspect="auto", cmap="YlOrRd", vmin=0, vmax=100)
     ax.set_xticks(range(len(x_unique)))
     ax.set_xticklabels(
-        [f"{v:.2f}" if isinstance(v, float) else str(v) for v in x_unique], fontsize=7
+        [f"{v:.2f}" if isinstance(v, float) else str(v) for v in x_unique], fontsize=11
     )
     ax.set_yticks(range(len(y_unique)))
-    ax.set_yticklabels([f"{v:.3f}" for v in y_unique], fontsize=7)
-    ax.set_xlabel(xlabel, fontsize=8)
-    ax.set_ylabel(ylabel, fontsize=8)
-    ax.set_title(title, fontsize=9)
+    ax.set_yticklabels([f"{v:.3f}" for v in y_unique], fontsize=11)
+    ax.set_xlabel(xlabel, fontsize=12)
+    ax.set_ylabel(ylabel, fontsize=12)
+    ax.set_title(title, fontsize=13)
     for r in range(len(y_unique)):
         for c in range(len(x_unique)):
             val = grid[r, c]
@@ -69,7 +69,7 @@ def _heatmap(
                 rgba = im.cmap(im.norm(val))
                 lum = 0.299 * rgba[0] + 0.587 * rgba[1] + 0.114 * rgba[2]
                 color = "white" if lum < 0.5 else "black"
-                ax.text(c, r, f"{val:{fmt}}", ha="center", va="center", fontsize=7, color=color)
+                ax.text(c, r, f"{val:{fmt}}", ha="center", va="center", fontsize=11, color=color)
 
 
 def main() -> None:
@@ -84,7 +84,7 @@ def main() -> None:
     sweep = pq.read_table(args.sweep_file)
     df = {col: sweep.column(col).to_numpy(zero_copy_only=False) for col in sweep.column_names}
 
-    fig, axes = plt.subplots(1, 3, figsize=(14, 4))
+    fig, axes = plt.subplots(1, 3, figsize=(14, 5))
 
     # Panel 1: Density × Grid (drift=1.0)
     mask_drift1 = np.isclose(df["drift_probability"], 1.0)
@@ -130,10 +130,10 @@ def main() -> None:
             continue
         bins = np.arange(0, int(ai.max()) + 2) - 0.5
         ax.hist(ai, bins=bins, alpha=0.6, label=label, color=color, density=True)
-    ax.set_xlabel("Assembly Index", fontsize=8)
-    ax.set_ylabel("Density", fontsize=8)
-    ax.set_title("Catalytic K Control", fontsize=9)
-    ax.legend(fontsize=7)
+    ax.set_xlabel("Assembly Index", fontsize=12)
+    ax.set_ylabel("Density", fontsize=12)
+    ax.set_title("Catalytic K Control", fontsize=13)
+    ax.legend(fontsize=11)
 
     plt.tight_layout()
     out_path = args.out_dir / "fig6_sensitivity.pdf"

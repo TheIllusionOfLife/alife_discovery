@@ -448,7 +448,7 @@ high copy numbers.
     \includegraphics[width=\columnwidth]{figures/fig4_entity_gallery.pdf}
     \caption{
         Gallery of top-ranked entity types by $a_i \times n_i$ score.
-        Node colors: M (blue), C (green), K (red).
+        Node colors: M (blue), C (amber), K (purple).
     }
     \label{fig:gallery}
 \end{figure}
@@ -613,7 +613,8 @@ entity ecology while confirming identical assembly profiles.
         Sensitivity analysis. Left: parameter sweep heatmaps (density
         $\times$ grid at drift=1.0, density $\times$ drift at 20$\times$20).
         Right: catalytic K comparison (baseline vs.\ $\kappa = 3.0$).
-        All conditions show 0\% excess assembly.
+        All conditions show 0\% excess assembly. The blank cell at
+        30\% density on 20$\times$20 was excluded due to computational cost.
     }
     \label{fig:sensitivity}
 \end{figure}
@@ -659,10 +660,12 @@ structural motif can persist long enough to accumulate complexity
 beyond the size ceiling.
 
 We additionally computed graph automorphism group sizes and typed
-three-node motif counts (triangles and open wedges) for 92 unique
-entity types (200 rules $\times$ 3 seeds $\times$ 200 steps).
-Automorphism counts range from 1 to 6 and show no significant
-correlation with entity size (Spearman $\rho = -0.107$, $p = 0.31$).
+three-node motif counts (triangles and open wedges) for 284 unique
+entity types (1{,}000 rules $\times$ 5 seeds $\times$ 500 steps).
+Automorphism counts range from 1 to 8 and show a weak negative
+correlation with entity size (Spearman $\rho = -0.228$, $p < 0.001$):
+larger entities tend to have slightly fewer symmetries, consistent with
+random assembly producing increasingly irregular graphs.
 Zero triangles were observed across all entity types; the only
 three-node motifs are open wedges, whose count increases trivially
 with size. This tree-dominated topology is consistent with random

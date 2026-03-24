@@ -114,7 +114,7 @@ def plot_comparison(
     ax.set_xlabel("Assembly index $a_i$ (non-trivial entities)")
     ax.set_ylabel("Density")
     ax.set_title("A. Assembly index distribution")
-    ax.legend(fontsize=7)
+    ax.legend(fontsize=9)
     ax.set_yscale("log")
 
     # --- Panel B: excess rate by entity size ---
@@ -140,7 +140,7 @@ def plot_comparison(
     ax.set_xticklabels([str(s) for s in sizes])
     ax.set_ylim(0, max(1.0, ax.get_ylim()[1]))
     ax.axhline(0, color="black", linewidth=0.8, linestyle="--")
-    ax.legend(fontsize=7)
+    ax.legend(fontsize=9)
 
     fig.tight_layout()
     out_path = out_dir / "fig_partner_specific.pdf"

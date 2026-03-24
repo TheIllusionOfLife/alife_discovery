@@ -50,7 +50,7 @@ def main() -> None:
         "Config-specific κ": _load_data(args.config_catalyst_file),
     }
 
-    fig, axes = plt.subplots(1, 3, figsize=(14, 4))
+    fig, axes = plt.subplots(1, 3, figsize=(14, 5))
 
     # Panel 1: Assembly index distribution
     ax = axes[0]
@@ -63,7 +63,7 @@ def main() -> None:
     ax.set_xlabel("Assembly index")
     ax.set_ylabel("Density")
     ax.set_title("Assembly index distribution")
-    ax.legend(fontsize=8)
+    ax.legend(fontsize=11)
 
     # Panel 2: Entity size distribution
     ax = axes[1]
@@ -76,7 +76,7 @@ def main() -> None:
     ax.set_xlabel("Entity size")
     ax.set_ylabel("Density")
     ax.set_title("Entity size distribution")
-    ax.legend(fontsize=8)
+    ax.legend(fontsize=11)
 
     # Panel 3: Excess rate (% with p < 0.05)
     ax = axes[2]
@@ -101,7 +101,7 @@ def main() -> None:
             f"{rate:.1f}%",
             ha="center",
             va="bottom",
-            fontsize=9,
+            fontsize=12,
         )
 
     plt.tight_layout()

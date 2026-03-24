@@ -36,8 +36,8 @@ from alife_discovery.metrics.assembly import assembly_index_exact
 # Block-type colour map: M=blue, C=green, K=red
 _BLOCK_TYPE_COLORS: dict[str, str] = {
     "M": "#3b82f6",
-    "C": "#22c55e",
-    "K": "#ef4444",
+    "C": "#f59e0b",
+    "K": "#8b5cf6",
 }
 
 # Plotting constants
