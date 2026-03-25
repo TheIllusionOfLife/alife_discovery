@@ -19,6 +19,24 @@ Draft deposit: DOI 10.5281/zenodo.18793985
 
 Full checksums are listed in `checksums_sha256.txt` for programmatic verification.
 
+## Reproducing data artifacts
+
+All `data/` artifacts are gitignored and uploaded to Zenodo. To reproduce locally:
+
+```bash
+# Main experiment (entity observations, assembly audit, parameter sweep)
+uv run python scripts/baseline_analysis.py --n-rules 1000 --seeds 5 --steps 500
+uv run python scripts/assembly_audit.py --n-rules 1000 --seeds 5 --steps 500
+
+# Graph automorphism and motif census (backs main.tex lines 661-674)
+uv run python scripts/compute_graph_metrics.py \
+    --n-rules 1000 --seeds 5 --steps 500 --out-dir data/graph_metrics
+# Expected output: data/graph_metrics/graph_metrics.csv (284 entity types)
+#   and data/graph_metrics/graph_metrics_summary.txt
+# Reported values: automorphism range 1-8, Spearman rho=-0.228 (p<0.001),
+#   zero triangles across all entity types
+```
+
 ## Upload instructions
 
 1. Go to https://zenodo.org/deposit/18793985
