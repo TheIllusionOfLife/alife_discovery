@@ -30,7 +30,7 @@ def main() -> None:
     p.add_argument("--grid-width", type=int, default=20)
     p.add_argument("--grid-height", type=int, default=20)
     p.add_argument("--n-blocks", type=int, default=30)
-    p.add_argument("--noise-level", type=float, default=0.0)
+    p.add_argument("--noise-level", type=float, default=0.01)
     p.add_argument("--out-dir", type=Path, default=Path("data/graph_metrics"))
     args = p.parse_args()
 
