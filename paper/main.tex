@@ -697,14 +697,13 @@ fully explained by size. We emphasize that this conclusion is scoped to
 the rule class tested: uniform random bond probabilities conditioned on
 (self type, neighbor count, dominant type). Richer rule representations,
 structured rule sampling, or adaptation could produce different outcomes.
-Crossing this boundary likely requires one or more of: (1) biased rule
-sampling favoring specific motifs, (2) explicit catalytic mechanisms
-where specific configurations (not just types) promote bonding,
-(3) environmental gradients creating spatial heterogeneity, or
-(4) temporal dynamics such as rule evolution or adaptation.
-Remaining untested extensions include spatially-oriented rules and
-rule evolution, which would further disentangle expressiveness from
-randomness.
+The boundary extends beyond the base 3-tuple context: partner-specific
+rules (45-entry) and motif-gated catalysis also yield 0\% excess
+(\S\ref{sec:results:expressiveness}, \S\ref{sec:results:motif_catalyst}),
+confirming that richer local conditioning alone does not suffice.
+Crossing this boundary likely requires biased rule sampling,
+environmental gradients, or temporal dynamics such as rule adaptation.
+Spatially-oriented rules remain an untested intermediate.
 
 \subsection{Relation to Prior Work}
 
@@ -744,15 +743,17 @@ measures is deferred to future work.
 
 Across 5{,}000 simulations and 7.1M entity observations, uniform random
 bonding rules produce a stable entity ecology but no structurally
-non-trivial assembly. Under both edge-removal and reuse-aware AT
-formulations, and across parameter sweeps, partner-specific rules, and
-motif-gated catalysis, assembly indices are fully explained by entity
-size with zero significant excess. Within this rule class, structural
-bias in the rules appears necessary for emergent complexity even
-without explicit fitness functions
-\citep{fanelli2012negativeresults}. This boundary condition provides a
-concrete experimental baseline against which richer rule
-representations and objective-free interventions can be measured.
+non-trivial assembly. The edge-removal identity
+$a_{\text{exact}}(G) = |E(G)|$ makes size-driving unsurprising under
+that formulation; the empirical finding is that the reuse-aware
+formulation, where $a_r(G) < |E(G)|$ when sub-object reuse applies,
+also shows zero excess. This result holds across parameter sweeps,
+partner-specific rules, and motif-gated catalysis. Within this rule
+class, structural bias appears necessary for emergent complexity even
+without fitness functions. Reporting this negative result is itself
+valuable \citep{fanelli2012negativeresults}, and the boundary condition
+provides a concrete baseline against which richer rule representations
+can be measured.
 
 
 \section*{Acknowledgements}
