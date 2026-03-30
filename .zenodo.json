@@ -2,10 +2,11 @@
   "title": "alife_discovery: Objective-Free Entity Assembly in Block Worlds",
   "description": "Source code, experiment data, and analysis scripts for studying objective-free artificial life through Assembly Theory. Includes reuse-aware assembly index, empirical p-value null model, parameter sweep, catalytic positive control, mechanism analysis, and graph automorphism/motif census. Accompanies the ALIFE 2026 paper.",
   "upload_type": "software",
+  "version": "1.0.0",
   "creators": [
     {
-      "name": "Anonymous",
-      "affiliation": "Withheld for double-blind review"
+      "name": "Mukai, Yuya",
+      "affiliation": "Mukai Entertainment"
     }
   ],
   "license": "MIT",
