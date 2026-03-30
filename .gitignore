@@ -65,3 +65,29 @@ zenodo_staging/
 .vscode/
 .idea/
 tmp/
+
+# Internal development / AI tooling
+CLAUDE.md
+AGENTS.md
+PRODUCT.md
+TECH.md
+STRUCTURE.md
+spec.md
+
+# Internal research process docs
+docs/peer_reviews/
+docs/new_research_plan.md
+docs/artifact_publication_policy.md
+docs/zenodo_upload_manifest.md
+docs/paper_source_audit_web.md
+docs/repro_paper_anonymous.md
+docs/paper_result_manifest.json
+docs/checksums_sha256.txt
+docs/legacy/
+docs/alife_submission_guide.md
+
+# Legacy archived research direction
+legacy/
+
+# Internal Zenodo workflow
+zenodo_metadata_v4.json
