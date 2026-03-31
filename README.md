@@ -83,18 +83,19 @@ Experiments produce:
 ## Citation
 
 ```bibtex
-@inproceedings{mukai2026objectivefree,
+@misc{mukai2026objectivefree,
   title={Objective-Free Entity Assembly in Block Worlds: Characterizing Boundary Conditions for Emergent Complexity},
   author={Mukai, Yuya},
-  booktitle={Proceedings of the 2026 Conference on Artificial Life (ALIFE 2026)},
   year={2026},
-  publisher={MIT Press}
+  note={Submitted to the 2026 Conference on Artificial Life (ALIFE 2026)}
 }
 ```
 
 ## License
 
-[MIT](LICENSE)
+Source code is licensed under [MIT](LICENSE). The paper PDF is published under
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) per MIT Press
+conference proceedings terms.
 
 ## Development Workflow
 
