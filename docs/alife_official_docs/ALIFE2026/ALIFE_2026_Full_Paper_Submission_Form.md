@@ -8,12 +8,12 @@
 * **Content:** Must report on new, unpublished work.
 * **Reviewing:** Submissions are NOT anonymous. Include author names, affiliations, and funding information. ALIFE 2026 has a single-blind review process.
 * **Proceedings:** Accepted papers will be published by MIT Press as open-access conference proceedings.
-* **Acknowledgments:** Please include funding sources in  the acknowledgements. Not disclosing funding conflict of interests is a serious breach of good research practices.
+* **Acknowledgments:** Please include funding sources in the acknowledgments. Not disclosing funding conflicts of interest is a serious breach of good research practices.
  
 ---
 
 ## 1. Track (Main or Special Session)
-Submit your paper to the Main Track or to one of the Special Sessions. You can select just one option, or rank several options. Select (1) for your most wanted choice (mandatory), 2 your second most wanted (optional), etc.
+Submit your paper to the Main Track or to one of the Special Sessions. You can select just one option, or rank several options. Select (1) for your most wanted choice (mandatory), (2) for your second choice (optional), etc.
 
 * Main Track
 * Life with Limits: Artificial Life and Natural Resources

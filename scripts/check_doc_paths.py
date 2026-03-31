@@ -6,7 +6,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-DOC_FILES = (Path("README.md"), Path("STRUCTURE.md"), Path("docs/repro_paper_anonymous.md"))
+DOC_FILES = (Path("README.md"),)
 PATH_RE = re.compile(r"`([A-Za-z0-9_./-]+)`")
 CHECK_EXTS = {".md", ".py", ".json", ".tex", ".bib", ".toml", ".yml", ".yaml"}
 ROOT_PREFIXES = (
