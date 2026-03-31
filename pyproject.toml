@@ -1,6 +1,6 @@
 [project]
 name = "alife-discovery"
-version = "0.1.0"
+version = "1.0.0"
 description = "Objective-free ALife with Assembly Theory"
 readme = "README.md"
 requires-python = ">=3.11"
