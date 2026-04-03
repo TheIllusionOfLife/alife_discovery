@@ -1,6 +1,6 @@
 # alife_discovery
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18793985.svg)](https://doi.org/10.5281/zenodo.18793985)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19351501.svg)](https://doi.org/10.5281/zenodo.19351501)
 
 Objective-free artificial life (ALife) research integrating Assembly Theory (AT) to study emergent structure without optimization targets.
 
